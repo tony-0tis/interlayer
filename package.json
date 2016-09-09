@@ -1,0 +1,33 @@
+{
+  "name": "interlayer",
+  "version": "0.0.1",
+  "description": "Minimalistic and fast web server",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.0.0",
+    "redis": "^2.6.2"
+  },
+  "devDependencies": {
+    "eslint": "^3.4.0",
+    "eslint-config-google": "^0.6.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "A.I. Developer",
+  "license": "SEE LICENSE IN LICENCE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DonKilluminatti/interlayer.git"
+  },
+  "keywords": [
+    "webserver",
+    "redis",
+    "server",
+    "modules"
+  ],
+  "bugs": {
+    "url": "https://github.com/DonKilluminatti/interlayer/issues"
+  },
+  "homepage": "https://github.com/DonKilluminatti/interlayer#readme"
+}

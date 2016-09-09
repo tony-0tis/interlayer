@@ -1,0 +1,127 @@
+{
+  "fileExtensions": [ ".js", "jscs" ],
+	  "requireCurlyBraces": [
+    "if",
+    "else",
+    "for",
+    "while",
+    "do",
+    "try",
+    "catch"
+  ],
+  "disallowSpaceAfterKeywords": [
+    "if",
+    "for",
+    "while",
+    "do",
+    "switch",
+    "try",
+    "catch"
+  ],
+  "requireParenthesesAroundIIFE": true,
+  "requireSpacesInConditionalExpression": {
+    "afterTest": true,
+    "beforeConsequent": true,
+    "afterConsequent": true,
+    "beforeAlternate": true
+  },
+  "disallowSpacesInFunctionExpression": {
+    "beforeOpeningRoundBrace": true,
+    "beforeOpeningCurlyBrace": true
+  },
+  "disallowSpacesInAnonymousFunctionExpression": {
+    "beforeOpeningRoundBrace": true,
+    "beforeOpeningCurlyBrace": true
+  },
+  "disallowSpacesInNamedFunctionExpression": {
+    "beforeOpeningRoundBrace": true,
+    "beforeOpeningCurlyBrace": true
+  },
+  "disallowSpacesInFunctionDeclaration": {
+    "beforeOpeningRoundBrace": true,
+    "beforeOpeningCurlyBrace": true
+  },
+  "disallowSpacesInFunction": {
+    "beforeOpeningRoundBrace": true,
+    "beforeOpeningCurlyBrace": true
+  },
+  "disallowSpacesInCallExpression": true,
+  "disallowMultipleVarDecl": true,
+  "requireBlocksOnNewline": true,
+  "disallowPaddingNewlinesInBlocks": true,
+  "disallowEmptyBlocks": true,
+  "disallowSpacesInsideObjectBrackets": "all",
+  "disallowSpacesInsideArrayBrackets": "all",
+  "disallowSpacesInsideParentheses": true,
+  "disallowQuotedKeysInObjects": "allButReserved",
+  "disallowSpaceAfterObjectKeys": true,
+  "requireSpaceBeforeObjectValues": true,
+  "requireCommaBeforeLineBreak": true,
+  "requireOperatorBeforeLineBreak": [
+    "?",
+    "=",
+    "+",
+    "-",
+    "/",
+    "*",
+    "==",
+    "===",
+    "!=",
+    "!==",
+    ">",
+    ">=",
+    "<",
+    "<="
+  ],
+  "disallowSpaceAfterPrefixUnaryOperators": ["++", "--", "+", "-", "~", "!"],
+  "disallowSpaceBeforePostfixUnaryOperators": ["++", "--"],
+  "requireSpaceBeforeBinaryOperators": [
+    "=",
+    "+",
+    "-",
+    "/",
+    "*",
+    "==",
+    "===",
+    "!=",
+    "!=="
+  ],
+  "requireSpaceAfterBinaryOperators": [
+    "=",
+    ",",
+    "+",
+    "-",
+    "/",
+    "*",
+    "==",
+    "===",
+    "!=",
+    "!=="
+  ],
+  "disallowImplicitTypeConversion": ["numeric", "boolean", "binary", "string"],
+  // ignoreProperties - not true, because many functions declared with underscores, and there is no solution to exclude them from checking.
+  "requireCamelCaseOrUpperCaseIdentifiers": "ignoreProperties",
+  "disallowMultipleLineStrings": true,
+  "disallowMixedSpacesAndTabs": true,
+  "disallowTrailingWhitespace": true,
+  "disallowTrailingComma": true,
+  "requireKeywordsOnNewLine": ["else"],
+  "requireLineFeedAtFileEnd": true,
+  "maximumLineLength": 140,
+  "requireCapitalizedConstructors": true,
+  "disallowYodaConditions": true,
+
+  "disallowNewlineBeforeBlockStatements": true,
+  "validateLineBreaks": "LF",
+  "validateQuoteMarks": "'",
+  "validateIndentation": "\t",
+  "validateParameterSeparator": ", "
+
+  // Temporarily disabled options
+
+  //  "disallowSpaceBeforeKeywords": true,
+  //  "disallowSpaceBeforeBlockStatements": true,
+  //  "requireAnonymousFunctions": true,
+  //  "disallowPaddingNewLinesInObjects": true,
+  //  "requirePaddingNewlinesBeforeKeywords": true,
+}
