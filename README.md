@@ -74,7 +74,7 @@ exports.__init = (simpleContext) => {
 }
 //where simpleContext is {DAL: {}}
 
-// You can add ,eta, then all of its properties will be extended to all methods of the module
+// You can add meta, then all of its properties will be extended to all methods of the module
 exports.__meta = {
     contentType: 'json' // or toJson: true - JSON.stringify of responce data
 }
@@ -94,8 +94,10 @@ exports.__meta = {
 ### Create dal
 *nameofdal.js* - then you can add `nameofdal` to `config.initDals` array (ex: `config.initDals = ['nameofdal'];`)
 ```js
+// init is not required
 exports.init = (config) => {
 };
+// but methods is required
 exports.methods = {
     get: () => {},
     set: () => {}
