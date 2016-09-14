@@ -245,7 +245,7 @@ exports.parseRequest = (request, response) => {
 		response.end();
 	};
 	request.clearRequest = () => {
-		delete request.redis;
+		delete request.DAL;
 	};
 };
 

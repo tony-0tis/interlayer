@@ -22,7 +22,7 @@ module.exports = class Server{
 	addModulesPath (...args) {
 		this.paths.modules = this.paths.modules.concat(args);
 	}
-	addDalPath (...args) {
+	addDalsPath (...args) {
 		this.paths.dals = this.paths.dals.concat(args);
 	}
 	init (config={}){
