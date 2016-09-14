@@ -3,7 +3,7 @@ let redis = require('redis');
 let log = global.logger.create('REDIS');
 let helpers = require('../helpers');
 
-let retry_strategy options => {
+let retry_strategy = options => {
 	if(options.error && options.error.code === 'ECONNREFUSED'){
 		// End reconnecting on a specific error and flush all commands with a individual error
 		return new Error('The server refused the connection');

@@ -89,13 +89,13 @@ let procInitiator = (dir, file, paths, config) => {
 							return;
 						}
 
-						fs.stat(pth + '/' + f, (e, s) => {
+						fs.stat(path.join(pth, f), (e, s) => {
 							if(e){
 								log.e(e);
 							}
 
 							if(s && s.isDirectory()){
-								app.watchDir(pth + '/' + f);
+								app.watchDir(path.join(pth, f));
 							}
 						});
 					});

@@ -47,30 +47,39 @@ module.exports = class Server{
 		if(!this.paths.modules.length){
 			this.paths.modules.push(path.join(startPath, 'modules'));
 		}
-		this.paths.modules = this.paths.modules.reduce((res, path) => {
-			if(!path.isAbsolute(path)){
-				path = path.join(startPath, path);
+		this.paths.modules = this.paths.modules.reduce((res, mpath) => {
+			if(!path.isAbsolute(mpath)){
+				mpath = path.join(startPath, mpath);
 			}
-			if(fs.statSync(path).isDirectory()){
-				res.push(path);
-			}
-			else{
-				console.log('modules path ', path, 'not created or is not directory');
+			try{
+				if(fs.statSync(mpath).isDirectory()){
+					res.push(mpath);
+				}
+				else{
+					console.log('modules path', mpath, 'is not directory');
+				}
+			}catch(e){
+				console.log('modules path', mpath, 'not created');
 			}
 			return res;
 		}, []);
 		if(!this.paths.modules.length){
 			throw 'you must specify the path to the modules in config.modules, type - Array of strings';
 		}
-		this.paths.dals = this.paths.dals.reduce((res, path) => {
-			if(!path.isAbsolute(path)){
-				path = path.join(startPath, path);
+		this.paths.dals = this.paths.dals.reduce((res, dpath) => {
+			if(!path.isAbsolute(dpath)){
+				dpath = path.join(startPath, dpath);
 			}
-			if(fs.statSync(path).isDirectory()){
-				res.push(path);
+			try{
+				if(fs.statSync(dpath).isDirectory()){
+					res.push(dpath);
+				}
+				else{
+					console.log('dals path', dpath, 'is not directory');
+				}
 			}
-			else{
-				console.log('dals path ', path, 'not created or is not directory');
+			catch(e){
+				console.log('dals path', dpath, 'not created');
 			}
 			return res;
 		}, []);

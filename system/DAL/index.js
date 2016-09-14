@@ -12,8 +12,9 @@ exports.init = (paths, config) => {
 	let pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
 	for(let dal of config.initDals){
 		for(let dalsPath of pathsToCheck){
-			if(fs.statAsync(path.join(dalsPath, dal)).isFile()){
-				try{
+			try{
+				dal += '.js';
+				if(fs.statSync(path.join(dalsPath, dal)).isFile()){
 					let dalFile = require(path.join(dalsPath, dal));
 					if(!dalFile.methods){
 						throw 'exports.methods no defined';
@@ -23,9 +24,9 @@ exports.init = (paths, config) => {
 					}
 					DALs[dal] = dalFile.methods;
 					break;
-				}catch(e){
-					log.e('Error in', path.join(dalsPath, dal), e);
 				}
+			}catch(e){
+				log.e('Error in', path.join(dalsPath, dal), e);
 			}
 		}
 	}
