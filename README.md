@@ -17,7 +17,6 @@ Minimalistic and fast web server
 * add file returns
 * add file upload
 * add the ability to use the add-ons for each request, such as preauthorization
-* 
 
 ### Installation
 ```js
