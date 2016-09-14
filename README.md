@@ -11,6 +11,7 @@ Minimalistic and fast web server
 * the server can restart each time a file changes
 * coloring of the log in the console
 * as if to run the server as a service, can be seen through tailf colored logs
+* size of data obtained by POST maximum 976kb, 1e6 symbols
 
 #### Future
 * do raise the possibility of multiple servers for load balancing using `cluster`
@@ -55,13 +56,30 @@ log.w() // Warn - displayed in yellow
 log.e() // Error - displayed in red
 log.c() // Critical error - displayed in white
 
-exports._method = {};
-exports.method = (request, cb) => {
+exports._myMethod = {
+    toJson: true
+};
+exports.myMethod = (request, cb) => {
     request.params // GET params
     request.post // POST params
     request.cookies // cookies
 }
+
+//you also can do prerun before module, example do check auth
+exports._myMethod.prerun = (request, moduleMeta, cb) => {
+}
+
+// you can add initialization for module
+exports.__init = (simpleContext) => {
+}
+//where simpleContext is {DAL: {}}
+
+// You can add ,eta, then all of its properties will be extended to all methods of the module
+exports.__meta = {
+    contentType: 'json' // or toJson: true - JSON.stringify of responce data
+}
 ```
+
 ##### Use dals:
 ```js
     request.DAL.redis.get('somekey', (err, data) => {
