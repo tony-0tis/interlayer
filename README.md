@@ -5,6 +5,20 @@ Minimalistic and fast web server
 [![npm downloads](https://img.shields.io/npm/dm/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![github license](https://img.shields.io/github/license/donkilluminatti/interlayer.svg)](https://github.com/DonKilluminatti/interlayer/blob/master/LICENSE)
 
+### Features
+* in its current form is a REST-api server
+* it is possible to add your own modules and dals
+* the server can restart each time a file changes
+* coloring of the log in the console
+* as if to run the server as a service, can be seen through tailf colored logs
+
+#### Future
+* do raise the possibility of multiple servers for load balancing using `cluster`
+* add file returns
+* add file upload
+* add the ability to use the add-ons for each request, such as preauthorization
+* 
+
 ### Installation
 ```js
 npm install --save interlayer
