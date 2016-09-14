@@ -29,5 +29,4 @@ exports.init = (paths, config) => {
 			}
 		}
 	}
-	
 };
