@@ -38,6 +38,7 @@ server.init(config);
 
 * `server.addModulesPath('mymodules');` - Add the path to the folder with your modules. (_The folder **mymodules** must be in the same folder where is called `server.init(config);` or you can type absolute path_)  [How to create](#create-module)
 * `server.addDalsPath('dalPath');` - Add the path of the folder with dal. (_The folder **dalPath** must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
+
 ##### Configuration:
 * `config.port = 80;` - Port of web server
 * `config.type = 'server';` - Type of server, is just web server, of web server wrapped in watcher. 
