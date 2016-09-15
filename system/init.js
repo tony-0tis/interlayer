@@ -25,26 +25,12 @@ exports.initModules = (paths, config) => {
 	paths.modules.forEach(path => {
 		let pathModules = fs.readdirSync(path);
 
-		let pathUrl = path.split('/');
-		pathUrl.splice(pathUrl.indexOf(path), 1);
-		pathUrl = pathUrl.join('/');
-		if(pathUrl.length > 0){
-			pathUrl = '/' + pathUrl;
-		}
-
-		let getUrl = (method, meta, module, moduleName) => {
+		let getUrl = (moduleName, methodName, module, meta) => {
 			if(module.addToRoot || meta.addToRoot){
 				return method;
 			}
 
-			let string = pathUrl;
-
-			if(!meta.skipFileNameInPath){
-				string += '' + moduleName;
-			}
-
-			string += '/' + method;
-			return string;
+			return moduleName + '/' + methodName;
 		};
 		
 		for(let file of pathModules){
@@ -103,7 +89,7 @@ exports.initModules = (paths, config) => {
 							definedIn: file
 						};
 
-						methodName = getUrl(methodName, methodMeta, module, moduleName);
+						methodName = getUrl(moduleName, methodName, module, methodMeta);
 
 						if(modules[methodName]){
 							log.e('module', moduleName, 'Method', methodName, 'in file', file, 'IS DEFINED IN', modules[methodName].definedIn);
@@ -114,7 +100,7 @@ exports.initModules = (paths, config) => {
 
 						let aliasURL = methodMeta.alias;
 						if(aliasURL){
-							aliasURL = getUrl(aliasURL, methodMeta, module, moduleName);
+							aliasURL = getUrl(moduleName, aliasURL, module, methodMeta);
 							if(modules[aliasURL]){
 								log.e('module', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
 								continue;
