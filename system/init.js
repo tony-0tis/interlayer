@@ -27,7 +27,7 @@ exports.initModules = (paths, config) => {
 
 		let getUrl = (moduleName, methodName, module, meta) => {
 			if(module.addToRoot || meta.addToRoot){
-				return method;
+				return methodName;
 			}
 
 			return moduleName + '/' + methodName;

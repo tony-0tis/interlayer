@@ -23,10 +23,6 @@ exports.start = (paths, conf) => {
 	init.initModules(paths, conf);
 }
 
-process.on('exit', (code, sig) => {
-	//
-});
-
 if(process.send){
 	let intervals = {
 		si: setInterval(() => {
@@ -62,12 +58,19 @@ if(process.send){
 					pings.splice(ind, 1);
 				}
 				break;
+			case 'reload':
+				process.exit(0);
+				break
+			case 'exit':
+				process.exit(1);
+				break;
+
 		}
 	});
 	intervals.add((deleteInterval) => {
 		if(pings.length > 2){
 			deleteInterval();
-			process.exit('SIGKILL');
+			process.exit(0);
 			return;
 		}
 		let ping = {

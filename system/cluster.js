@@ -21,14 +21,15 @@ let clusters = {
 	},
 	size: () => clusters.servers.length,
 	restart: () => {
-		for(let i = clusters.servers - 1; i >= 0; i--){
-			clusters.servers[i].srv.kill('SIGTERM');//TERM
+		for(let i = clusters.servers.length - 1; i >= 0; i--){
+			clusters.servers[i].srv.send({type: 'reload'});
 		}
 	},
 	exit: () => {
-		for(let i = clusters.servers - 1; i >= 0; i--){
-			clusters.servers[i].srv.kill('SIGINT');//INT
+		for(let i = clusters.servers.length - 1; i >= 0; i--){
+			clusters.servers[i].srv.send({type: 'exit'});
 		}
+		clusters = null;
 	}
 };
 
@@ -80,12 +81,14 @@ exports.start = (paths, config) => {
 				});
 				server.on('error', error => log.e('server error', error));
 				server.on('exit', (code, sig) => {
-					if(sig == 'SIGINT'){
+					if(code == 1){
 						log.i('worker', server.process.pid, 'killed');
+						server = null;
+						clusters.rem(i);
 						return;
 					}
 
-					log.e('worker', server.process.pid, 'down with code:', code, 'signal:', sig);
+					log.w('worker', server.process.pid, 'down with code:', code, 'signal:', sig);
 
 					server = null;
 					clusters.rem(i);
@@ -117,6 +120,10 @@ exports.start = (paths, config) => {
 					if(pings.length > 10){
 						deleteInterval();
 						server.kill();
+						return;
+					}
+					if(!server){
+						deleteInterval();
 						return;
 					}
 					let ping = {
