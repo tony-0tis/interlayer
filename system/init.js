@@ -19,6 +19,7 @@ exports.initDALs = (paths, config) => {
 	return DAL_connections;
 };
 
+exports.getModule = module => modules[module];
 exports.initModules = (paths, config) => {
 	let path = 'modules';
 	let pathModules = fs.readdirSync(path);
@@ -156,7 +157,7 @@ exports.parseRequest = (request, response) => {
 	
 	request.isPost = request.method == 'POST';
 	request.pools = exports.pools;
-	request.helpers = helpers;
+	request.helpers = exports.helpers;
 
 	request.cookies = {};
 	request.headers.cookie && request.headers.cookie.split(';').forEach(cookie => {

@@ -1,7 +1,36 @@
 "use strict";
 let fs = require('fs');
 let path = require('path');
-let fork  = require('child_process').fork;
+let cluster = require('cluster');
+let clusters = {
+	servers: [],
+	add: (n, srv) => {
+		clusters.servers.push({n: n, srv: srv});
+	},
+	rem: n => {
+		let toDel;
+		for(let i = clusters.servers - 1; i >= 0; i--){
+			if(clusters.servers[i].n == n){
+				toDel = i;
+				break
+			}
+		}
+		if(toDel != undefined){
+			clusters.servers.splice(toDel, 1);
+		}
+	},
+	size: () => clusters.servers.length,
+	restart: () => {
+		for(let i = clusters.servers - 1; i >= 0; i--){
+			clusters.servers[i].srv.kill('SIGABRT');
+		}
+	},
+	exit: () => {
+		for(let i = clusters.servers - 1; i >= 0; i--){
+			clusters.servers[i].srv.kill('SIGKILL');
+		}
+	}
+};
 
 let isWin = /^win/.test(process.platform);
 let log;
@@ -124,3 +153,91 @@ exports.start = (paths, config) => {
 	proc.watchDir(paths.startPath);
 	proc.initProc();
 };
+
+exports.start = (paths, config) => {
+	let logger = require('./logger.js').logger(config.logPath);
+	log = logger.create('CLUSTER');
+	
+	let toStart = config.numOfServers || 1;
+	if(toStart == 1 && !config.useWatcher|| cluster.isWorker){
+		let server = require('./server.js');
+		server.start(paths, config);
+	}
+	else if(cluster.isMaster){
+		for (let i = toStart; i > 0; i--){
+			let init = () => {
+				let server = cluster.fork(process.env);
+				server.on('error', error => log.e('server error', error));
+				server.on('exit', (code, sig) => {
+					if(sig == 'SIGKILL'){
+						return;
+					}
+
+					log.e('worker', server.process.pid, 'down with code:', code, 'signal:', sig);
+
+					server = null;
+					clusters.rem(i);
+					init();
+				});
+
+				log.i('start worker process', server.process.pid);
+				clusters.add(i, server);
+			}
+			init();
+		}
+
+		log.i('Start cluster with', clusters.size(), 'servers');
+		
+		if(config.useWatcher){
+			startWatch(paths, config, () => {
+				clusters.restart();
+			})
+		}
+	}
+}
+process.on('exit', () => clusters.exit());
+
+function startWatch(cbRestart){
+	log.i('start watch - ', pth);
+	fs.watch(pth, (type, chFile) => {
+		if(!chFile || chFile.indexOf('.log') != -1){
+			return;
+		}
+
+		if(killed === true || chFile.indexOf('.') == -1 ||
+			chFile.indexOf('.swx') != -1 || chFile.indexOf('.swp') != -1 ||
+			chFile.indexOf('.js~') != -1 || chFile.indexOf('.git') != -1){
+			return;
+		}
+
+		log.i(type, chFile, 1);
+
+		killed = true;
+		log.i('File', file, 'was changed, restart');
+		cbRestart();
+	});
+
+	fs.readdir(pth, (e, f) => {
+		if(e){
+			log.e(e);
+		}
+
+		if(f && f.length > 0){
+			f.forEach(f => {
+				if(f == 'node_modules' || f == '.git' || f == 'logs'){
+					return;
+				}
+
+				fs.stat(path.join(pth, f), (e, s) => {
+					if(e){
+						log.e(e);
+					}
+
+					if(s && s.isDirectory()){
+						app.watchDir(path.join(pth, f));
+					}
+				});
+			});
+		}
+	});
+}

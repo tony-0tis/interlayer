@@ -3,23 +3,19 @@ let log;
 let http = require('http');
 let async = require('async');
 let init;
-let initied;
+let config;
 
-exports.start = (paths, config) => {
-	if(initied){
-		throw 'server was initied';
-	}
-	initied = true;
-
+exports.start = (paths, conf) => {
+	config = conf;
 	global.logger = require('./logger.js').logger(__dirname);
 	log = global.logger.create('SRV');
 	init = require('./init.js')
 	
 	let server = http.createServer(requestFunc);
-	server.listen(config.port || 8080);
-	log.i('server started on port: ' + config.port || 8080);
-	init.initDALs(paths, config);
-	init.initModules(paths, config);
+	server.listen(conf.port || 8080);
+	log.i('server started on port: ' + conf.port || 8080);
+	init.initDALs(paths, conf);
+	init.initModules(paths, conf);
 }
 
 process.on('message', obj => {
@@ -37,7 +33,7 @@ function requestFunc(request, response){
 	init.parseRequest(request, response);
 	request.config = config;
 	
-	let module = init.modules[request.path];
+	let module = init.getModule(request.path);
 	if(!module){
 		log.d('BAD', request.headers['x-forwarded-for'] ||
 			request.connection.remoteAddress ||

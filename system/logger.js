@@ -1,5 +1,6 @@
 "use strict"
 let fs = require('fs');
+let until = require('util')
 let colors = {
 	I: 32,
 	E: 31,
@@ -44,7 +45,9 @@ exports.logger = dir => {
 			}
 			
 			if(typeof obj[i] == 'object' && !obj[i].stack){
-				obj[i] = JSON.stringify(obj[i], null, 2);
+				try{
+					obj[i] = until.inspect(obj[i]);
+				}catch(e){}
 			}
 			
 			if(obj[i].stack){

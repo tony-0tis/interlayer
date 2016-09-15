@@ -30,7 +30,7 @@ let interlayer = require('interlayer');
 let server = new interlayer();
 server.addModulesPath('modules');
 let config = {
-    initDals: ['redis'],
+    useDals: ['redis'],
     port: 80,
     type: 'server'
 };
@@ -43,9 +43,8 @@ server.init(config);
 
 ##### Configuration:
 * `config.port = 80;` - Port of web server
-* `config.type = 'server';` - Type of server, is just web server, of web server wrapped in watcher. 
-If you enter 'watcher' the server will restart automatically when changing files in the folder with modules.
-* `config.initDals = ['redis'];` - An array of the names of DALs that you will use in your project. [How to use](#use-dals).
+* `config.useWatcher = true;` - if this option is true the server will restart automatically when changing files in the folder with modules.
+* `config.useDals = ['redis'];` - An array of the names of DALs that you will use in your project. [How to use](#use-dals).
 * `config.modules = ['mymodulesfolder'];` An array of modules folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)
 * `config.dals = ['mydalsfolder'];` An array of dals folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
 
@@ -93,7 +92,7 @@ exports.__meta = {
 ```
 
 ### Create dal
-*nameofdal.js* - then you can add `nameofdal` to `config.initDals` array (ex: `config.initDals = ['nameofdal'];`)
+*nameofdal.js* - then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = ['nameofdal'];`)
 ```js
 // init is not required
 exports.init = (config) => {

@@ -62,12 +62,12 @@ let DAL = {
 			}
 
 			let conn = DAL.opened.splice(id, 1);
-			DAL.connections.push(conn);
+			DAL.connections.push(conn[0]);
 		});
 		DAL._checkConnections();
 	},
 	_checkConnections: () => {
-		DAL.opened = DAL.opened.reduse((res, conn) =>{
+		DAL.opened = DAL.opened.reduce((res, conn) =>{
 			if(Date.now() - conn.lastOpened > 14400000){
 				conn.redis.quit();
 				delete conn.redis;
@@ -78,7 +78,7 @@ let DAL = {
 			}
 			return res;
 		}, [])
-		DAL.connections = DAL.connections.reduse((res, conn) => {
+		DAL.connections = DAL.connections.reduce((res, conn) => {
 			if(Date.now() - conn.lastOpened > 14400000){
 				conn.redis.quit();
 				delete conn.redis;
@@ -95,15 +95,14 @@ exports.methods = {};
 for(let name in redis.RedisClient.prototype){
 	exports.methods[name] = (...args) => {
 		let conn;
-		let cb = (...args) => {
-			if(typeof cb != 'function'){
-				return;
-			}
+		let originalCb = () => {};
+		let cb = (...resargs) => {
 			conn.emit('requestEnded');
-			cb(...args);
+			originalCb(...resargs);
 		};
 		
 		if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
+			originalCb = args[args.length -1];
 			args[args.length -1] = cb;
 		}
 		else{

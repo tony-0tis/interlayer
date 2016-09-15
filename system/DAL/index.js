@@ -6,16 +6,16 @@ let async = require('async');
 
 let DALs = {};
 exports.init = (paths, config) => {
-	if(!config.initDals){
+	if(!config.useDals){
 		return;
 	}
 	let pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
-	for(let dal of config.initDals){
+	for(let dal of config.useDals){
 		for(let dalsPath of pathsToCheck){
+			let dalName = dal + '.js';
 			try{
-				dal += '.js';
-				if(fs.statSync(path.join(dalsPath, dal)).isFile()){
-					let dalFile = require(path.join(dalsPath, dal));
+				if(fs.statSync(path.join(dalsPath, dalName)).isFile()){
+					let dalFile = require(path.join(dalsPath, dalName));
 					if(!dalFile.methods){
 						throw 'exports.methods no defined';
 					}
@@ -26,8 +26,9 @@ exports.init = (paths, config) => {
 					break;
 				}
 			}catch(e){
-				log.e('Error in', path.join(dalsPath, dal), e);
+				log.e('Error in', path.join(dalsPath, dalName), e);
 			}
 		}
 	}
+	return DALs;
 };
