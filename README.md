@@ -46,8 +46,9 @@ server.init(config);
 * `config.numOfServers = 1;` - number of parallel servers for load balancing. If number more than 1, uses node cluster
 * `config.useWatcher = true;` - if this option is true the server will restart automatically when changing files in the folder with modules.
 * `config.useDals = ['redis'];` - An array of the names of DALs that you will use in your project. [How to use](#use-dals).
-* `config.modules = ['mymodulesfolder'];` An array of modules folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)
-* `config.dals = ['mydalsfolder'];` An array of dals folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
+* `config.modules = ['mymodulesfolder'];` - An array of modules folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)
+* `config.dals = ['mydalsfolder'];` - An array of dals folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
+* `config.disableNagleAlgorirm = true;` - Disable Nagle algoritm for connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
 
 ### Create module
 ```js

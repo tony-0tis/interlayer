@@ -13,9 +13,66 @@ exports.start = (paths, conf) => {
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
+	if(conf.disableNagleAlgoritm == true){
+		server.on('connection', socket => {
+			socket.setNoDelay(); // Отключаем алгоритм Нагла.
+		});
+	}
 	log.i('server started on port: ' + conf.port || 8080);
 	init.initDALs(paths, conf);
 	init.initModules(paths, conf);
+}
+
+if(process.send){
+	let intervals = {
+		si: setInterval(() => {
+			for(let i in intervals.funcs){
+				intervals.funcs[i](() => {
+					intervals.del(i);
+				});
+			}
+		}, 1000),
+		funcs: [],
+		add: function(f){
+			this.funcs.push(f);
+		},
+		del: function(ind){
+			this.funcs.splice(ind, 1);
+		}
+	}
+	let pings = [];
+	process.on('message', obj=> {
+		switch(obj.type){
+			case 'start': 
+				exports.start(obj.paths, obj.config);
+				break;
+			case 'ping':
+				process.send({
+					type: 'pong',
+					id: obj.id
+				});
+				break;
+			case 'pong':
+				let ind = pings.indexOf(obj.id);
+				if(ind > -1){
+					pings.splice(ind, 1);
+				}
+				break;
+		}
+	});
+	intervals.add((deleteInterval) => {
+		if(pings.length > 2){
+			deleteInterval();
+			process.exit('SIGKILL');
+			return;
+		}
+		let ping = {
+			type: 'ping',
+			id: Date.now()
+		};
+		pings.push(ping.id);
+		process.send(ping);
+	}, 1000);
 }
 
 process.on('uncaughtException', err => (log && log.c || console.log)('Caught exception:', err));
@@ -107,8 +164,8 @@ function requestFunc(request, response){
 			log.d(
 				request.headers['x-forwarded-for'] ||
 					request.connection.remoteAddress ||
-					request.socket.remoteAddress ||
-					request.connection.socket.remoteAddress,
+					request.socket && request.socket.remoteAddress ||
+					request.connection.socket && request.connection.socket.remoteAddress,
 				'REQ: ' + request.path,
 				'FROM: ' + (request.headers.referer || '---'),
 				'GET: ' + init.helpers.clearObj(request.params),

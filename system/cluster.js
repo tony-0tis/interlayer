@@ -34,56 +34,50 @@ let clusters = {
 
 let isWin = /^win/.test(process.platform);
 let log;
+let intervals = {
+	si: setInterval(() => {
+		for(let i in intervals.funcs){
+			intervals.funcs[i](() => {
+				intervals.del(i);
+			});
+		}
+	}, 1000),
+	funcs: [],
+	add: function(f){
+		this.funcs.push(f);
+	},
+	del: function(ind){
+		this.funcs.splice(ind, 1);
+	}
+}
 
 exports.start = (paths, config) => {
 	let logger = require('./logger.js').logger(config.logPath);
 	log = logger.create('CLUSTER');
 	
 	let toStart = config.numOfServers || 1;
-	if(toStart == 1 && !config.useWatcher || cluster.isWorker){
+	if(toStart == 1 && !config.useWatcher){
 		let server = require('./server.js');
 		server.start(paths, config);
-
-		//for cluster.isWorker we do not using process.on('message'), cause cluster start server from server.init()
+		return;
 	}
 
-	if(cluster.isWorker){
-		let pings = [];
-		process.on('message', obj=> {
-			switch(obj.type){
-				case 'ping':
-					process.send({
-						type: 'pong',
-						id: obj.id
-					});
-					break;
-				case 'pong':
-					let ind = pings.indexOf(obj.id);
-					if(ind > -1){
-						pings.splice(ind, 1);
-					}
-					break;
-			}
-		});
-		let si = setInterval(()=>{
-			if(pings.length > 10){
-				clearInterval(si);
-				process.exit('SIGKILL');
-				return;
-			}
-			let ping = {
-				type: 'ping',
-				id: Date.now()
-			};
-			pings.push(ping.id);
-			process.send(ping);
-		}, 1000);
-	}
-	else if(cluster.isMaster){
+	if(cluster.isMaster){
 		for (let i = toStart; i > 0; i--){
 			let init = () => {
+				cluster.setupMaster({
+					exec: __dirname + '/server.js',
+					silent: true
+				});
 				let server = cluster.fork(process.env);
 				let pings = [];
+				server.on('online', () => {
+					server.send({
+						type: 'start',
+						paths: paths,
+						config: config
+					});
+				});
 				server.on('error', error => log.e('server error', error));
 				server.on('exit', (code, sig) => {
 					if(sig == 'SIGKILL'){
@@ -119,9 +113,9 @@ exports.start = (paths, config) => {
 					}
 				});
 
-				let si = setInterval(()=>{
+				intervals.add((deleteInterval) => {
 					if(pings.length > 10){
-						clearInterval(si);
+						deleteInterval();
 						server.kill('SIGKILL');
 						return;
 					}
@@ -131,7 +125,7 @@ exports.start = (paths, config) => {
 					};
 					pings.push(ping.id);
 					server.send(ping);
-				}, 1000);
+				});
 
 				log.i('start worker process', server.process.pid);
 				clusters.add(i, server);

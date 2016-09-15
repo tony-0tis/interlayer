@@ -35,9 +35,7 @@ exports.logger = dir => {
 	let write = (str, toConsole) => {
 		try{
 			logFile.write(str);
-			if(toConsole != false){
-				console.log(str);
-			}
+			console.log(str);
 		}catch(e){
 			console.error(e);
 			console.log(str);
@@ -89,7 +87,7 @@ exports.logger = dir => {
 						'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
 				},
 				add: (str) => {
-					write(str, false);
+					write(str);
 				},
 				// clear: () => {
 				// 	logFile.close();
