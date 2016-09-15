@@ -12,9 +12,9 @@ Minimalistic and fast web server
 * coloring of the log in the console
 * as if to run the server as a service, can be seen through tailf colored logs
 * size of data obtained by POST maximum 976kb, 1e6 symbols
+* you can pick up a cluster of servers for load balancing. Dangling nodes while automatically restart
 
 #### Future
-* do raise the possibility of multiple servers for load balancing using `cluster`
 * add file returns
 * add file upload
 * add the ability to use the add-ons for each request, such as preauthorization
@@ -43,6 +43,7 @@ server.init(config);
 
 ##### Configuration:
 * `config.port = 80;` - Port of web server
+* `config.numOfServers = 1;` - number of parallel servers for load balancing. If number more than 1, uses node cluster
 * `config.useWatcher = true;` - if this option is true the server will restart automatically when changing files in the folder with modules.
 * `config.useDals = ['redis'];` - An array of the names of DALs that you will use in your project. [How to use](#use-dals).
 * `config.modules = ['mymodulesfolder'];` An array of modules folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)
