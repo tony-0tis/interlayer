@@ -79,7 +79,7 @@ exports.start = (paths, config) => {
 						config: config
 					});
 				});
-				server.on('error', error => log.e('server error', error));
+				server.on('error', error => log.e('server', server.process.pid, 'error', error));
 				server.on('exit', (code, sig) => {
 					if(code == 1){
 						log.i('worker', server.process.pid, 'killed');

@@ -23,6 +23,7 @@ exports.init = (paths, config) => {
 						dalFile.init(config);
 					}
 					DALs[dal] = dalFile.methods;
+					Object.freeze(DALs[dal]);
 					break;
 				}
 			}catch(e){
@@ -32,6 +33,8 @@ exports.init = (paths, config) => {
 	}
 
 	log.d('DALs included', Object.keys(DALs));
+
+	Object.freeze(DALs);
 
 	return DALs;
 };
