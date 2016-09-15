@@ -11,8 +11,8 @@ exports.init = (paths, config) => {
 	}
 	let pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
 	for(let dal of config.useDals){
+		let dalName = dal + '.js';
 		for(let dalsPath of pathsToCheck){
-			let dalName = dal + '.js';
 			try{
 				if(fs.statSync(path.join(dalsPath, dalName)).isFile()){
 					let dalFile = require(path.join(dalsPath, dalName));

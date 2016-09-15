@@ -20,115 +20,117 @@ exports.initDALs = (paths, config) => {
 };
 
 exports.getModule = module => modules[module];
+
 exports.initModules = (paths, config) => {
-	let path = 'modules';
-	let pathModules = fs.readdirSync(path);
+	paths.modules.forEach(path => {
+		let pathModules = fs.readdirSync(path);
 
-	let pathUrl = path.split('/');
-	pathUrl.splice(pathUrl.indexOf('modules'), 1);
-	pathUrl = pathUrl.join('/');
-	if(pathUrl.length > 0){
-		pathUrl = '/' + pathUrl;
-	}
-
-	let getUrl = (method, meta, module, moduleName) => {
-		if(module.addToRoot || meta.addToRoot){
-			return method;
+		let pathUrl = path.split('/');
+		pathUrl.splice(pathUrl.indexOf(path), 1);
+		pathUrl = pathUrl.join('/');
+		if(pathUrl.length > 0){
+			pathUrl = '/' + pathUrl;
 		}
 
-		let string = pathUrl;
-
-		if(!meta.skipFileNameInPath){
-			string += '' + moduleName;
-		}
-
-		string += '/' + method;
-		return string;
-	};
-	
-	for(let file of pathModules){
-		try{
-			let isDir = false;
-			if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
-				continue;
+		let getUrl = (method, meta, module, moduleName) => {
+			if(module.addToRoot || meta.addToRoot){
+				return method;
 			}
 
-			if(fs.lstatSync(path + '/' + file).isDirectory()){
-				if(!fs.accessSync(path + '/' + file + '/index.js')){
-					if(!fs.statSync(path + '/' + file + '/index.js').isFile()){
-						continue;
-					}
-				}
+			let string = pathUrl;
 
-				isDir = true;
+			if(!meta.skipFileNameInPath){
+				string += '' + moduleName;
 			}
 
-			if(!file.match(/^.*\.js$/) && !isDir){
-				continue;
-			}
-
-			let moduleName = file.replace('.js', '');
-			let module = require(pathMod.resolve(path) + '/' + file + (isDir ? '/index.js' : ''));
-
-			if(module.__init){
-				inits[file] = module.__init;
-			}
-
-			if(module.__meta){
-				if(module.__meta.html){
-					modules[moduleName] = {
-						func: module.__meta.html,
-						meta: module.__meta
-					};
-				}
-			}
-			for(let m in module){
-				if(m.indexOf('__') === 0){
+			string += '/' + method;
+			return string;
+		};
+		
+		for(let file of pathModules){
+			try{
+				let isDir = false;
+				if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
 					continue;
 				}
 
-				if(m.indexOf('_') === 0){
-					let methodMeta = module[m];
-					let methodName = m.substring(1);
-					
-					if(!module[methodName]){
-						log.e('module', moduleName, 'Method', methodName, 'in file', file, 'not found');
+				if(fs.lstatSync(path + '/' + file).isDirectory()){
+					if(!fs.accessSync(path + '/' + file + '/index.js')){
+						if(!fs.statSync(path + '/' + file + '/index.js').isFile()){
+							continue;
+						}
+					}
+
+					isDir = true;
+				}
+
+				if(!file.match(/^.*\.js$/) && !isDir){
+					continue;
+				}
+
+				let moduleName = file.replace('.js', '');
+				let module = require(pathMod.resolve(path) + '/' + file + (isDir ? '/index.js' : ''));
+
+				if(module.__init){
+					inits[file] = module.__init;
+				}
+
+				if(module.__meta){
+					if(module.__meta.html){
+						modules[moduleName] = {
+							func: module.__meta.html,
+							meta: module.__meta
+						};
+					}
+				}
+				for(let m in module){
+					if(m.indexOf('__') === 0){
 						continue;
 					}
 
-					let method = {
-						func: module[methodName],
-						meta: Object.assign({}, module.__meta || {}, methodMeta),
-						definedIn: file
-					};
-
-					methodName = getUrl(methodName, methodMeta, module, moduleName);
-
-					if(modules[methodName]){
-						log.e('module', moduleName, 'Method', methodName, 'in file', file, 'IS DEFINED IN', modules[methodName].definedIn);
-						continue;
-					}
-
-					modules[methodName] = method;
-
-					let aliasURL = methodMeta.alias;
-					if(aliasURL){
-						aliasURL = getUrl(aliasURL, methodMeta, module, moduleName);
-						if(modules[aliasURL]){
-							log.e('module', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
+					if(m.indexOf('_') === 0){
+						let methodMeta = module[m];
+						let methodName = m.substring(1);
+						
+						if(!module[methodName]){
+							log.e('module', moduleName, 'Method', methodName, 'in file', file, 'not found');
 							continue;
 						}
 
-						modules[aliasURL] = method;
+						let method = {
+							func: module[methodName],
+							meta: Object.assign({}, module.__meta || {}, methodMeta),
+							definedIn: file
+						};
+
+						methodName = getUrl(methodName, methodMeta, module, moduleName);
+
+						if(modules[methodName]){
+							log.e('module', moduleName, 'Method', methodName, 'in file', file, 'IS DEFINED IN', modules[methodName].definedIn);
+							continue;
+						}
+
+						modules[methodName] = method;
+
+						let aliasURL = methodMeta.alias;
+						if(aliasURL){
+							aliasURL = getUrl(aliasURL, methodMeta, module, moduleName);
+							if(modules[aliasURL]){
+								log.e('module', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
+								continue;
+							}
+
+							modules[aliasURL] = method;
+						}
 					}
 				}
+				module = null;
 			}
-			module = null;
+			catch(err){
+				log.e('Error in module ' + path + '/' + file, err, err.stack);
+			} 
 		}
-		catch(err){
-			log.e('Error in module ' + path + '/' + file, err, err.stack);
-		} 
-	}
+	});
 	//log.w(Object.keys(modules))
 
 	let context = {

@@ -18,15 +18,6 @@ exports.start = (paths, conf) => {
 	init.initModules(paths, conf);
 }
 
-process.on('message', obj => {
-	switch(obj.type){
-		case 'start':
-			exports.start(obj.paths, obj.config)
-		break;
-		default: 
-			(log && log.c || console.log)('Unknown message type', obj);
-	}
-});
 process.on('uncaughtException', err => (log && log.c || console.log)('Caught exception:', err));
 
 function requestFunc(request, response){

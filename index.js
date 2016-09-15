@@ -22,6 +22,19 @@ module.exports = class Server{
 		this.paths.views = this.paths.views.concat(args);
 	}
 	init (config={}){
+		// Deprecated
+		if(config.initDals && !config.useDals){
+			console.log('please replace config.initDals to config.useDals. config.initDals is deprecated');
+			config.useDals = config.initDals;
+		}
+		if(config.type){
+			console.log('config.type is deprecated, use config.useWatcher=true instead config.type="watcher"');
+			if(config.type == 'watcher'){
+				config.useWatcher = true;
+			}
+		}
+
+		// ####
 		let startPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^\(]*\(([^\)]+)\)/)[1]);
 		if(!config.logPath){
 			config.logPath = startPath;
@@ -117,6 +130,7 @@ module.exports = class Server{
 		
 		this.paths.startPath = startPath;
 		let cluster = require(path.join(__dirname, 'system/cluster'));
+		process.chdir(startPath);
 		cluster.start(this.paths, config);
 	}
 }

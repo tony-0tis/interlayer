@@ -14,21 +14,30 @@ exports.logger = dir => {
 	//console.log(dir);
 
 	let logFile;
-	if(streams[dir]){
+	if(process.send){
+		logFile = {
+			write: (str) => {
+				process.send({
+					type: 'log',
+					log: str
+				});
+			},
+			close: () => {}
+		};
+	}
+	else if(streams[dir]){
 		logFile = streams[dir];
 	}
 	else{
 		logFile = fs.createWriteStream(dir + '/logs.log');
 	}
 
-	let write = str => {
+	let write = (str, toConsole) => {
 		try{
 			logFile.write(str);
-			// process.send && process.send({
-			// 	type: 'logs',
-			// 	mess: str
-			// });
-			console.log(str);
+			if(toConsole != false){
+				console.log(str);
+			}
 		}catch(e){
 			console.error(e);
 			console.log(str);
@@ -37,7 +46,7 @@ exports.logger = dir => {
 
 	let split = (obj, del) => {
 		let str = [];
-		del = del || " # ";
+		del = del || " ";
 		
 		for(let i in obj){
 			if(!obj[i]){
@@ -79,48 +88,27 @@ exports.logger = dir => {
 						'|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
 						'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
 				},
-				e: (...args) => {
-					args = split(args);
-					let str = log.date() + '[E][' + name + '] ' + args;
-					str = '\x1b[37;' + colors.E + ';1m' + str + '\x1b[0m' + breaker;
-					write(str);
-					//console.error.apply({}, args);
+				add: (str) => {
+					write(str, false);
 				},
-				i: (...args) => {
-					args = split(args);
-					let str = log.date() + '[I][' + name + '] ' +  args;
-					str = '\x1b[37;' + colors.I + ';1m' + str + '\x1b[0m' + breaker;
-					write(str);
-					//console.log.apply({}, args);
-				},
-				w: (...args) => {
-					args = split(args);
-					let str = log.date() + '[W][' + name + '] ' + args;
-					str = '\x1b[37;' + colors.W + ';1m' + str + '\x1b[0m' + breaker;
-					write(str);
-				},
-				d: (...args) => {
-					args = split(args);
-					let str = log.date() + '[D][' + name + '] ' + args;
-					str = '\x1b[37;' + colors.D + ';1m' + str + '\x1b[0m' + breaker;
-					write(str);
-				},
-				c: (...args) => {
-					args = split(args);
-					let str = log.date() + '[C][' + name + '] ' + args;
-					str = '\x1b[37;' + colors.C + ';1m' + str + '\x1b[0m' + breaker;
-					write(str);
-				},
-				clear: () => {
-					logFile.close();
-					fs.writeFileSync(dir + '/logs.log', '');
-					logFile = fs.createWriteStream(dir + '/logs.log');
-				},
+				// clear: () => {
+				// 	logFile.close();
+				// 	fs.writeFileSync(dir + '/logs.log', '');
+				// 	logFile = fs.createWriteStream(dir + '/logs.log');
+				// },
 				nd: ND,
 				split: split,
 				write: write,
 				sourceFile: logFile
 			};
+			for(let i in colors){
+				log[i.toLowerCase()] = (...args) => {
+					args = split(args);
+					let str = log.date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
+					str = '\x1b[37;' + colors[i] + ';1m' + str + '\x1b[0m' + breaker;
+					write(str);
+				}
+			}
 			return log;
 		}
 	};
