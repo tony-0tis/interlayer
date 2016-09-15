@@ -23,6 +23,10 @@ exports.start = (paths, conf) => {
 	init.initModules(paths, conf);
 }
 
+process.on('exit', (code, sig) => {
+	//
+});
+
 if(process.send){
 	let intervals = {
 		si: setInterval(() => {

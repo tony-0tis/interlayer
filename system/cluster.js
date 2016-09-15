@@ -22,12 +22,12 @@ let clusters = {
 	size: () => clusters.servers.length,
 	restart: () => {
 		for(let i = clusters.servers - 1; i >= 0; i--){
-			clusters.servers[i].srv.kill('SIGABRT');
+			clusters.servers[i].srv.kill('SIGTERM');//TERM
 		}
 	},
 	exit: () => {
 		for(let i = clusters.servers - 1; i >= 0; i--){
-			clusters.servers[i].srv.kill('SIGKILL');
+			clusters.servers[i].srv.kill('SIGINT');//INT
 		}
 	}
 };
@@ -80,7 +80,7 @@ exports.start = (paths, config) => {
 				});
 				server.on('error', error => log.e('server error', error));
 				server.on('exit', (code, sig) => {
-					if(sig == 'SIGKILL'){
+					if(sig == 'SIGINT'){
 						log.i('worker', server.process.pid, 'killed');
 						return;
 					}
@@ -116,7 +116,7 @@ exports.start = (paths, config) => {
 				intervals.add((deleteInterval) => {
 					if(pings.length > 10){
 						deleteInterval();
-						server.kill('SIGKILL');
+						server.kill();
 						return;
 					}
 					let ping = {
