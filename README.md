@@ -42,13 +42,18 @@ server.init(config);
 * `server.init(config);` - start server. Configuration settings are specified [below](#configuration)
 
 ##### Configuration:
+* `config.logPath = './'` - path where will be created `logs.log` file
 * `config.port = 80;` - Port of web server
 * `config.numOfServers = 1;` - number of parallel servers for load balancing. If number more than 1, uses node cluster
 * `config.useWatcher = true;` - if this option is true the server will restart automatically when changing files in the folder with modules.
 * `config.useDals = ['redis'];` - An array of the names of DALs that you will use in your project. [How to use](#use-dals).
 * `config.modules = ['mymodulesfolder'];` - An array of modules folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)
 * `config.dals = ['mydalsfolder'];` - An array of dals folders. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
+
+##### Experimental
 * `config.disableNagleAlgorirm = true;` - Disable Nagle algoritm for connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
+* `config.debug=true;` - Allow to display `log.d` in console and adding to log file
+
 
 ### Create module
 ```js
@@ -67,14 +72,16 @@ exports.myMethod = (request, cb) => {
     request.cookies // cookies
 }
 
-//you also can do prerun before module, example do check auth
+// also you can do prerun before module, example do check auth
 exports._myMethod.prerun = (request, moduleMeta, cb) => {
 }
 
-// you can add initialization for module
+// if you want to log requests to this method are not saved and does not appear in the console, you can add
+exports._myMethod.skipRequestLog = true;
+
+// you can add initialization for module where simpleContext is {DAL: {}}
 exports.__init = (simpleContext) => {
 }
-//where simpleContext is {DAL: {}}
 
 // You can add meta, then all of its properties will be extended to all methods of the module
 exports.__meta = {

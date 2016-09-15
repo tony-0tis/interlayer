@@ -10,7 +10,7 @@ let colors = {
 };
 let breaker = /^win/.test(process.platform) ? '' : '\n';
 let streams = {};
-exports.logger = dir => {
+exports.logger = (dir, debug) => {
 	//console.log(dir);
 
 	let logFile;
@@ -101,6 +101,9 @@ exports.logger = dir => {
 			};
 			for(let i in colors){
 				log[i.toLowerCase()] = (...args) => {
+					if(i == 'D' && !debug){
+						return;
+					}
 					args = split(args);
 					let str = log.date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
 					str = '\x1b[37;' + colors[i] + ';1m' + str + '\x1b[0m' + breaker;

@@ -131,7 +131,8 @@ exports.initModules = (paths, config) => {
 			} 
 		}
 	});
-	//log.w(Object.keys(modules))
+
+	log.d('server methods accessible from the outside\n', Object.keys(modules));
 
 	let context = {
 		url: '',

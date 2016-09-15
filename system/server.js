@@ -7,7 +7,7 @@ let config;
 
 exports.start = (paths, conf) => {
 	config = conf;
-	global.logger = require('./logger.js').logger(__dirname);
+	global.logger = require('./logger.js').logger(config.logPath, config.debug);
 	log = global.logger.create('SRV');
 	init = require('./init.js')
 	
@@ -161,7 +161,7 @@ function requestFunc(request, response){
 	},
 	(err, res) => {
 		if(module.meta && module.meta.skipRequestLog !== true){
-			log.d(
+			log.i(
 				request.headers['x-forwarded-for'] ||
 					request.connection.remoteAddress ||
 					request.socket && request.socket.remoteAddress ||

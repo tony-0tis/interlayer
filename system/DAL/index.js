@@ -30,5 +30,8 @@ exports.init = (paths, config) => {
 			}
 		}
 	}
+
+	log.d('DALs included', Object.keys(DALs));
+
 	return DALs;
 };

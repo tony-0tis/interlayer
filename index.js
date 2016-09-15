@@ -39,6 +39,9 @@ module.exports = class Server{
 		if(!config.logPath){
 			config.logPath = startPath;
 		}
+		else if(!path.isAbsolute(config.logPath)){
+			config.logPath = path.join(startPath, config.logPath);
+		}
 
 		// Modules
 		if(config.modules && !Array.isArray(config.modules)){

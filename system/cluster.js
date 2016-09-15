@@ -52,7 +52,7 @@ let intervals = {
 }
 
 exports.start = (paths, config) => {
-	let logger = require('./logger.js').logger(config.logPath);
+	let logger = require('./logger.js').logger(config.logPath, config.debug);
 	log = logger.create('CLUSTER');
 	
 	let toStart = config.numOfServers || 1;
