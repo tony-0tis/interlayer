@@ -87,6 +87,7 @@ let DAL = {
 			else{
 				res.push(conn);
 			}
+			return res;
 		}, []);
 	}
 };
