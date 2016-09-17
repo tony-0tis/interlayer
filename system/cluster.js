@@ -27,6 +27,7 @@ let clusters = {
 	},
 	exit: () => {
 		for(let i = clusters.servers.length - 1; i >= 0; i--){
+			clusters.servers[i].srv.exitFlag = true;
 			clusters.servers[i].srv.send({type: 'exit'});
 		}
 		clusters = null;
@@ -81,7 +82,7 @@ exports.start = (paths, config) => {
 				});
 				server.on('error', error => log.e('server', server.process.pid, 'error', error));
 				server.on('exit', (code, sig) => {
-					if(code == 1){
+					if(server.exitFlag && code == 1){
 						log.i('worker', server.process.pid, 'killed');
 						server = null;
 						clusters.rem(i);
@@ -114,6 +115,7 @@ exports.start = (paths, config) => {
 						default: 
 							log.e('wrong message type', obj);
 					}
+					obj = null;
 				});
 
 				intervals.add((deleteInterval) => {

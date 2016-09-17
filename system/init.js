@@ -131,46 +131,19 @@ exports.initModules = (paths, config) => {
 		}catch(e){
 			log.e('__init()', ii, e);
 		}
- 	}
+	}
 }
 
 exports.pools = {};
-exports.parseRequest = (request, response) => {
-	request.DAL = DAL_connections;
-	request.path = url.parse(request.url).pathname.substring(1);
-	request.params = qs.parse(url.parse(request.url).query);
-	if(request.params.callback){
-		request.jsonpCallback = request.params.callback;
-		delete request.params.callback;
-	}
-	
-	request.isPost = request.method == 'POST';
-	request.pools = exports.pools;
-	request.helpers = exports.helpers;
-
-	request.cookies = {};
-	request.headers.cookie && request.headers.cookie.split(';').forEach(cookie => {
-        let parts = cookie.split('=');
-        request.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
-    });
-
-	request.getResponse = () => {
-		return response;
-	};
-    request.addCookies = (key, val) => {
-    	if(!request.setCookies){
-    		request.setCookies = {};
-    	}
-    	request.setCookies[key] = val;
-    };
-    request.rmCookies = key => {
-    	if(!request.setCookies){
-    		request.setCookies = {};
-    	}
-    	request.setCookies[key] = '';
-    }
-	request.error = text => {
-		request.end(
+let defaultRequestFuncs = {
+	addCookies: function(key, val){
+		this.newCookies[key] = val;
+	},
+	rmCookies: function(key){
+		this.newCookies[key] = '';
+	},
+	error: function(text){
+		this.end(
 			'Service Unavailable. Try again another time.' + (IS_DEBUG ? ' (' + text + ')' : ''),
 			503,
 			{
@@ -178,109 +151,187 @@ exports.parseRequest = (request, response) => {
 				'Srv-err': text
 			}
 		);
+	},
+}
+exports.parseRequest = (request, response, config) => {
+	let requestObject = {
+		DAL: DAL_connections,
+		url: request.url,
+		path: url.parse(request.url).pathname.substring(1),
+		method: request.method,
+		isPost: request.method == 'POST',
+		pools: exports.pools,
+		helpers: exports.helpers,
+		cookies: {},
+		newCookies: {},
+		config: config,
+		params: {},
+		post: {},
+		headers: JSON.parse(JSON.stringify(request.headers))
 	};
-	request.end = (text, code, headers, type) => {
-		request.clearRequest();
-		if(!code && !text){
-			code = 204;
+
+	requestObject.params = qs.parse(url.parse(requestObject.url).query);
+
+	if(requestObject.params.callback){
+		requestObject.jsonpCallback = requestObject.params.callback;
+		delete requestObject.params.callback;
+	}
+
+	request.headers.cookie && request.headers.cookie.split(';').forEach(cookie => {
+		let parts = cookie.split('=');
+		requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+	});
+
+	requestObject.error = defaultRequestFuncs.error;
+	requestObject.addCookies = defaultRequestFuncs.addCookies;
+	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
+
+	let originalResposeEnd = response.end;
+	var clearRequest = () => {
+		delete requestObject.DAL;
+		delete requestObject.pools;
+		delete requestObject.helpers;
+		delete requestObject.config;
+
+		delete requestObject.getHeader;
+		delete requestObject.getResponse;
+		delete requestObject.addCookies;
+		delete requestObject.rmCookies;
+		delete requestObject.parsePost;
+		delete requestObject.error;
+		delete requestObject.end;
+
+		response.end = originalResposeEnd;
+
+		originalResposeEnd = undefined;
+		requestObject = undefined;
+		clearRequest = undefined;
+	};
+
+	requestObject.getResponse = () => {
+		response.end = function(...args){
+			if(!requestObject || requestObject.ended || !originalResposeEnd){
+				if(requestObject){
+					clearRequest();
+				}
+				requestObject = undefined;
+				return 'FORBIDEN';
+			}
+
+			requestObject.ended = true;
+			response.end = originalResposeEnd;
+			originalResposeEnd = undefined;
+			response.end(args);
+			delete response.end;
+
+			clearRequest();
+		};
+		return response;
+	};
+	requestObject.parsePost = cb => {
+		if(!requestObject.isPost){
+			return cb();
 		}
-		else if(!code){
-			code = 200;
+
+		let body = '';
+
+		request.on('data', data => {
+			body += data;
+
+			if(body.length > 1e6){
+				request.connection.destroy();
+				cb('POST TOO BIG');
+			}
+		});
+
+		request.on('end', () => {
+			try{
+				requestObject.post = JSON.parse(body);
+			}catch(e){
+				try{
+					requestObject.post = qs.parse(body);
+				}catch(ee){
+					requestObject.post = body;
+				}
+			}
+
+			delete requestObject.parsePost;
+
+			cb();
+		});
+	}
+	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
+		if(!requestObject || requestObject.ended){
+			requestObject = undefined;
+			return;
 		}
+
+		requestObject.ended = true;
 
 		if(!text){
-			text = '';
-		}
-
-		if(!headers){
-			headers = {
-				'Content-Type': 'text/html; charset=utf-8'
-			};
+			code = 204;
 		}
 
 		if(type == 'bin'){
 			headers['Content-Length'] = new Buffer(text, 'binary').length;
-			
-			response.writeHead(code, headers);
-			response.end(text, 'binary');
-			return;
+		}
+		else{
+			text = text.toString().replace(new RegExp('\%\\$.*\%', 'g'), '');
+
+			if(requestObject.jsonpCallback){
+				if(headers['Content-Type'] == 'application/json'){
+					text = requestObject.jsonpCallback + '(\'' + text + '\');';
+				}
+				else{
+					text = requestObject.jsonpCallback + '("' + text + '");';
+				}
+			}
+
+			headers['Content-Length'] = new Buffer(text).length;
 		}
 
-		text = text.toString().replace(new RegExp('\%\\$.*\%', 'g'), '');
-
-		if(request.jsonpCallback){
-			if(headers['Content-Type'] == 'application/json'){
-				text = request.jsonpCallback + '(\'' + text + '\');';
-			}
-			else{
-				text = request.jsonpCallback + '("' + text + '");';
+		if(config.defaultHeaders){
+			for(let i in config.defaultHeaders){
+				headers[i] = config.defaultHeaders[i];
 			}
 		}
 
-		headers['Content-Length'] = new Buffer(text).length;
-		headers['Access-Control-Allow-Origin'] = '*';
-
-		if(request.setCookies){
+		if(requestObject.newCookies){
 			let cookies = [];
 			let expires = new Date();
 			expires.setDate(expires.getDate() + 5);
-			for(let i in request.setCookies){
-				cookies.push(i + '=' + encodeURIComponent(request.setCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
+			for(let i in requestObject.newCookies){
+				cookies.push(i + '=' + encodeURIComponent(requestObject.newCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
 			}
 			headers['Set-Cookie'] = cookies;
 		}
 		
 		response.writeHead(code, headers);
-		response.write(text);
+		if(type == 'bin'){
+			response.write(text, 'binary');
+		}
+		else{
+			response.write(text);
+		}
 		response.end();
+
+		clearRequest();
 	};
-	request.clearRequest = () => {
-		delete request.DAL;
-	};
-};
 
-exports.parsePost = (request, callback) => {
-	request.post = {};
-	if(!request.isPost){
-		return callback();
-	}
-
-	let body = '';
-
-	request.on('data', data => {
-		body += data;
-
-		if(body.length > 1e6){
-			request.connection.destroy();
-		}
-	});
-
-	request.on('end', () => {
-		try{
-			request.post = JSON.parse(body);
-		}catch(e){
-			try{
-				request.post = qs.parse(body);
-			}catch(ee){
-				request.post = body;
-			}
-		}
-		
-		callback();
-	});
+	return requestObject;
 };
 
 exports.auth = (module, request) => {
-	if(module.auth || module.rights){
-		let header = request.headers.authorization || '';	// get the header
-		let token = header.split(/\s+/).pop() || '';				// and the encoded auth token
-		let auth = new Buffer(token, 'base64').toString();			// convert from base64
+	if(module.auth/* || module.rights*/){
+		let header = request.headers.authorization || '';
+		let token = header.split(/\s+/).pop() || '';
+		header = undefined;
+		let auth = new Buffer(token, 'base64').toString();
 		let parts = auth.split(':');
-		userObj.user = parts[0];
-		userObj.pass = parts[0];
-		userObj.auth = crypto.createHash('md5').update(auth).digest('hex');
-		let moduleAuth = module.auth == 'default' ? helpers.defaultAuth : module.auth;
-		if(handlerAuth !== true && handlerAuth != userObj.auth){
+		auth = crypto.createHash('md5').update(auth).digest('hex');
+		let moduleAuth = module.auth == 'default' && helpers.defaultAuth ? helpers.defaultAuth : module.auth;
+
+		if(moduleAuth !== true && moduleAuth != auth){
 			return false;
 		}
 	}

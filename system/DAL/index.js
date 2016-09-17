@@ -9,8 +9,12 @@ exports.init = (paths, config) => {
 	if(!config.useDals){
 		return;
 	}
+	let useDals = config.useDals;
+	if(typeof config.useDals && !Array.isArray(config.useDals)){
+		useDals = Object.keys(config.useDals);
+	}
 	let pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
-	for(let dal of config.useDals){
+	for(let dal of useDals){
 		let dalName = dal + '.js';
 		for(let dalsPath of pathsToCheck){
 			try{
@@ -20,7 +24,7 @@ exports.init = (paths, config) => {
 						throw 'exports.methods no defined';
 					}
 					if(dalFile.init){
-						dalFile.init(config);
+						dalFile.init(config, config.useDals[dal]);
 					}
 					DALs[dal] = dalFile.methods;
 					Object.freeze(DALs[dal]);
