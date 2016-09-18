@@ -59,7 +59,7 @@ if(process.send){
 				}
 				break;
 			case 'reload':
-				process.exit(0);
+				setTimeout(()=>process.exit(0),1);
 				break
 			case 'exit':
 				process.exit(1);
@@ -96,7 +96,7 @@ function requestFunc(request, response){
 			'REQ: ' + requestObject.path
 		);
 
-		return requestObject.end('Error 404<title>' + config.error_title + '</title>', 404);
+		return requestObject.end('<title>' + requestObject.i18n('title_error', 'Not found') + '</title>Error 404', 404);
 	}
 
 	if(!init.auth(module, requestObject)){

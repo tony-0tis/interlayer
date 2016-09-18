@@ -7,7 +7,6 @@ let qs = require('querystring');
 let crypto = require('crypto');
 let DAL = require('./DAL');
 
-let IS_DEBUG = true;
 let DAL_connections;
 
 exports.helpers = require('./helpers');
@@ -144,14 +143,61 @@ let defaultRequestFuncs = {
 	},
 	error: function(text){
 		this.end(
-			'Service Unavailable. Try again another time.' + (IS_DEBUG ? ' (' + text + ')' : ''),
+			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
 			503,
 			{
 				'Content-Type': 'text/plain; charset=utf-8',
-				'Srv-err': text
 			}
 		);
 	},
+	getView: function(view, file, cb){
+		if(!cb && !file){
+			throw 'minimum 2 arguments with last callback';
+		}
+		if(!cb){
+			cb = file;
+			file = view;
+			view = null;
+		}
+		let tries = [];
+		for(let i in this.config.view){
+			tries.push(
+				new Promise((ok,fail) => {
+					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
+						if(err){
+							return fail(err);
+						}
+						return ok(res);
+					});
+				})
+			);
+		}
+		Promise.race(tries)
+		.then(result => cb(null, (result||'').toString()))
+		.catch(err => {
+			log.e(err);
+			cb('Not found')
+		});
+	},
+	getViewSync: function(view, file, cb){
+		if(cb){
+			throw 'maximum 2 arguments, without callback';
+		}
+		if(!file){
+			file = view;
+		}
+		return this.config.view.requce((res, view)=>{
+			if(res){
+				return res;
+			}
+			try{
+				return fs.readFileSync(pathMod.join(view, file));
+			}
+			catch(e){
+				return res;
+			}
+		}, '').toString() || null;
+	}
 }
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
@@ -182,10 +228,6 @@ exports.parseRequest = (request, response, config) => {
 		requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
 	});
 
-	requestObject.error = defaultRequestFuncs.error;
-	requestObject.addCookies = defaultRequestFuncs.addCookies;
-	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
-
 	let originalResposeEnd = response.end;
 	var clearRequest = () => {
 		delete requestObject.DAL;
@@ -208,6 +250,12 @@ exports.parseRequest = (request, response, config) => {
 		clearRequest = undefined;
 	};
 
+	requestObject.error = defaultRequestFuncs.error;
+	requestObject.addCookies = defaultRequestFuncs.addCookies;
+	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
+	requestObject.getView = defaultRequestFuncs.getView;
+	requestObject.getViewSync = defaultRequestFuncs.getViewSync;
+
 	requestObject.getResponse = () => {
 		response.end = function(...args){
 			if(!requestObject || requestObject.ended || !originalResposeEnd){
@@ -228,38 +276,9 @@ exports.parseRequest = (request, response, config) => {
 		};
 		return response;
 	};
-	requestObject.parsePost = cb => {
-		if(!requestObject.isPost){
-			return cb();
-		}
-
-		let body = '';
-
-		request.on('data', data => {
-			body += data;
-
-			if(body.length > 1e6){
-				request.connection.destroy();
-				cb('POST TOO BIG');
-			}
-		});
-
-		request.on('end', () => {
-			try{
-				requestObject.post = JSON.parse(body);
-			}catch(e){
-				try{
-					requestObject.post = qs.parse(body);
-				}catch(ee){
-					requestObject.post = body;
-				}
-			}
-
-			delete requestObject.parsePost;
-
-			cb();
-		});
-	}
+	requestObject.i18n = (key, def) => {
+		return def;
+	};
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
 		if(!requestObject || requestObject.ended){
 			requestObject = undefined;
@@ -316,6 +335,38 @@ exports.parseRequest = (request, response, config) => {
 		response.end();
 
 		clearRequest();
+	};
+	requestObject.parsePost = cb => {
+		if(!requestObject.isPost){
+			return cb();
+		}
+
+		let body = '';
+
+		request.on('data', data => {
+			body += data;
+
+			if(body.length > 1e6){
+				request.connection.destroy();
+				cb('POST TOO BIG');
+			}
+		});
+
+		request.on('end', () => {
+			try{
+				requestObject.post = JSON.parse(body);
+			}catch(e){
+				try{
+					requestObject.post = qs.parse(body);
+				}catch(ee){
+					requestObject.post = body;
+				}
+			}
+
+			delete requestObject.parsePost;
+
+			cb();
+		});
 	};
 
 	return requestObject;

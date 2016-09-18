@@ -80,7 +80,14 @@ exports.start = (paths, config) => {
 						config: config
 					});
 				});
-				server.on('error', error => log.e('server', server.process.pid, 'error', error));
+				server.on('error', error => {
+					if(error.indexOf('channel closed')){
+						return;
+					}
+
+					let pid = ((server||{}).process||{}).pid;
+					log.e('server', pid, 'error', error)
+				});
 				server.on('exit', (code, sig) => {
 					if(server.exitFlag && code == 1){
 						log.i('worker', server.process.pid, 'killed');

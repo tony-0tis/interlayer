@@ -1,6 +1,4 @@
 # interlayer
-Minimalistic and fast web server
-
 [![npm version](https://img.shields.io/npm/v/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![npm downloads](https://img.shields.io/npm/dm/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![github license](https://img.shields.io/github/license/donkilluminatti/interlayer.svg)](https://github.com/DonKilluminatti/interlayer/blob/master/LICENSE)
@@ -15,10 +13,9 @@ Minimalistic and fast web server
 * you can pick up a cluster of servers for load balancing. Dangling nodes while automatically restart
 
 #### Future
-* add file returns
 * add file upload
 * add the ability to use the add-ons for each request, such as preauthorization
-* add processing off fall and completion
+* add support for i18n
 
 ### Installation
 ```js
@@ -54,13 +51,14 @@ server.init(config);
 * `config.defaultHeaders = {'Access-Control-Allow-Origin',:'*'};` - An object with headers, which must to add to every response
 
 ##### Experimental
-* `config.disableNagleAlgorirm = true;` - Disable Nagle algoritm for connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
+* `config.disableNagleAlgoritm = true;` - Disable Nagle algoritm for connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
 * `config.debug=true;` - Allow to display `log.d` in console and adding to log file
 
 
 
 
 ### Create module
+Example: File *modules/myModule.js*
 ```js
 let log = global.logger.create('moduleID');
 
@@ -70,28 +68,40 @@ log.w() // Warn - displayed in yellow
 log.e() // Error - displayed in red
 log.c() // Critical error - displayed in white
 
-exports._myMethod = {
-    toJson: true
-};
-// All avaliable properties and methods see [here](#request-properties-and-methods)
-exports.myMethod = (request, cb) => {
-}
-
-// also you can do prerun before module, example do check auth
-exports._myMethod.prerun = (request, moduleMeta, cb) => {
-}
-
-// if you want to log requests to this method are not saved and does not appear in the console, you can add
-exports._myMethod.skipRequestLog = true;
-
-// you can add initialization for module where simpleContext is {DAL: {}}
-exports.__init = (simpleContext) => {
-}
+// format of logs [YYYY/MM/DD|HH:MM:SS.sss|tz][logtype][process.id][module identification] value
+// ex: [2016/09/17|20:05:46.528|-3][I][6880][moduleID] Test log
 
 // You can add meta, then all of its properties will be extended to all methods of the module
 exports.__meta = {
-    contentType: 'json' // or toJson: true - JSON.stringify of responce data
-}
+    contentType: 'json' // or toJson: true - JSON.stringify of responce data,
+    //prerun: (request, moduleMeta, cb)=>{}
+};
+
+// you can add initialization for module where simpleContext is Object({DAL: {... dals spicified in config.useDals}})
+exports.__init = (simpleContext) => {
+    // do something, example some work with using simpleContext.redis.blpop
+};
+
+exports._myMethod = {
+    toJson: true
+    //addToRoot: true - if you specify this option then the method will be located at `myMethod` without specifying the module name
+    //skipRequestLog: true - if you specify this option it will disable save and display in console log information about calling this method
+    //prerun: (request, moduleMeta, cb) => {
+        // do something, example check auth.
+        // you can save your result in request.prerun = 'Some result'
+        // and then use request.prerun
+        // cb(error);
+    //}
+};
+
+// url will be `myModule/myMethod`. Also you can add GET params `myModule/myMethod?param1=param`
+// All avaliable properties and methods for request see above.
+exports.myMethod = (request, cb) => {
+    let error = null;
+    let responce = 'Ok';
+    log.i('myMethod request');
+    cb(error, response);
+};
 ```
 
 #### Request properties and methods
@@ -106,6 +116,8 @@ exports.__meta = {
 * `request.config` - An object of configuration which you specified at start of server
 
 ##### Methods
+* `request.getView('file.html', cb)` - return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
+* `request.getViewSync('file')` - sync version. return file(from one of folders specified in `config.view`) content or *null* if file not found
 * `request.addCookies(key, value)` - set cookies to response
 * `request.rmCookies(key)` - delete cookies of expire cookies in responce
 ###### Manual responses

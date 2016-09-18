@@ -113,6 +113,9 @@ module.exports = class Server{
 			this.paths.views = this.paths.views.concat(config.views);
 			delete config.views;
 		}
+		if(!this.paths.views.length){
+			this.paths.views.push(path.join(startPath, 'files'));
+		}
 		this.paths.views = this.paths.views.reduce((res, vpath) => {
 			if(!path.isAbsolute(vpath)){
 				vpath = path.join(startPath, vpath);

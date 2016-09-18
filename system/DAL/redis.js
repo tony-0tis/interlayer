@@ -43,7 +43,7 @@ let DAL = {
 			DAL.opened.push(connection);
 			DAL._checkConnections();
 			cb(null, connection.redis);
-			log.w('connection', connection.id, 'opened');
+			log.d('connection', connection.id, 'opened');
 			return;
 		}
 
@@ -73,7 +73,7 @@ let DAL = {
 			let conn = DAL._closeConnection(connection.id);
 			if(conn){
 				conn = undefined;
-				log.w('connection', connection.id, 'deleted from opened by error');
+				log.d('connection', connection.id, 'deleted from opened by error');
 			}
 
 			connection = null;
@@ -87,7 +87,7 @@ let DAL = {
 			cb(null, connection.redis);
 			cb = soother;// this need to prevent re-call callback
 
-			log.w('connection', connection.id, 'created and added to opened');
+			log.d('connection', connection.id, 'created and added to opened');
 		});
 		connection.redis.on('requestEnded', () => {
 			if(!connection){
@@ -101,7 +101,7 @@ let DAL = {
 
 			DAL.connections.push(conn[0]);
 
-			log.w('connection', connection.id, 'moved to waited');
+			log.d('connection', connection.id, 'moved to waited');
 		});
 		connection.redis.on('end', () => {
 			if(!connection){
@@ -111,7 +111,7 @@ let DAL = {
 			let conn = DAL._closeConnection(connection.id);
 			if(conn){
 				conn = undefined;
-				log.w('connection', connection.id, 'deleted from opened by end connection');
+				log.d('connection', connection.id, 'deleted from opened by end connection');
 			}
 
 			connection = undefined;
