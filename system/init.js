@@ -214,12 +214,18 @@ exports.initMiddlewares = (paths, config) => {
 
 	if(config.middlewareOrder){
 		for(let i in config.middlewareOrder){
-			let ind = middlewares.indexOf(config.middlewareOrder[i]);
+			let ind = -1;
+			for(let i in middlewares){
+				if(middlewares[i].name == config.middlewareOrder[i]){
+					ind = i;
+					break;
+				}
+			}
 			if(ind < 0){
-				log.e('middleware specified in config.middlewareOrder has not been initialized');
+				log.e('middleware specified in config.middlewareOrder has not been initialized', middlewares, config.middlewareOrder[i]);
 				continue;
 			}
-			middleware.splice(i, 0, middleware.splice(ind, 1));
+			middlewares.splice(i, 0, middlewares.splice(ind, 1).pop());
 		}
 	}
 };

@@ -57,7 +57,7 @@ server.init(config);
 * `server.init(config);` - start server. Configuration settings are specified [below](#configuration)
 
 ##### Configuration:
-`~~Config~~` object properties
+`Config` object properties
 
 | Property | Sever version | Default | Example | Description |
 | -------- | ------------- | ------- | ------- | ----------- |
