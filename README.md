@@ -4,13 +4,13 @@
 [![github license](https://img.shields.io/github/license/donkilluminatti/interlayer.svg)](https://github.com/DonKilluminatti/interlayer/blob/master/LICENSE)
 
 ### Features
-* in its current form is a REST-api server
+* in its current form is a server REST-api or full-stack server
 * it is possible to add your own modules and dals
 * the server can restart each time a file changes
 * coloring of the log in the console
 * as if to run the server as a service, can be seen through tailf colored logs
 * size of data obtained by POST maximum 976kb, 1e6 symbols
-* you can pick up a cluster of servers for load balancing. Dangling nodes while automatically restart
+* you can pick up a cluster of servers for load balancing. Dangling nodes will automatically restart
 * in built-in redis DAL implimented smart pool of connections
 * you can localize your templates and use localisation varibles for customize api responses
 * it is possible to use your middleware modules to implement authorization checks
@@ -61,7 +61,8 @@ server.init(config);
 
 | Property | Sever version | Default | Example | Description |
 | -------- | ------------- | ------- | ------- | ----------- |
-| logPath | >=0.0.3 | ./ | /var/logs/myApp/ | path where will be created `logs.log` file |
+| startPath | >=0.1.8 | ./ | /myserver | Root path for modules, dals, views, middlewares, i18n if their paths is relative |
+| logPath | >=0.0.3 | ./ | /var/logs/myApp/ | Path where will be created `logs.log` file |
 | port | >=0.0.3 | 8080 | 80 / Number | Port of web server |
 | timeout | >=0.1.8 | 60 | 600 / Number | Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
 | numOfServers | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |

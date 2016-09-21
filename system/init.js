@@ -528,7 +528,24 @@ exports.middleware = (request, moduleMeta, cb) => {
 			}
 
 			let funcs = Object.keys(middleware.triggers).reduce((res, trigger) => {
-				if(trigger){
+				let run = false;
+				let isMeta = trigger.match(/^meta\./);
+				let isRequest = trigger.match(/^request\./);
+				if(isMeta || isRequest){
+					let p = trigger.split('.').splice(1);
+					let path = isMeta ? moduleMeta : request;
+					for(let i in p){
+						if(path[p[i]]){
+							path = path[p[i]];
+							run = true;
+						}
+						else{
+							run = false;
+							break;
+						}
+					}
+				}
+				if(run){
 					res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
 				}
 				return res;
