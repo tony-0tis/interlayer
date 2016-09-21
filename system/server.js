@@ -21,6 +21,8 @@ exports.start = (paths, conf) => {
 	log.i('server started on port: ' + conf.port || 8080);
 	init.initDALs(paths, conf);
 	init.initModules(paths, conf);
+	init.initMiddlewares(paths, conf);
+	init.initI18n(paths, conf);
 }
 
 if(process.send){
@@ -96,7 +98,7 @@ function requestFunc(request, response){
 			'REQ: ' + requestObject.path
 		);
 
-		return requestObject.end('<title>' + requestObject.i18n('title_error', 'Not found') + '</title>Error 404', 404);
+		return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
 	}
 
 	if(!init.auth(module, requestObject)){
@@ -105,17 +107,47 @@ function requestFunc(request, response){
 
 	async.auto({
 		post: cb => requestObject.parsePost(cb),
-		prerun: cb => {
-			if(!module.meta.prerun){
+		middleware: ['post', (res, cb) => {
+			let middlewareTimeout = config.middlewareTimeout || module.meta.middlewareTimeout || 10;
+			init.middleware(requestObject, module.meta, init.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers) => {
+				if(e){
+					res.data = {error: e};
+					res.code = code || 200;
+					res.headers = headers || {'Content-Type': 'application/json'};
+					return cb(null, true);
+				}
+
+				cb();
+			}));
+		}],
+		prerun: ['middleware', (res, cb) => {
+			if(!module.meta.prerun || res.middleware){
 				return cb();
 			}
 
 			module.meta.prerun(requestObject, module.meta, cb);
-		},
+		}],
 		module: ['post', 'prerun', (res, cb) => {
+			if(res.middleware){
+				return cb();
+			}
+
 			let poolId = requestObject.params.poolingId || requestObject.post.poolingId;
 			let withPool = requestObject.params.withPooling || requestObject.post.withPooling;
-			let next = cb;
+			let next = init.timeout(config, module.meta, (e, data, code, headers, type) => {
+				if(e){
+					data = {error: e};
+					code = code || 200;
+					headers = headers || {'Content-Type': 'application/json'};
+					type = null;
+				}
+
+				res.data = data;
+				res.code = code || 200;
+				res.headers = headers || {};
+				res.type = type;
+				cb();
+			});
 
 			if(poolId){
 				if(!init.pools[poolId]){
@@ -130,27 +162,14 @@ function requestFunc(request, response){
 					poolingId: id
 				};
 
-				cb(null, init.pools[id]);
+				next(null, init.pools[id]);
 				next = (err, res) => {
 					init.pools[id] = res;
 				};
 			}
 
 			try{
-				module.func(requestObject, (e, data, code, headers, type) => {
-					if(e){
-						data = {error: e};
-						code = 200;
-						headers = {'Content-Type': 'application/json'};
-						type = null;
-					}
-
-					res.data = data;
-					res.code = code || 200;
-					res.headers = headers || {};
-					res.type = type;
-					next();
-				});
+				module.func(requestObject, next);
 			}
 			catch(e){
 				log.e(e);

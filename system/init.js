@@ -5,13 +5,15 @@ let pathMod = require('path');
 let url = require('url');
 let qs = require('querystring');
 let crypto = require('crypto');
+let async = require('async');
 let DAL = require('./DAL');
 
 let DAL_connections;
 
 exports.helpers = require('./helpers');
 let modules = {};
-let inits = {};
+let middlewares = [];
+let i18n = {};
 
 exports.initDALs = (paths, config) => {
 	DAL_connections = DAL.init(paths, config);
@@ -21,6 +23,7 @@ exports.initDALs = (paths, config) => {
 exports.getModule = module => modules[module];
 
 exports.initModules = (paths, config) => {
+	let inits = {};
 	paths.modules.forEach(path => {
 		let pathModules = fs.readdirSync(path);
 
@@ -131,7 +134,123 @@ exports.initModules = (paths, config) => {
 			log.e('__init()', ii, e);
 		}
 	}
-}
+};
+
+exports.initMiddlewares = (paths, config) => {
+	let inits = {};
+	paths.middleware.forEach(path => {
+		let pathMiddleware = fs.readdirSync(path);
+
+		for(let file of pathMiddleware){
+			try{
+				if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
+					continue;
+				}
+
+				if(fs.lstatSync(path + '/' + file).isDirectory()){
+					continue;
+				}
+
+				let middleware = require(pathMod.resolve(path) + '/' + file);
+
+				if(middleware.__init){
+					inits[file] = middleware.__init;
+				}
+
+				let middlewareObject = {
+					name: file.replace('.js', '')
+				};
+
+				if(!middleware.triggers){
+					if(!middleware.run){
+						log.e('middleware', file, 'have no property `triggers` and method `run`');
+						continue;
+					}
+					middlewareObject.triggers = {
+						'*': middleware.run
+					};
+				}
+				else if(Array.isArray(middleware.triggers)){
+					if(!middleware.run){
+						log.e('middleware', file, 'have no method `run`');
+						continue;
+					}
+					middlewareObject.triggers = middleware.triggers.reduce((res, cur) => {
+						res[cur] = middleware.run;
+						return res;
+					}, {});
+				}
+				else if(typeof middleware.triggers == 'object'){
+					middlewareObject.triggers = {};
+					for(let t in middleware.triggers){
+						if(!middleware[middleware.triggers[t]]){
+							log.e('in middleware', file, 'trigger', t, 'linked to undefined method');
+							continue;
+						}
+
+						if(typeof middleware.triggers[t] == 'function'){
+							middlewareObject.triggers[t] = middleware.triggers[t];
+							continue;
+						}
+
+						if(typeof middleware[middleware.triggers[t]] != 'function'){
+							log.e('in middleware', file, 'trigger', t, 'linked to non function', middleware.triggers[t]);
+							continue;
+						}
+
+						middlewareObject.triggers[t] = middleware[middleware.triggers[t]];
+					}
+				}
+
+				middlewares.push(middlewareObject);
+
+				middleware = null;
+			}
+			catch(err){
+				log.e('Error in middleware ' + path + '/' + file, err, err.stack);
+			}
+		}
+	});
+
+	if(config.middlewareOrder){
+		for(let i in config.middlewareOrder){
+			let ind = middlewares.indexOf(config.middlewareOrder[i]);
+			if(ind < 0){
+				log.e('middleware specified in config.middlewareOrder has not been initialized');
+				continue;
+			}
+			middleware.splice(i, 0, middleware.splice(ind, 1));
+		}
+	}
+};
+
+exports.initI18n = (paths, config) => {
+	paths.i18n.forEach(path => {
+		let pathI18n = fs.readdirSync(path);
+
+		for(let file of pathI18n){
+			try{
+				if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
+					continue;
+				}
+
+				if(fs.lstatSync(path + '/' + file).isDirectory()){
+					continue;
+				}
+
+				if(file.split('.').pop() != 'json'){
+					log.w('In catalog with i18n files founded non json file', file);
+					continue;
+				}
+
+				i18n[file.replace('.json', '')] = JSON.parse(fs.readFileSync(pathMod.join(path, file)));
+			}
+			catch(err){
+				log.e('Error in i18n ' + path + '/' + file, err, err.stack);
+			}
+		}
+	});
+};
 
 exports.pools = {};
 let defaultRequestFuncs = {
@@ -198,7 +317,7 @@ let defaultRequestFuncs = {
 			}
 		}, '').toString() || null;
 	}
-}
+};
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
 		DAL: DAL_connections,
@@ -213,7 +332,8 @@ exports.parseRequest = (request, response, config) => {
 		config: config,
 		params: {},
 		post: {},
-		headers: JSON.parse(JSON.stringify(request.headers))
+		headers: JSON.parse(JSON.stringify(request.headers)),
+		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g)
 	};
 
 	requestObject.params = qs.parse(url.parse(requestObject.url).query);
@@ -235,15 +355,19 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.helpers;
 		delete requestObject.config;
 
-		delete requestObject.getHeader;
 		delete requestObject.getResponse;
 		delete requestObject.addCookies;
 		delete requestObject.rmCookies;
 		delete requestObject.parsePost;
 		delete requestObject.error;
 		delete requestObject.end;
+		delete requestObject.i18n;
+		delete requestObject.getView;
+		delete requestObject.getViewSync;
 
-		response.end = originalResposeEnd;
+		if(originalResposeEnd){
+			response.end = originalResposeEnd;
+		}
 
 		originalResposeEnd = undefined;
 		requestObject = undefined;
@@ -277,6 +401,12 @@ exports.parseRequest = (request, response, config) => {
 		return response;
 	};
 	requestObject.i18n = (key, def) => {
+		for(let i in requestObject.langs){
+			if(i18n[requestObject.langs[i]] && i18n[requestObject.langs[i]][key]){
+				return i18n[requestObject.langs[i]][key];
+			}
+		}
+
 		return def;
 	};
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
@@ -371,6 +501,57 @@ exports.parseRequest = (request, response, config) => {
 
 	return requestObject;
 };
+
+exports.middleware = (request, moduleMeta, cb) => {
+	if(!middlewares.length){
+		log.d('No middlewares');
+		return cb();
+	}
+
+	let count = 0;
+	async.whilst(
+		() => {
+			return count < middlewares.length;
+		},
+		(cb) => {
+			let middleware = middlewares[count];
+			count++;
+			if(middleware.triggers['*']){
+				middleware.triggers['*'](request, moduleMeta, cb);
+				return;
+			}
+
+			let funcs = Object.keys(middleware.triggers).reduce((res, trigger) => {
+				if(trigger){
+					res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
+				}
+				return res;
+			}, []);
+			async.series(funcs, cb);
+		},
+		(err, res) => {
+			log.d('middlewares result', err, res);
+			cb(err, res);
+		}
+	);
+};
+
+exports.timeout = (config, meta, cb) => {
+	var called = false;
+	setTimeout(() => {
+		(!called) && cb('TIMEOUT', null, 408);
+		called = true;
+	}, (meta.timeout || config.timeout || 60) * 1000);
+	return function(...args){
+		if(called){
+			log.e('request ended', args);
+			return;
+		}
+
+		called = true;
+		cb(...args);
+	}
+}
 
 exports.auth = (module, request) => {
 	if(module.auth/* || module.rights*/){

@@ -9,7 +9,9 @@ module.exports = class Server{
 		this.paths = {
 			modules: [],
 			dals: [],
-			views: []
+			views: [],
+			middleware: [],
+			i18n: []
 		};
 	}
 	addModulesPath (...args) {
@@ -36,6 +38,20 @@ module.exports = class Server{
 
 		// ####
 		let startPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^\(]*\(([^\)]+)\)/)[1]);
+		if(config.startPath){
+			if(!path.isAbsolute(config.startPath)){
+				throw 'config.startPath must be absolute path';
+			}
+			try{
+				if(!fs.statSync(config.startPath).isDirectory()){
+					throw 'config.startPath must be directory';
+				}
+				startPath = config.startPath;
+			}
+			catch(e){
+				throw 'config.startPath not created' + e;
+			}
+		}
 		if(!config.logPath){
 			config.logPath = startPath;
 		}
@@ -44,99 +60,66 @@ module.exports = class Server{
 		}
 
 		// Modules
-		if(config.modules && !Array.isArray(config.modules)){
-			throw 'config.modules must be Array';
-		}
-		if(config.modules){
-			this.paths.modules = this.paths.modules.concat(config.modules);
-			delete config.modules;
-		}
-		if(!this.paths.modules.length){
-			this.paths.modules.push(path.join(startPath, 'modules'));
-		}
-		this.paths.modules = this.paths.modules.reduce((res, mpath) => {
-			if(!path.isAbsolute(mpath)){
-				mpath = path.join(startPath, mpath);
-			}
-			try{
-				if(fs.statSync(mpath).isDirectory()){
-					res.push(mpath);
-				}
-				else{
-					console.log('modules path', mpath, 'is not directory');
-				}
-			}catch(e){
-				console.log('modules path', mpath, 'not created');
-			}
-			return res;
-		}, []);
+		checkPath.call(this, startPath, config, 'modules', 'modules');
 		if(!this.paths.modules.length){
 			throw 'you must specify the path to the modules in config.modules, type - Array of strings';
 		}
 
 		// Dals
-		if(config.dals && !Array.isArray(config.dals)){
-			throw 'config.dals must be Array';
-		}
-		if(config.dals){
-			this.paths.dals = this.paths.dals.concat(config.dals);
-			delete config.dals;
-		}
-		this.paths.dals = this.paths.dals.reduce((res, dpath) => {
-			if(!path.isAbsolute(dpath)){
-				dpath = path.join(startPath, dpath);
-			}
-			try{
-				if(fs.statSync(dpath).isDirectory()){
-					res.push(dpath);
-				}
-				else{
-					console.log('dals path', dpath, 'is not directory');
-				}
-			}
-			catch(e){
-				console.log('dals path', dpath, 'not created');
-			}
-			return res;
-		}, []);
+		checkPath.call(this, startPath, config, 'dals');
 		if(!config.useDals || !config.useDals.length){
 			if(!config.skipDbWarning){
 				console.log('config.useDals not defined, no one database will be included');
 			}
 		}
+
+		// Middleware
+		checkPath.call(this, startPath, config, 'middleware');
 		
 		// Views
-		if(config.views && !Array.isArray(config.views)){
-			throw 'config.views must be Array';
-		}
-		if(config.views){
-			this.paths.views = this.paths.views.concat(config.views);
-			delete config.views;
-		}
-		if(!this.paths.views.length){
-			this.paths.views.push(path.join(startPath, 'files'));
-		}
-		this.paths.views = this.paths.views.reduce((res, vpath) => {
-			if(!path.isAbsolute(vpath)){
-				vpath = path.join(startPath, vpath);
-			}
-			try{
-				if(fs.statSync(vpath).isDirectory()){
-					res.push(vpath);
-				}
-				else{
-					console.log('views path', vpath, 'is not directory');
-				}
-			}
-			catch(e){
-				console.log('views path', vpath, 'not created');
-			}
-			return res;
-		}, []);
+		checkPath.call(this, startPath, config, 'views', 'files');
+
+		// I18n
+		checkPath.call(this, startPath, config, 'i18n', 'i18n');
 		
 		this.paths.startPath = startPath;
 		let cluster = require(path.join(__dirname, 'system/cluster'));
 		process.chdir(startPath);
 		cluster.start(this.paths, config);
 	}
+}
+
+function checkPath(startPath, config, type, def){
+	// Modules
+	if(config[type] && !Array.isArray(config[type])){
+		throw 'config.' + type + ' must be Array';
+	}
+
+	if(config[type]){
+		this.paths[type] = this.paths[type].concat(config[type]);
+		delete config[type];
+	}
+
+	if(!this.paths[type].length && def){
+		this.paths[type].push(path.join(startPath, def));
+	}
+
+	this.paths[type] = this.paths[type].reduce((res, mpath) => {
+		if(!path.isAbsolute(mpath)){
+			mpath = path.join(startPath, mpath);
+		}
+		try{
+			if(fs.statSync(mpath).isDirectory()){
+				if(res.indexOf(mpath) < 0){
+					res.push(mpath);
+				}
+			}
+			else{
+				console.log(type, 'path', mpath, 'is not directory');
+			}
+		}catch(e){
+			console.log(type, 'path', mpath, 'not created');
+		}
+		return res;
+	}, []);
 }
