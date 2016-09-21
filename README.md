@@ -14,6 +14,7 @@
 * in built-in redis DAL implimented smart pool of connections
 * you can localize your templates and use localisation varibles for customize api responses
 * it is possible to use your middleware modules to implement authorization checks
+
 #### Future
 * add file upload
 * add the ability to use the add-ons for each request, such as preauthorization
@@ -57,26 +58,27 @@ server.init(config);
 
 ##### Configuration:
 `~~Config~~` object properties
+
 | Property | Sever version | Default | Example | Description |
 | -------- | ------------- | ------- | ------- | ----------- |
 | logPath | >=0.0.3 | ./ | /var/logs/myApp/ | path where will be created `logs.log` file |
-| port | >=0.0.3 | 8080 | 80 \| Number | Port of web server |
-| timeout | >=0.1.8 | 60 | 600 \| Number | Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
-| numOfServers | >=0.0.8 | 1 | 4 \| Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
+| port | >=0.0.3 | 8080 | 80 / Number | Port of web server |
+| timeout | >=0.1.8 | 60 | 600 / Number | Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
+| numOfServers | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
 | useWatcher | >=0.0.8 | false | true/false | if this option is true the server will restart automatically when changing files in the folder with modules. |
 | useDals | >=0.0.8 | - | ['redis'] | An array of dals which need to include. |
 | useDals | >=0.1.6 | - | {redis: {host: ''}} | An object of dals which need to include. By using object settings can be specified to initialize the config for DAL. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties) |
-| modules | >=0.0.3 | ['modules'] | ['mymodules'] \| ['/home/web/myserver/mymodules'] | An array of modules folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)|
-| dals | >=0.0.3 | - | ['mydals'] \| ['/home/web/myserver/mydals'] | An array of dals folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal) |
-| middleware | >=0.1.8 | - | ['mymiddleware'] | ['/home/web/myserver/mymiddleware'] | An array of folders with middlewares. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-middleware) |
+| modules | >=0.0.3 | ['modules'] | ['mymodules'] / ['/myserver/mymodules'] | An array of modules folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)|
+| dals | >=0.0.3 | - | ['mydals'] / ['/myserver/mydals'] | An array of dals folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal) |
+| middleware | >=0.1.8 | - | ['mymiddleware'] | ['/myserver/mymiddleware'] | An array of folders with middlewares. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-middleware) |
 | middlewareOrder | >=0.1.8 | - | ['session', 'checkAuth'] | An array with ordered names of middlewares |
-| middlewareTimeout | >=0.1.8 | 10 | 15 \| Number |  Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**|
-| views | >=0.1.8 | ['files'] | ['myfiles'] \| ['/home/web/myserver/myfiles'] | An array of folders with files, which you can use as templates, or to return them through the api. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_)  |
-| i18n | >=0.1.8 | ['i18n'] | ['myi18n'] \| ['/home/web/myserver/myi18n'] | An array of folders with localization files. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#localization) |
+| middlewareTimeout | >=0.1.8 | 10 | 15 / Number |  Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**|
+| views | >=0.1.8 | ['files'] | ['myfiles'] / ['/myserver/myfiles'] | An array of folders with files, which you can use as templates, or to return them through the api. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_)  |
+| i18n | >=0.1.8 | ['i18n'] | ['myi18n'] / ['/myserver/myi18n'] | An array of folders with localization files. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#localization) |
 | defaultHeaders | >=0.1.6 | - | {'Access-Control-Allow-Origin',:'*'} | An object with headers, which have to be added to every response. |
 | - | - | - | - |
 | ~~type~~ | >=0.0.3 <0.0.8 | ~~'server'~~ | ~~'server'/'watcher'~~ | **Deprecated!** Use `useWatcher` instead. |
-| ~~initDals~~ | >=0.0.3 <0.0.8 | - | ['redis'] | **Deprecated!** Use `useDals` instead. |
+| ~~initDals~~ | >=0.0.3 <0.0.8 | - | ~~['redis']~~ | **Deprecated!** Use `useDals` instead. |
 
 ##### Experimental properties
 | Property | Sever version | Default | Example | Description |
@@ -211,7 +213,7 @@ exports.checkSession = (request, moduleMeta, cb) => {
 
 ### Localization
 ##### Example of i18n/en.js
-~~Note! You have to use double quotes, instead single quotes, cause it's json file~~
+**Note! You have to use double quotes, instead single quotes, cause it's json file**
 ```json
 {
     "title_error_404": "Nothing found, 404, Bill Gates site"
