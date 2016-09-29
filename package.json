@@ -1,6 +1,6 @@
 {
   "name": "interlayer",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "index.js",
   "dependencies": {
@@ -35,7 +35,7 @@
     "JSV"
   ],
   "bugs": {
-    "mail" : "npmdev@aidev.io",
+    "mail": "npmdev@aidev.io",
     "url": "https://github.com/DonKilluminatti/interlayer/issues"
   },
   "homepage": "https://github.com/DonKilluminatti/interlayer#readme"
