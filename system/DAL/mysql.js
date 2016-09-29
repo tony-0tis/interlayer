@@ -20,7 +20,6 @@ exports.init = (config, dalConfig) => {
 };
 
 exports.methods = {};
-log.w(connectionMethods)
 for(let name in connectionMethods.prototype){
 	if(name.indexOf('_') == 0){
 		continue;
