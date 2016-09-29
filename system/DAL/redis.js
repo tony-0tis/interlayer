@@ -55,9 +55,9 @@ let DAL = {
 			retry_strategy: retry_strategy,
 			emit_error: err => connection && connection.redis.emit('error', err)
 		};
-		if(DAL.config && DAL.config.redisConf){
-			for(let i in DAL.config.redisConf){
-				config[i] = DAL.config.redisConf[i];
+		if(DAL.config && DAL.config){
+			for(let i in DAL.config){
+				config[i] = DAL.config[i];
 			}
 		}
 		
@@ -170,8 +170,8 @@ let DAL = {
 	}
 };
 
-exports.init = (config) =>{
-	DAL.config = config;
+exports.init = (config, dalConfig) =>{
+	DAL.config = dalConfig;
 }
 
 exports.methods = {};

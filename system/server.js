@@ -101,9 +101,9 @@ function requestFunc(request, response){
 		return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
 	}
 
-	if(!init.auth(module, requestObject)){
+	/*if(!init.auth(module.meta, requestObject)){
 		return requestObject.end('Access denied', 401, {'WWW-Authenticate': 'Basic realm="example"'});
-	}
+	}*/ // not working yet
 
 	async.auto({
 		post: cb => requestObject.parsePost(cb),
@@ -193,10 +193,9 @@ function requestFunc(request, response){
 					request.connection.socket && request.connection.socket.remoteAddress,
 				'REQ: ' + requestObject.path,
 				'FROM: ' + (requestObject.headers.referer || '---'),
-				'GET: ' + init.helpers.clearObj(requestObject.params),
-				'POST: ' + init.helpers.clearObj(requestObject.post),
-				'len:' + (res.data && res.data.length),
-				module.meta.auth ? '(A)' : ''
+				'GET: ' + init.helpers.clearObj(requestObject.params, ['token']),
+				'POST: ' + init.helpers.clearObj(requestObject.post, ['token']),
+				'len:' + (res.data && res.data.length)
 			);
 		}
 

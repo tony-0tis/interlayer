@@ -125,7 +125,8 @@ exports.initModules = (paths, config) => {
 	let context = {
 		url: '',
 		headers: {},
-		DAL: DAL_connections
+		DAL: DAL_connections,
+		config: config
 	};
 	for(let ii in inits){
 		try{
@@ -322,7 +323,13 @@ let defaultRequestFuncs = {
 				return res;
 			}
 		}, '').toString() || null;
-	}
+	},
+	// fileToResponse: function(file){
+	// 	let contentType = this.helpers.mime(file);
+	// },
+	// binaryToResponse: function(file){
+
+	// }
 };
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
@@ -580,7 +587,6 @@ exports.auth = (module, request) => {
 	if(module.auth/* || module.rights*/){
 		let header = request.headers.authorization || '';
 		let token = header.split(/\s+/).pop() || '';
-		header = undefined;
 		let auth = new Buffer(token, 'base64').toString();
 		let parts = auth.split(':');
 		auth = crypto.createHash('md5').update(auth).digest('hex');

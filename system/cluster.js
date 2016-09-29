@@ -81,7 +81,7 @@ exports.start = (paths, config) => {
 					});
 				});
 				server.on('error', error => {
-					if(error.indexOf('channel closed')){
+					if(error && String(error).indexOf('channel closed')){
 						return;
 					}
 
@@ -90,13 +90,13 @@ exports.start = (paths, config) => {
 				});
 				server.on('exit', (code, sig) => {
 					if(server.exitFlag && code == 1){
-						log.i('worker', server.process.pid, 'killed');
+						log.i('worker', (server && server.process || {}).pid, 'killed');
 						server = null;
 						clusters.rem(i);
 						return;
 					}
 
-					log.w('worker', server.process.pid, 'down with code:', code, 'signal:', sig);
+					log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig);
 
 					server = null;
 					clusters.rem(i);
@@ -166,7 +166,7 @@ exports.start = (paths, config) => {
 process.on('exit', () => clusters.exit());
 
 function startWatch(paths, config, cbRestart){
-	let pathsToWatch = [].concat(paths.modules, paths.dals || []);
+	let pathsToWatch = [].concat(paths.modules, paths.dals, paths.middleware, paths.i18n);
 	pathsToWatch.forEach(function watchDir(pth){
 		log.i('start watch - ', pth);
 		fs.watch(pth, (type, chFile) => {

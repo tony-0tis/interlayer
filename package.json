@@ -4,12 +4,14 @@
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "index.js",
   "dependencies": {
-    "async": "2.0.0",
-    "redis": "2.6.2"
+    "JSV": "^4.0.2",
+    "async": "^2.0.0",
+    "redis": "^2.6.2",
+    "mysql": "^2.11.1"
   },
   "devDependencies": {
-    "eslint": "3.4.0",
-    "eslint-config-google": "0.6.0",
+    "eslint": "^3.4.0",
+    "eslint-config-google": "^0.6.0",
     "mocha": "^3.0.2"
   },
   "scripts": {
@@ -23,11 +25,17 @@
   },
   "keywords": [
     "webserver",
-    "redis",
     "server",
-    "modules"
+    "cluster",
+    "file watcher",
+    "redis",
+    "mysql",
+    "modules",
+    "async",
+    "JSV"
   ],
   "bugs": {
+    "mail" : "npmdev@aidev.io",
     "url": "https://github.com/DonKilluminatti/interlayer/issues"
   },
   "homepage": "https://github.com/DonKilluminatti/interlayer#readme"
