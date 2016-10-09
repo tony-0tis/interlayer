@@ -30,7 +30,7 @@ for(let name in connectionMethods.prototype){
 		let originalCb = () => {};
 		let cb = (...resargs) => {
 			if(conn){
-				conn.relaese();
+				conn.release();
 			}
 
 			originalCb(...resargs);
