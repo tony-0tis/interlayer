@@ -3,6 +3,8 @@
 let path = require('path');
 let fs = require('fs');
 
+let cluster = require(path.join(__dirname, 'system/cluster'));
+
 module.exports = class Server{
 	/*#modules = [];dals = [];*///waiting for private
 	constructor () {
@@ -20,8 +22,14 @@ module.exports = class Server{
 	addDalsPath (...args) {
 		this.paths.dals = this.paths.dals.concat(args);
 	}
+	addMiddleWarePath (...args) {
+		this.paths.middleware = this.paths.middleware.concat(args);
+	}
 	addViewPath (...args) {
 		this.paths.views = this.paths.views.concat(args);
+	}
+	addi18nPath (...args) {
+		this.paths.i18n = this.paths.i18n.concat(args);
 	}
 	init (config={}){
 		// Deprecated
@@ -67,7 +75,7 @@ module.exports = class Server{
 
 		// Dals
 		checkPath.call(this, startPath, config, 'dals');
-		if(!config.useDals || !config.useDals.length){
+		if(!config.useDals && !config.useDals.length){
 			if(!config.skipDbWarning){
 				console.log('config.useDals not defined, no one database will be included');
 			}
@@ -83,7 +91,6 @@ module.exports = class Server{
 		checkPath.call(this, startPath, config, 'i18n', 'i18n');
 		
 		this.paths.startPath = startPath;
-		let cluster = require(path.join(__dirname, 'system/cluster'));
 		process.chdir(startPath);
 		cluster.start(this.paths, config);
 	}

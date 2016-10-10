@@ -36,15 +36,18 @@ let retry_strategy = function(options){
 let DAL = {
 	connections: [],
 	opened: [],
-	getOrCreate: (cb) => {
+	getOrCreate: (mainCb) => {
+		let cb = (...args) => {
+			mainCb(...args);
+			cb = soother;
+		}
 		if(DAL.connections.length){
 			let connection = DAL.connections.shift();
 			connection.lastOpened = Date.now();
 			DAL.opened.push(connection);
 			DAL._checkConnections();
-			cb(null, connection.redis);
 			log.d('connection', connection.id, 'opened');
-			return;
+			return cb(null, connection.redis);
 		}
 
 		let connection = {
@@ -57,6 +60,10 @@ let DAL = {
 		};
 		if(DAL.config && DAL.config){
 			for(let i in DAL.config){
+				if(!DAL.config.hasOwnProperty(i)){
+					continue;
+				}
+
 				config[i] = DAL.config[i];
 			}
 		}
@@ -78,16 +85,13 @@ let DAL = {
 
 			connection = null;
 
-			cb(err);
-			cb = soother;// this need to prevent re-call callback
+			return cb(err);
 		});
 		connection.redis.on('ready', () => {
 			connection.lastOpened = Date.now();
 			DAL.opened.push(connection);
-			cb(null, connection.redis);
-			cb = soother;// this need to prevent re-call callback
-
 			log.d('connection', connection.id, 'created and added to opened');
+			return cb(null, connection.redis);
 		});
 		connection.redis.on('requestEnded', () => {
 			if(!connection){
@@ -116,8 +120,7 @@ let DAL = {
 
 			connection = undefined;
 
-			cb('No connection');
-			cb = soother;// this need to prevent re-call callback
+			return cb('No connection');
 		});
 
 		DAL._checkConnections();
@@ -175,7 +178,10 @@ exports.init = (config, dalConfig) =>{
 }
 
 exports.methods = {};
-for(let name in redis.RedisClient.prototype){
+for(let name in redis.RedisClient.prototype){// eslint-disable-line guard-for-in
+	wrapMethod(name);
+}
+function wrapMethod(name){
 	exports.methods[name] = (...args) => {
 		let conn;
 		let originalCb = soother;

@@ -54,7 +54,9 @@ exports.logger = (dir, debug) => {
 			if(typeof obj[i] == 'object' && !obj[i].stack){
 				try{
 					obj[i] = until.inspect(obj[i]);
-				}catch(e){}
+				}catch(e){
+					//
+				}
 			}
 			
 			if(obj[i].stack){
@@ -100,6 +102,9 @@ exports.logger = (dir, debug) => {
 				sourceFile: logFile
 			};
 			for(let i in colors){
+				if(!colors.hasOwnProperty(i)){
+					continue;
+				}
 				log[i.toLowerCase()] = (...args) => {
 					if(i == 'D' && !debug){
 						return;

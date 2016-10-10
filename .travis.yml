@@ -1,0 +1,13 @@
+language: node_js
+node_js: 
+  - "6"
+  - "6.0.0"
+  - "5.0.0"
+addons:
+  code_climate:
+    repo_token: 
+after_script:
+  - codeclimate-test-reporter < lcov.info
+notifications:
+  email:
+    - travis@aidev.io

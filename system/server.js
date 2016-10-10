@@ -2,14 +2,14 @@
 let log;
 let http = require('http');
 let async = require('async');
-let init;
+let init = require('./init.js');
+let logger = require('./logger.js')
 let config;
 
 exports.start = (paths, conf) => {
 	config = conf;
-	global.logger = require('./logger.js').logger(config.logPath, config.debug);
+	global.logger = logger.logger(config.logPath, config.debug);
 	log = global.logger.create('SRV');
-	init = require('./init.js')
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
@@ -29,6 +29,10 @@ if(process.send){
 	let intervals = {
 		si: setInterval(() => {
 			for(let i in intervals.funcs){
+				if(!intervals.funcs.hasOwnProperty(i)){
+					continue;
+				}
+
 				intervals.funcs[i](() => {
 					intervals.del(i);
 				});
@@ -162,18 +166,18 @@ function requestFunc(request, response){
 					poolingId: id
 				};
 
-				next(null, init.pools[id]);
+				next(null, init.pools[id]);//eslint-disable-line callback-return
 				next = (err, res) => {
-					init.pools[id] = res;
+					init.pools[id] = err || res;
 				};
 			}
 
 			try{
-				module.func(requestObject, next);
+				return module.func(requestObject, next);
 			}
 			catch(e){
 				log.e(e);
-				next(e);
+				return next(e);
 			}
 		}],
 		json: ['module', (res, cb) =>{

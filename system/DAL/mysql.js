@@ -11,6 +11,9 @@ exports.init = (config, dalConfig) => {
 		user: 'root'
 	};
 	for(let i in dalConfig){
+		if(!dalConfig.hasOwnProperty(i)){
+			continue;
+		}
 		conf[i] = dalConfig[i];
 	}
 	if(!conf.database){
@@ -25,6 +28,9 @@ for(let name in connectionMethods.prototype){
 		continue;
 	}
 
+	wrapMethod(name);
+}
+function wrapMethod(name){
 	exports.methods[name] = (...args) => {
 		let conn;
 		let originalCb = () => {};

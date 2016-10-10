@@ -57,7 +57,7 @@ exports.initModules = (paths, config) => {
 				}
 
 				let moduleName = file.replace('.js', '');
-				let module = require(pathMod.resolve(path) + '/' + file + (isDir ? '/index.js' : ''));
+				let module = require(pathMod.resolve(path) + '/' + file + (isDir ? '/index.js' : ''));//eslint-disable-line global-require
 
 				if(module.__init){
 					inits[file] = module.__init;
@@ -129,6 +129,9 @@ exports.initModules = (paths, config) => {
 		config: config
 	};
 	for(let ii in inits){
+		if(!inits.hasOwnProperty(ii)){
+			continue;
+		}
 		try{
 			inits[ii](context, function(){});
 		}catch(e){
@@ -152,7 +155,7 @@ exports.initMiddlewares = (paths, config) => {
 					continue;
 				}
 
-				let middleware = require(pathMod.resolve(path) + '/' + file);
+				let middleware = require(pathMod.resolve(path) + '/' + file);//eslint-disable-line global-require
 
 				if(middleware.__init){
 					inits[file] = middleware.__init;
@@ -215,6 +218,10 @@ exports.initMiddlewares = (paths, config) => {
 
 	if(config.middlewareOrder){
 		for(let i in config.middlewareOrder){
+			if(!config.middlewareOrder.hasOwnProperty(i)){
+				continue;
+			}
+
 			let ind = -1;
 			for(let i in middlewares){
 				if(middlewares[i].name == config.middlewareOrder[i]){
@@ -272,7 +279,7 @@ let defaultRequestFuncs = {
 			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
 			503,
 			{
-				'Content-Type': 'text/plain; charset=utf-8',
+				'Content-Type': 'text/plain; charset=utf-8'
 			}
 		);
 	},
@@ -287,6 +294,9 @@ let defaultRequestFuncs = {
 		}
 		let tries = [];
 		for(let i in this.config.view){
+			if(!this.config.view.hasOwnProperty(i)){
+				continue;
+			}
 			tries.push(
 				new Promise((ok,fail) => {
 					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
@@ -323,7 +333,7 @@ let defaultRequestFuncs = {
 				return res;
 			}
 		}, '').toString() || null;
-	},
+	}
 	// fileToResponse: function(file){
 	// 	let contentType = this.helpers.mime(file);
 	// },
@@ -356,10 +366,12 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.params.callback;
 	}
 
-	request.headers.cookie && request.headers.cookie.split(';').forEach(cookie => {
-		let parts = cookie.split('=');
-		requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
-	});
+	if(request.headers.cookie){
+		request.headers.cookie.split(';').forEach(cookie => {
+			let parts = cookie.split('=');
+			requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+		});
+	}
 
 	let originalResposeEnd = response.end;
 	var clearRequest = () => {
@@ -454,6 +466,9 @@ exports.parseRequest = (request, response, config) => {
 
 		if(config.defaultHeaders){
 			for(let i in config.defaultHeaders){
+				if(!config.defaultHeaders.hasOwnProperty(i)){
+					continue;
+				}
 				headers[i] = config.defaultHeaders[i];
 			}
 		}
@@ -463,6 +478,9 @@ exports.parseRequest = (request, response, config) => {
 			let expires = new Date();
 			expires.setDate(expires.getDate() + 5);
 			for(let i in requestObject.newCookies){
+				if(!requestObject.newCookies.hasOwnProperty(i)){
+					continue;
+				}
 				cookies.push(i + '=' + encodeURIComponent(requestObject.newCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
 			}
 			headers['Set-Cookie'] = cookies;
@@ -491,7 +509,7 @@ exports.parseRequest = (request, response, config) => {
 
 			if(body.length > 1e6){
 				request.connection.destroy();
-				cb('POST TOO BIG');
+				return cb('POST TOO BIG');
 			}
 		});
 
@@ -508,7 +526,7 @@ exports.parseRequest = (request, response, config) => {
 
 			delete requestObject.parsePost;
 
-			cb();
+			return cb();
 		});
 	};
 
@@ -542,6 +560,9 @@ exports.middleware = (request, moduleMeta, cb) => {
 					let p = trigger.split('.').splice(1);
 					let path = isMeta ? moduleMeta : request;
 					for(let i in p){
+						if(!p.hasOwnProperty(i)){
+							continue;
+						}
 						if(path[p[i]]){
 							path = path[p[i]];
 							run = true;
@@ -561,7 +582,7 @@ exports.middleware = (request, moduleMeta, cb) => {
 		},
 		(err, res) => {
 			log.d('middlewares result', err, res);
-			cb(err, res);
+			return cb(err, res);
 		}
 	);
 };
@@ -569,8 +590,10 @@ exports.middleware = (request, moduleMeta, cb) => {
 exports.timeout = (config, meta, cb) => {
 	var called = false;
 	setTimeout(() => {
-		(!called) && cb('TIMEOUT', null, 408);
-		called = true;
+		if(!called){
+			called = true;
+			return cb('TIMEOUT', null, 408);
+		}
 	}, (meta.timeout || config.timeout || 60) * 1000);
 	return function(...args){
 		if(called){
@@ -579,7 +602,7 @@ exports.timeout = (config, meta, cb) => {
 		}
 
 		called = true;
-		cb(...args);
+		return cb(...args);
 	}
 }
 

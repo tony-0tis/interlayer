@@ -31,6 +31,9 @@ exports.clearObj = (obj, toRemove) => {
 		let clonedObject = JSON.parse(JSON.stringify(obj));
 		if(Array.isArray(toRemove)){
 			for(let i in toRemove){
+				if(!toRemove.hasOwnProperty(i)){
+					continue;
+				}
 				delete clonedObject[toRemove[i]];
 			}
 		}

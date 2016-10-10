@@ -19,7 +19,7 @@ exports.init = (paths, config) => {
 		for(let dalsPath of pathsToCheck){
 			try{
 				if(fs.statSync(path.join(dalsPath, dalName)).isFile()){
-					let dalFile = require(path.join(dalsPath, dalName));
+					let dalFile = require(path.join(dalsPath, dalName));// eslint-disable-line global-require
 					if(!dalFile.methods){
 						throw 'exports.methods no defined';
 					}
@@ -27,6 +27,7 @@ exports.init = (paths, config) => {
 						dalFile.init(config, config.useDals[dal]);
 					}
 					DALs[dal] = dalFile.methods;
+					dalFile = undefined;
 					Object.freeze(DALs[dal]);
 					break;
 				}
