@@ -23,7 +23,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DonKilluminatti/interlayer.git"
+    "url": "git+https://github.com/aidevio/interlayer.git"
   },
   "keywords": [
     "webserver",
@@ -38,7 +38,7 @@
   ],
   "bugs": {
     "mail": "npmdev@aidev.io",
-    "url": "https://github.com/DonKilluminatti/interlayer/issues"
+    "url": "https://github.com/aidevio/interlayer/issues"
   },
-  "homepage": "https://github.com/DonKilluminatti/interlayer#readme"
+  "homepage": "https://github.com/aidevio/interlayer#readme"
 }
