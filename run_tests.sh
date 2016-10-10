@@ -9,4 +9,5 @@ check
 TESTS=`find ./ -type f -name "test_*.js" | sort -r`
 echo "run tests $TESTS"
 node_modules/.bin/mocha  --bail --timeout 60000 $TESTS
+echo "Exit with $EXIT_CODE"
 exit $EXIT_CODE

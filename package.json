@@ -17,7 +17,7 @@
     "sinon": "^1.17.6"
   },
   "scripts": {
-    "test": "run_tests.sh"
+    "test": "./run_tests.sh"
   },
   "author": "A.I. Developer <npmdev@aidev.io> (https://aidev.io)",
   "license": "Apache-2.0",
