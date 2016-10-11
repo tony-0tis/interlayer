@@ -2,7 +2,8 @@
 [![npm version](https://img.shields.io/npm/v/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![npm downloads](https://img.shields.io/npm/dm/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![github license](https://img.shields.io/github/license/donkilluminatti/interlayer.svg)](https://github.com/DonKilluminatti/interlayer/blob/master/LICENSE)
-[![contact me](https://img.shields.io/badge/contact-me-green.svg)](https://aidev.io/?package=interlayer#contact)
+[![Build Status](https://travis-ci.org/DonKilluminatti/interlayer.svg?branch=master)](https://travis-ci.org/DonKilluminatti/interlayer)
+[![Code Climate](https://codeclimate.com/github/DonKilluminatti/interlayer/badges/gpa.svg)](https://codeclimate.com/github/DonKilluminatti/interlayer)
 
 *The desire to create own server pushes me to create a new and steeper server every year now for 8 years. The idea to create node.js package came after work in a large company, a web server which has a number of drawbacks (it was not written by me :joy:)  
 Because the server is in the alpha stage, you have the opportunity to advise what would you like to see the working from the box. [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)* 
