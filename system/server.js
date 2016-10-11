@@ -4,6 +4,7 @@ let http = require('http');
 let async = require('async');
 let logger = require('./logger.js')
 let config;
+let init;
 
 exports.start = (paths, conf) => {
 	config = conf;
@@ -18,7 +19,7 @@ exports.start = (paths, conf) => {
 		});
 	}
 	log.i('server started on port: ' + conf.port || 8080);
-	let init = require('./init.js'); // eslint-disable-line global-require
+	init = require('./init.js'); // eslint-disable-line global-require
 	init.initDALs(paths, conf);
 	init.initModules(paths, conf);
 	init.initMiddlewares(paths, conf);
