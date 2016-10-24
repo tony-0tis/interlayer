@@ -2,3 +2,4 @@ logs.log
 checker.log
 node_modules
 todo.list
+coverage

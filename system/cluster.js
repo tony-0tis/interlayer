@@ -2,38 +2,6 @@
 let fs = require('fs');
 let path = require('path');
 let cluster = require('cluster');
-let clusters = {
-	servers: [],
-	add: (n, srv) => {
-		clusters.servers.push({n: n, srv: srv});
-	},
-	rem: n => {
-		let toDel;
-		for(let i = clusters.servers - 1; i >= 0; i--){
-			if(clusters.servers[i].n == n){
-				toDel = i;
-				break
-			}
-		}
-		if(toDel != undefined){
-			clusters.servers.splice(toDel, 1);
-		}
-	},
-	size: () => clusters.servers.length,
-	restart: () => {
-		for(let i = clusters.servers.length - 1; i >= 0; i--){
-			clusters.servers[i].srv.send({type: 'reload'});
-		}
-	},
-	exit: () => {
-		for(let i = clusters.servers.length - 1; i >= 0; i--){
-			clusters.servers[i].srv.exitFlag = true;
-			clusters.servers[i].srv.send({type: 'exit'});
-		}
-		clusters = null;
-	}
-};
-
 let intervals = {
 	si: setInterval(() => {
 		for(let i in intervals.funcs){
@@ -52,7 +20,141 @@ let intervals = {
 	del: function(ind){
 		this.funcs.splice(ind, 1);
 	}
-}
+};
+let clusters = {
+	servers: [],
+	init: (paths, config) => {
+		clusters.paths = paths || [];
+		clusters.config = config || {};
+		clusters.inited = true;
+	},
+	add: (i) => {
+		if(!clusters.inited){
+			throw 'Not inited';
+		}
+
+		cluster.setupMaster({
+			exec: path.join(__dirname, '/server.js'),
+			silent: true
+		});
+		let server = cluster.fork(process.env);
+		let pings = [];
+		server.on('online', () => {
+			server.send({
+				type: 'start',
+				paths: clusters.paths,
+				config: clusters.config
+			});
+		});
+		server.on('error', error => {
+			if(error && String(error).indexOf('channel closed') > -1){
+				return;
+			}
+
+			let pid = ((server||{}).process||{}).pid;
+			log.e('server', pid, 'error', error)
+		});
+		server.on('exit', (code, sig) => {
+			if(server.exitFlag && code == 1){
+				log.i('worker', (server && server.process || {}).pid, 'killed');
+				server = null;
+				clusters.rem(i);
+				return;
+			}
+
+			log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig);
+
+			server = null;
+			clusters.rem(i);
+			clusters.add(i);
+		});
+		server.on('message', obj => {
+			switch(obj.type){
+				case 'log':
+					log.add(obj.log);
+				break;
+				case 'ping':
+					server.send({
+						type: 'pong',
+						id: obj.id
+					});
+				break;
+				case 'pong':
+					let ind = pings.indexOf(obj.id);
+					if(ind > -1){
+						pings.splice(ind, 1);
+					}
+				break;
+				default: 
+					log.e('wrong message type', obj);
+			}
+			obj = null;
+		});
+
+		intervals.add((deleteInterval) => {
+			if(pings.length > 10){
+				deleteInterval();
+				server.kill();
+				return;
+			}
+
+			if(!server){
+				deleteInterval();
+				return;
+			}
+
+			let ping = {
+				type: 'ping',
+				id: Date.now()
+			};
+			pings.push(ping.id);
+			server.send(ping);
+		});
+
+		log.i('start worker process', server.process.pid);
+		clusters.servers.push({n: i, srv: server});
+	},
+	rem: n => {
+		if(!clusters.inited){
+			throw 'Not inited';
+		}
+
+		let toDel;
+		for(let i = clusters.servers - 1; i >= 0; i--){
+			if(clusters.servers[i].n == n){
+				toDel = i;
+				break
+			}
+		}
+
+		if(toDel != undefined){
+			clusters.servers.splice(toDel, 1);
+		}
+	},
+	size: () => clusters.servers.length,
+	restart: () => {
+		if(!clusters.inited){
+			throw 'Not inited';
+		}
+
+		log.d('Command restart servers');
+		for(let i = clusters.servers.length - 1; i >= 0; i--){
+			clusters.servers[i].srv.send({type: 'reload'});
+		}
+	},
+	exit: () => {
+		if(!clusters.inited){
+			throw 'Not inited';
+		}
+
+		log.d('Command exit servers');
+		for(let i = clusters.servers.length - 1; i >= 0; i--){
+			clusters.servers[i].srv.exitFlag = true;
+			clusters.servers[i].srv.send({type: 'exit'});
+		}
+		clusters = null;
+	}
+};
 
 let log;
 let logger = require('./logger.js');
@@ -68,8 +170,9 @@ exports.start = (paths, config) => {
 	}
 
 	if(cluster.isMaster){
+		clusters.init(paths, config)
 		for (let i = toStart; i > 0; i--){
-			fork(i, paths, config);
+			clusters.add(i);
 		}
 
 		log.i('Start cluster with', clusters.size(), 'servers');
@@ -81,92 +184,12 @@ exports.start = (paths, config) => {
 				st = setTimeout(() => {
 					log.i('Many files changed, restart');
 					clusters.restart();
-				}, 1500)
-			})
+				}, 1500);
+			});
 		}
 	}
-}
+};
 
-function fork(i, paths, config){
-	cluster.setupMaster({
-		exec: path.join(__dirname, '/server.js'),
-		silent: true
-	});
-	let server = cluster.fork(process.env);
-	let pings = [];
-	server.on('online', () => {
-		server.send({
-			type: 'start',
-			paths: paths,
-			config: config
-		});
-	});
-	server.on('error', error => {
-		if(error && String(error).indexOf('channel closed')){
-			return;
-		}
-
-		let pid = ((server||{}).process||{}).pid;
-		log.e('server', pid, 'error', error)
-	});
-	server.on('exit', (code, sig) => {
-		if(server.exitFlag && code == 1){
-			log.i('worker', (server && server.process || {}).pid, 'killed');
-			server = null;
-			clusters.rem(i);
-			return;
-		}
-
-		log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig);
-
-		server = null;
-		clusters.rem(i);
-		fork(i);
-	});
-	server.on('message', obj => {
-		switch(obj.type){
-			case 'log':
-				log.add(obj.log);
-			break;
-			case 'ping':
-				server.send({
-					type: 'pong',
-					id: obj.id
-				});
-			break;
-			case 'pong':
-				let ind = pings.indexOf(obj.id);
-				if(ind > -1){
-					pings.splice(ind, 1);
-				}
-			break;
-			default: 
-				log.e('wrong message type', obj);
-		}
-		obj = null;
-	});
-
-	intervals.add((deleteInterval) => {
-		if(pings.length > 10){
-			deleteInterval();
-			server.kill();
-			return;
-		}
-		if(!server){
-			deleteInterval();
-			return;
-		}
-		let ping = {
-			type: 'ping',
-			id: Date.now()
-		};
-		pings.push(ping.id);
-		server.send(ping);
-	});
-
-	log.i('start worker process', server.process.pid);
-	clusters.add(i, server);
-}
 process.on('exit', () => clusters.exit());
 
 function startWatch(paths, config, cbRestart){
