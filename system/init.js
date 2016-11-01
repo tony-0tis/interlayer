@@ -14,6 +14,7 @@ exports.helpers = require('./helpers');
 let modules = {};
 let middlewares = [];
 let i18n = {};
+let pathCheck = /[\w\.\/]*/;
 
 exports.initDALs = (paths, config) => {
 	DAL_connections = DAL.init(paths, config);
@@ -30,6 +31,10 @@ exports.initModules = (paths, config) => {
 		let getUrl = (moduleName, methodName, module, meta) => {
 			if(module.addToRoot || meta.addToRoot){
 				return methodName;
+			}
+
+			if(meta.path && meta.path.match(pathCheck)){
+				methodName = meta.path;
 			}
 
 			return moduleName + '/' + methodName;
