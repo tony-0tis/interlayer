@@ -206,14 +206,19 @@ exports.methods = {
 ### Create middleware
 ##### Example of middleware/session.js
 ```js
-// init is not required
-exports.init = (simpleContext) => {
-    
+
+exports.triggers = {
+    'meta.checkSessions': 'checkSession', // you can specified string - name of function exported in module
+    'request.params.test': exports.test // also you can specified function or method of object
 };
 
 // but methods is required
 // request context and callback described in module
 exports.checkSession = (request, moduleMeta, cb) => {
+    
+};
+
+exports.test = (request, moduleMeta, cb) => {
     
 };
 ```
