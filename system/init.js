@@ -365,6 +365,11 @@ exports.parseRequest = (request, response, config) => {
 	};
 
 	requestObject.params = qs.parse(url.parse(requestObject.url).query);
+	for(let i in requestObject.params){
+		if(helpers.isBoolean(requestObject[i])){
+			requestObject[i] = Boolean(requestObject[i]);
+		}
+	}
 
 	if(requestObject.params.callback){
 		requestObject.jsonpCallback = requestObject.params.callback;

@@ -44,6 +44,15 @@ exports.clearObj = (obj, toRemove) => {
 	}
 };
 
+let regs = {
+	num: /^\d*$/,
+	bool: /^(true|false)$/
+};
+exports.isBoolean = val => {
+	if(String(val).toLowerCase().match(regs.bool)){
+		return true;
+	}
+};
 exports.JSV = (params, schema, envId) => {
 	var env = JSV.createEnvironment(envId);
 	return env.validate(params, schema);
