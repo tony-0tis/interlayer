@@ -1,5 +1,5 @@
 "use strict";
-let log;
+let defLog;
 let http = require('http');
 let async = require('async');
 let logger = require('./logger.js')
@@ -9,7 +9,7 @@ let init;
 exports.start = (paths, conf) => {
 	config = conf;
 	global.logger = logger.logger(config.logPath, config.debug);
-	log = global.logger.create('SRV');
+	defLog = global.logger.create('SRV');
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
@@ -18,7 +18,7 @@ exports.start = (paths, conf) => {
 			socket.setNoDelay(); // Отключаем алгоритм Нагла.
 		});
 	}
-	log.i('server started on port: ' + conf.port || 8080);
+	defLog.i('server started on port: ' + conf.port || 8080);
 	init = require('./init.js'); // eslint-disable-line global-require
 	init.initDALs(paths, conf);
 	init.initModules(paths, conf);
@@ -89,10 +89,11 @@ if(process.send){
 	}, 1000);
 }
 
-process.on('uncaughtException', err => (log && log.c || console.log)('Caught exception:', err));
+process.on('uncaughtException', err => (defLog && defLog.c || console.log)('Caught exception:', err));
 
 function requestFunc(request, response){
 	let requestObject = init.parseRequest(request, response, config);
+	let log = requestObject.modifyLog(defLog);
 	
 	let module = init.getModule(requestObject.path);
 	if(!module){

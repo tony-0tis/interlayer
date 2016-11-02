@@ -192,13 +192,13 @@ exports.initMiddlewares = (paths, config) => {
 				else if(typeof middleware.triggers == 'object'){
 					middlewareObject.triggers = {};
 					for(let t in middleware.triggers){
-						if(!middleware[middleware.triggers[t]]){
-							log.e('in middleware', file, 'trigger', t, 'linked to undefined method');
+						if(typeof middleware.triggers[t] == 'function'){
+							middlewareObject.triggers[t] = middleware.triggers[t];
 							continue;
 						}
 
-						if(typeof middleware.triggers[t] == 'function'){
-							middlewareObject.triggers[t] = middleware.triggers[t];
+						if(!middleware[middleware.triggers[t]]){
+							log.e('in middleware', file, 'trigger', t, 'linked to undefined method');
 							continue;
 						}
 
@@ -348,6 +348,7 @@ let defaultRequestFuncs = {
 };
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
+		id: exports.helpers.generateId(),
 		DAL: DAL_connections,
 		url: request.url,
 		path: url.parse(request.url).pathname.substring(1),
@@ -389,6 +390,7 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.pools;
 		delete requestObject.helpers;
 		delete requestObject.config;
+		delete requestObject.id;
 
 		delete requestObject.getResponse;
 		delete requestObject.addCookies;
@@ -399,6 +401,7 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.i18n;
 		delete requestObject.getView;
 		delete requestObject.getViewSync;
+		delete requestObject.modifyLog;
 
 		if(originalResposeEnd){
 			response.end = originalResposeEnd;
@@ -422,7 +425,7 @@ exports.parseRequest = (request, response, config) => {
 					clearRequest();
 				}
 				requestObject = undefined;
-				return 'FORBIDEN';
+				throw 'FORBIDEN';
 			}
 
 			requestObject.ended = true;
@@ -538,6 +541,30 @@ exports.parseRequest = (request, response, config) => {
 
 			return cb();
 		});
+	};
+
+	requestObject.modifyLog = logToFodify => {
+		if(!logToFodify){
+			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
+		}
+		return Object.keys(logToFodify).reduce((res, color) => {
+			color = color.toLowerCase();
+			if(color == 'add'){
+				return res;
+			}
+
+			if(logToFodify[color].modifed){
+				throw 'Do not call modifyLog twice at one log';
+			}
+
+			let original = logToFodify[color];
+			res[color] = (...args) => {
+				args.unshift('[rID:' + requestObject.id + ']');
+				original(...args)
+			};
+			res[color].modifed = true;
+			return res;
+		}, {});
 	};
 
 	return requestObject;

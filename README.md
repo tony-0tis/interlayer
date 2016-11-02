@@ -98,13 +98,13 @@ server.init(config);
 ### Create module
 ##### Example of modules/myModule.js
 ```js
-let log = global.logger.create('moduleID');
+let methodLog = global.logger.create('moduleID');
 
 // You can use this logs
-log.i() // Usual log - displayed in green
-log.w() // Warn - displayed in yellow
-log.e() // Error - displayed in red
-log.c() // Critical error - displayed in white
+methodLog.i() // Usual log - displayed in green
+methodLog.w() // Warn - displayed in yellow
+methodLog.e() // Error - displayed in red
+methodLog.c() // Critical error - displayed in white
 
 // format of logs [YYYY/MM/DD|HH:MM:SS.sss|tz][logtype][process.id][module identification] value
 // ex: [2016/09/17|20:05:46.528|-3][I][6880][moduleID] Test log
@@ -135,7 +135,9 @@ exports._myMethod = {
 exports.myMethod = (request, cb) => {
     let error = null;
     let responce = 'Ok';
-    log.i('myMethod request');
+    let log = request.modifyLog(methodLog);
+    log.i('I am log with requestId, cause me modify by request.modifyLog method');
+    methodLog.i('I am log without requestId')
     cb(error, response);
 };
 ```
@@ -160,6 +162,7 @@ May be used in module method meta `exports._myMethod[property]` and globaly in m
 * `request.config` - An object of configuration which you specified at start of server
 
 ##### Methods
+* `request.modifyLog(log)` - *>=0.2.10* modify log instanse by adding to top of logged arguments by default
 * `request.getView('file.html', cb)` - *>=0.1.7* return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
 * `request.getViewSync('file')` - *>=0.1.7* sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found
 * `request.addCookies(key, value)` - set cookies to response

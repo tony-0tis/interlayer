@@ -8,6 +8,7 @@ let colors = {
 	W: 33,
 	C: 37
 };
+
 let breaker = /^win/.test(process.platform) ? '' : '\n';
 let streams = {};
 exports.logger = (dir, debug) => {
@@ -78,28 +79,16 @@ exports.logger = (dir, debug) => {
 		
 		return num;
 	};
-
+	let date = () => {
+		let d = new Date();
+		return '[' + d.getFullYear() + '/' + ND(d.getMonth() + 1) + '/' + ND(d.getDate()) +
+			'|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
+			'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
+	};
 	return {
 		create: name => {
 			let log = {
-				date: () => {
-					let d = new Date();
-					return '[' + d.getFullYear() + '/' + ND(d.getMonth() + 1) + '/' + ND(d.getDate()) +
-						'|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
-						'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
-				},
-				add: (str) => {
-					write(str);
-				},
-				// clear: () => {
-				// 	logFile.close();
-				// 	fs.writeFileSync(dir + '/logs.log', '');
-				// 	logFile = fs.createWriteStream(dir + '/logs.log');
-				// },
-				nd: ND,
-				split: split,
-				write: write,
-				sourceFile: logFile
+				add: str => write(str)
 			};
 			for(let i in colors){
 				if(!colors.hasOwnProperty(i)){
@@ -110,7 +99,7 @@ exports.logger = (dir, debug) => {
 						return;
 					}
 					args = split(args);
-					let str = log.date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
+					let str = date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
 					str = '\x1b[37;' + colors[i] + ';1m' + str + '\x1b[0m' + breaker;
 					write(str);
 				}
