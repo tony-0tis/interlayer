@@ -8,9 +8,10 @@ let crypto = require('crypto');
 let async = require('async');
 let DAL = require('./DAL');
 
-let DAL_connections;
-
 exports.helpers = require('./helpers');
+exports.pools = {};
+
+let DAL_connections;
 let modules = {};
 let middlewares = [];
 let i18n = {};
@@ -271,13 +272,21 @@ exports.initI18n = (paths, config) => {
 	});
 };
 
-exports.pools = {};
 let defaultRequestFuncs = {
+	i18n: function(key, def){
+		for(let i in this.langs){
+			if(i18n[this.langs[i]] && i18n[this.langs[i]][key]){
+				return i18n[this.langs[i]][key];
+			}
+		}
+
+		return def;
+	},
 	addCookies: function(key, val){
-		this.newCookies[key] = val;
+		this.responseCookies[key] = val;
 	},
 	rmCookies: function(key){
-		this.newCookies[key] = '';
+		this.responseCookies[key] = '';
 	},
 	error: function(text){
 		this.end(
@@ -338,6 +347,61 @@ let defaultRequestFuncs = {
 				return res;
 			}
 		}, '').toString() || null;
+	},
+	parsePost: function(request, cb){
+		if(!this.isPost){
+			return cb();
+		}
+
+		let body = '';
+
+		request.on('data', data => {
+			body += data;
+
+			if(body.length > 1e6){
+				request.connection.destroy();
+				return cb('POST TOO BIG');
+			}
+		});
+
+		request.on('end', () => {
+			try{
+				this.post = JSON.parse(body);
+			}catch(e){
+				try{
+					this.post = qs.parse(body);
+				}catch(ee){
+					this.post = body;
+				}
+			}
+
+			delete this.parsePost;
+
+			return cb();
+		});
+	},
+	modifyLog: logToFodify => {
+		if(!logToFodify){
+			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
+		}
+		return Object.keys(logToFodify).reduce((res, color) => {
+			color = color.toLowerCase();
+			if(color == 'add'){
+				return res;
+			}
+
+			if(logToFodify[color].modifed){
+				throw 'Do not call modifyLog twice at one log';
+			}
+
+			let original = logToFodify[color];
+			res[color] = (...args) => {
+				args.unshift('[rID:' + requestObject.id + ']');
+				original(...args)
+			};
+			res[color].modifed = true;
+			return res;
+		}, {});
 	}
 	// fileToResponse: function(file){
 	// 	let contentType = this.helpers.mime(file);
@@ -349,16 +413,15 @@ let defaultRequestFuncs = {
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
 		id: exports.helpers.generateId(),
+		config: config,
+		helpers: exports.helpers,
 		DAL: DAL_connections,
 		url: request.url,
 		path: url.parse(request.url).pathname.substring(1),
 		method: request.method,
 		isPost: request.method == 'POST',
-		pools: exports.pools,
-		helpers: exports.helpers,
+		responseCookies: {},
 		cookies: {},
-		newCookies: {},
-		config: config,
 		params: {},
 		post: {},
 		headers: JSON.parse(JSON.stringify(request.headers)),
@@ -367,7 +430,7 @@ exports.parseRequest = (request, response, config) => {
 
 	requestObject.params = qs.parse(url.parse(requestObject.url).query);
 	for(let i in requestObject.params){
-		if(helpers.isBoolean(requestObject[i])){
+		if(exports.helpers.isBoolean(requestObject[i])){
 			requestObject[i] = Boolean(requestObject[i]);
 		}
 	}
@@ -386,21 +449,23 @@ exports.parseRequest = (request, response, config) => {
 
 	let originalResposeEnd = response.end;
 	var clearRequest = () => {
-		delete requestObject.DAL;
-		delete requestObject.pools;
-		delete requestObject.helpers;
+		//objects
 		delete requestObject.config;
-		delete requestObject.id;
-
+		delete requestObject.helpers;
+		delete requestObject.DAL;
+		
+		//current request functions
 		delete requestObject.getResponse;
+		delete requestObject.end;
+
+		// default functions
+		delete requestObject.i18n;
+		delete requestObject.error;
 		delete requestObject.addCookies;
 		delete requestObject.rmCookies;
-		delete requestObject.parsePost;
-		delete requestObject.error;
-		delete requestObject.end;
-		delete requestObject.i18n;
 		delete requestObject.getView;
 		delete requestObject.getViewSync;
+		delete requestObject.parsePost;
 		delete requestObject.modifyLog;
 
 		if(originalResposeEnd){
@@ -412,11 +477,14 @@ exports.parseRequest = (request, response, config) => {
 		clearRequest = undefined;
 	};
 
+	requestObject.i18n = defaultRequestFuncs.i18n;
 	requestObject.error = defaultRequestFuncs.error;
 	requestObject.addCookies = defaultRequestFuncs.addCookies;
 	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
 	requestObject.getView = defaultRequestFuncs.getView;
 	requestObject.getViewSync = defaultRequestFuncs.getViewSync;
+	requestObject.parsePost = defaultRequestFuncs.parsePost;
+	requestObject.modifyLog = defaultRequestFuncs.modifyLog;
 
 	requestObject.getResponse = () => {
 		response.end = function(...args){
@@ -438,15 +506,7 @@ exports.parseRequest = (request, response, config) => {
 		};
 		return response;
 	};
-	requestObject.i18n = (key, def) => {
-		for(let i in requestObject.langs){
-			if(i18n[requestObject.langs[i]] && i18n[requestObject.langs[i]][key]){
-				return i18n[requestObject.langs[i]][key];
-			}
-		}
-
-		return def;
-	};
+	
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
 		if(!requestObject || requestObject.ended){
 			requestObject = undefined;
@@ -486,15 +546,15 @@ exports.parseRequest = (request, response, config) => {
 			}
 		}
 
-		if(requestObject.newCookies){
+		if(requestObject.responseCookies){
 			let cookies = [];
 			let expires = new Date();
 			expires.setDate(expires.getDate() + 5);
-			for(let i in requestObject.newCookies){
-				if(!requestObject.newCookies.hasOwnProperty(i)){
+			for(let i in requestObject.responseCookies){
+				if(!requestObject.responseCookies.hasOwnProperty(i)){
 					continue;
 				}
-				cookies.push(i + '=' + encodeURIComponent(requestObject.newCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
+				cookies.push(i + '=' + encodeURIComponent(requestObject.responseCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
 			}
 			headers['Set-Cookie'] = cookies;
 		}
@@ -509,62 +569,6 @@ exports.parseRequest = (request, response, config) => {
 		response.end();
 
 		clearRequest();
-	};
-	requestObject.parsePost = cb => {
-		if(!requestObject.isPost){
-			return cb();
-		}
-
-		let body = '';
-
-		request.on('data', data => {
-			body += data;
-
-			if(body.length > 1e6){
-				request.connection.destroy();
-				return cb('POST TOO BIG');
-			}
-		});
-
-		request.on('end', () => {
-			try{
-				requestObject.post = JSON.parse(body);
-			}catch(e){
-				try{
-					requestObject.post = qs.parse(body);
-				}catch(ee){
-					requestObject.post = body;
-				}
-			}
-
-			delete requestObject.parsePost;
-
-			return cb();
-		});
-	};
-
-	requestObject.modifyLog = logToFodify => {
-		if(!logToFodify){
-			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
-		}
-		return Object.keys(logToFodify).reduce((res, color) => {
-			color = color.toLowerCase();
-			if(color == 'add'){
-				return res;
-			}
-
-			if(logToFodify[color].modifed){
-				throw 'Do not call modifyLog twice at one log';
-			}
-
-			let original = logToFodify[color];
-			res[color] = (...args) => {
-				args.unshift('[rID:' + requestObject.id + ']');
-				original(...args)
-			};
-			res[color].modifed = true;
-			return res;
-		}, {});
 	};
 
 	return requestObject;
