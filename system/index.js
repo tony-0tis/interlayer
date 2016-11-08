@@ -12,28 +12,28 @@ let serverObj = {
 		middleware: [],
 		views: [],
 		i18n: [],
-		emails: []
+		//emails: []
 	},
-	server: {
-		addModulesPath: (...args) => {
+	server: function(){
+		this.addModulesPath = (...args) => {
 			serverObj.paths.modules = serverObj.paths.modules.concat(args);
-		},
-		addDalsPath: (...args) => {
+		};
+		this.addDalsPath = (...args) => {
 			serverObj.paths.dals = serverObj.paths.dals.concat(args);
-		},
-		addMiddleWarePath: (...args) => {
+		};
+		this.addMiddleWarePath = (...args) => {
 			serverObj.paths.middleware = serverObj.paths.middleware.concat(args);
-		},
-		addViewPath: (...args) => {
+		};
+		this.addViewPath = (...args) => {
 			serverObj.paths.views = serverObj.paths.views.concat(args);
-		},
-		addi18nPath: (...args) => {
+		};
+		this.addi18nPath = (...args) => {
 			serverObj.paths.i18n = serverObj.paths.i18n.concat(args);
-		},
-		addEmailSerdersPath: (...args) => {
-			serverObj.paths.emails = serverObj.paths.emails.concat(args);
-		},
-		init: (config = {}) => {
+		};
+		// this.addEmailSerdersPath = (...args) => {
+		// 	serverObj.paths.emails = serverObj.paths.emails.concat(args);
+		// },
+		this.init = (config = {}) => {
 			// Deprecated
 			if(config.initDals && !config.useDals){
 				console.log('please replace config.initDals to config.useDals. config.initDals is deprecated');
@@ -93,12 +93,12 @@ let serverObj = {
 			checkPath.call(serverObj, startPath, config, 'i18n', 'i18n');
 
 			// Email
-			checkPath.call(serverObj, startPath, config, 'email');
+			//checkPath.call(serverObj, startPath, config, 'emails');
 			
 			serverObj.paths.startPath = startPath;
 			process.chdir(startPath);
 			cluster.start(serverObj.paths, config);
-		}
+		};
 	}
 };
 

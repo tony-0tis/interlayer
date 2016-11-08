@@ -10,7 +10,7 @@ exports.init = (paths, config) => {
 
 	let EmailSenders = {};
 	let pathsToCheck = [__dirname].concat(paths.emails||[]).reverse();
-	for(let sender of config.emails){
+	for(let sender in config.emails){
 		let senderName = sender + '.js';
 		for(let senderPath of pathsToCheck){
 			try{
@@ -22,7 +22,6 @@ exports.init = (paths, config) => {
 					if(!senderFile.init){
 						throw 'exports.init no defined';
 					}
-					
 					senderFile.init(config, config.emails[sender]);
 
 					EmailSenders[sender] = senderFile.send;

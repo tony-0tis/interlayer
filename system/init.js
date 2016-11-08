@@ -8,7 +8,7 @@ let crypto = require('crypto');
 let async = require('async');
 
 let DAL = require('./DAL');
-let Emails = request('./mail');
+let Emails = require('./mail');
 
 let DAL_connections;
 let emailSenders;
