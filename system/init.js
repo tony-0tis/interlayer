@@ -6,23 +6,167 @@ let url = require('url');
 let qs = require('querystring');
 let crypto = require('crypto');
 let async = require('async');
-let DAL = require('./DAL');
 
-exports.helpers = require('./helpers');
-exports.pools = {};
+let DAL = require('./DAL');
+let Emails = request('./mail');
 
 let DAL_connections;
+let emailSenders;
 let modules = {};
 let middlewares = [];
 let i18n = {};
 let pathCheck = /[\w\.\/]*/;
 
+
+let defaultRequestFuncs = {
+	i18n: function(key, def){
+		for(let i in this.langs){
+			if(i18n[this.langs[i]] && i18n[this.langs[i]][key]){
+				return i18n[this.langs[i]][key];
+			}
+		}
+
+		return def;
+	},
+	addCookies: function(key, val){
+		this.responseCookies[key] = val;
+	},
+	rmCookies: function(key){
+		this.responseCookies[key] = '';
+	},
+	error: function(text){
+		this.end(
+			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
+			503,
+			{
+				'Content-Type': 'text/plain; charset=utf-8'
+			}
+		);
+	},
+	getView: function(view, file, cb){
+		if(!cb && !file){
+			throw 'minimum 2 arguments with last callback';
+		}
+		if(!cb){
+			cb = file;
+			file = view;
+			view = null;
+		}
+		let tries = [];
+		for(let i in this.config.view){
+			if(!this.config.view.hasOwnProperty(i)){
+				continue;
+			}
+			tries.push(
+				new Promise((ok,fail) => {
+					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
+						if(err){
+							return fail(err);
+						}
+						return ok(res);
+					});
+				})
+			);
+		}
+		Promise.race(tries)
+		.then(result => cb(null, (result||'').toString()))
+		.catch(err => {
+			log.e(err);
+			cb('Not found')
+		});
+	},
+	getViewSync: function(view, file, cb){
+		if(cb){
+			throw 'maximum 2 arguments, without callback';
+		}
+		if(!file){
+			file = view;
+		}
+		return this.config.view.requce((res, view)=>{
+			if(res){
+				return res;
+			}
+			try{
+				return fs.readFileSync(pathMod.join(view, file));
+			}
+			catch(e){
+				return res;
+			}
+		}, '').toString() || null;
+	},
+	parsePost: function(request, cb){
+		if(!this.isPost){
+			return cb();
+		}
+
+		let body = '';
+
+		request.on('data', data => {
+			body += data;
+
+			if(body.length > 1e6){
+				request.connection.destroy();
+				return cb('POST TOO BIG');
+			}
+		});
+
+		request.on('end', () => {
+			try{
+				this.post = JSON.parse(body);
+			}catch(e){
+				try{
+					this.post = qs.parse(body);
+				}catch(ee){
+					this.post = body;
+				}
+			}
+
+			delete this.parsePost;
+
+			return cb();
+		});
+	},
+	modifyLog: logToFodify => {
+		if(!logToFodify){
+			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
+		}
+		return Object.keys(logToFodify).reduce((res, color) => {
+			color = color.toLowerCase();
+			if(color == 'add'){
+				return res;
+			}
+
+			if(logToFodify[color].modifed){
+				throw 'Do not call modifyLog twice at one log';
+			}
+
+			let original = logToFodify[color];
+			res[color] = (...args) => {
+				args.unshift('[rID:' + requestObject.id + ']');
+				original(...args)
+			};
+			res[color].modifed = true;
+			return res;
+		}, {});
+	}
+	// fileToResponse: function(file){
+	// 	let contentType = this.helpers.mime(file);
+	// },
+	// binaryToResponse: function(file){
+
+	// }
+};
+
+exports.pools = {};
+
+exports.helpers = require('./helpers');
+
+
+// ### INITS
 exports.initDALs = (paths, config) => {
 	DAL_connections = DAL.init(paths, config);
 	return DAL_connections;
 };
-
-exports.getModule = module => modules[module];
 
 exports.initModules = (paths, config) => {
 	let inits = {};
@@ -272,150 +416,19 @@ exports.initI18n = (paths, config) => {
 	});
 };
 
-let defaultRequestFuncs = {
-	i18n: function(key, def){
-		for(let i in this.langs){
-			if(i18n[this.langs[i]] && i18n[this.langs[i]][key]){
-				return i18n[this.langs[i]][key];
-			}
-		}
-
-		return def;
-	},
-	addCookies: function(key, val){
-		this.responseCookies[key] = val;
-	},
-	rmCookies: function(key){
-		this.responseCookies[key] = '';
-	},
-	error: function(text){
-		this.end(
-			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
-			503,
-			{
-				'Content-Type': 'text/plain; charset=utf-8'
-			}
-		);
-	},
-	getView: function(view, file, cb){
-		if(!cb && !file){
-			throw 'minimum 2 arguments with last callback';
-		}
-		if(!cb){
-			cb = file;
-			file = view;
-			view = null;
-		}
-		let tries = [];
-		for(let i in this.config.view){
-			if(!this.config.view.hasOwnProperty(i)){
-				continue;
-			}
-			tries.push(
-				new Promise((ok,fail) => {
-					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
-						if(err){
-							return fail(err);
-						}
-						return ok(res);
-					});
-				})
-			);
-		}
-		Promise.race(tries)
-		.then(result => cb(null, (result||'').toString()))
-		.catch(err => {
-			log.e(err);
-			cb('Not found')
-		});
-	},
-	getViewSync: function(view, file, cb){
-		if(cb){
-			throw 'maximum 2 arguments, without callback';
-		}
-		if(!file){
-			file = view;
-		}
-		return this.config.view.requce((res, view)=>{
-			if(res){
-				return res;
-			}
-			try{
-				return fs.readFileSync(pathMod.join(view, file));
-			}
-			catch(e){
-				return res;
-			}
-		}, '').toString() || null;
-	},
-	parsePost: function(request, cb){
-		if(!this.isPost){
-			return cb();
-		}
-
-		let body = '';
-
-		request.on('data', data => {
-			body += data;
-
-			if(body.length > 1e6){
-				request.connection.destroy();
-				return cb('POST TOO BIG');
-			}
-		});
-
-		request.on('end', () => {
-			try{
-				this.post = JSON.parse(body);
-			}catch(e){
-				try{
-					this.post = qs.parse(body);
-				}catch(ee){
-					this.post = body;
-				}
-			}
-
-			delete this.parsePost;
-
-			return cb();
-		});
-	},
-	modifyLog: logToFodify => {
-		if(!logToFodify){
-			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
-		}
-		return Object.keys(logToFodify).reduce((res, color) => {
-			color = color.toLowerCase();
-			if(color == 'add'){
-				return res;
-			}
-
-			if(logToFodify[color].modifed){
-				throw 'Do not call modifyLog twice at one log';
-			}
-
-			let original = logToFodify[color];
-			res[color] = (...args) => {
-				args.unshift('[rID:' + requestObject.id + ']');
-				original(...args)
-			};
-			res[color].modifed = true;
-			return res;
-		}, {});
-	}
-	// fileToResponse: function(file){
-	// 	let contentType = this.helpers.mime(file);
-	// },
-	// binaryToResponse: function(file){
-
-	// }
+exports.initEmailSenders = (paths, config) => {
+	emailSenders = Emails.init(paths, config);
 };
+
+exports.getModule = module => modules[module];
+
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {
 		id: exports.helpers.generateId(),
 		config: config,
 		helpers: exports.helpers,
 		DAL: DAL_connections,
+		mail: emailSenders,
 		url: request.url,
 		path: url.parse(request.url).pathname.substring(1),
 		method: request.method,
@@ -425,7 +438,11 @@ exports.parseRequest = (request, response, config) => {
 		params: {},
 		post: {},
 		headers: JSON.parse(JSON.stringify(request.headers)),
-		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g)
+		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g),
+		ip: request.headers['x-forwarded-for'] ||
+			request.connection.remoteAddress ||
+			request.socket && request.socket.remoteAddress ||
+			request.connection.socket && request.connection.socket.remoteAddress
 	};
 
 	requestObject.params = qs.parse(url.parse(requestObject.url).query);
@@ -453,6 +470,7 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.config;
 		delete requestObject.helpers;
 		delete requestObject.DAL;
+		delete requestObject.email;
 		
 		//current request functions
 		delete requestObject.getResponse;
@@ -636,7 +654,7 @@ exports.timeout = (config, meta, cb) => {
 			return cb('TIMEOUT', null, 408);
 		}
 	}, (meta.timeout || config.timeout || 60) * 1000);
-	return function(...args){
+	return (...args) => {
 		if(called){
 			log.e('request ended', args);
 			return;

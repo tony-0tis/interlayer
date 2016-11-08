@@ -2,12 +2,14 @@
   "name": "interlayer",
   "version": "0.2.11",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
-  "main": "index.js",
+  "main": "system/index.js",
   "dependencies": {
     "JSV": "^4.0.2",
     "async": "^2.0.0",
+    "mailgun-js": "^0.7.13",
+    "mysql": "^2.11.1",
     "redis": "^2.6.2",
-    "mysql": "^2.11.1"
+    "sparkpost": "^2.0.0"
   },
   "devDependencies": {
     "eslint": "^3.7.1",

@@ -24,6 +24,7 @@ exports.start = (paths, conf) => {
 	init.initModules(paths, conf);
 	init.initMiddlewares(paths, conf);
 	init.initI18n(paths, conf);
+	init.initEmailSenders(paths, conf);
 }
 
 if(process.send){
@@ -193,10 +194,7 @@ function requestFunc(request, response){
 	(err, res) => {
 		if(module.meta && module.meta.skipRequestLog !== true){
 			log.i(
-				requestObject.headers['x-forwarded-for'] ||
-					request.connection.remoteAddress ||
-					request.socket && request.socket.remoteAddress ||
-					request.connection.socket && request.connection.socket.remoteAddress,
+				requestObject.ip,
 				'REQ: ' + requestObject.path,
 				'FROM: ' + (requestObject.headers.referer || '---'),
 				'GET: ' + init.helpers.clearObj(requestObject.params, ['token']),
