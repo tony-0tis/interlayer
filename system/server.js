@@ -113,7 +113,7 @@ function requestFunc(request, response){
 	}*/ // not working yet
 
 	async.auto({
-		post: cb => requestObject.parsePost(cb),
+		post: cb => requestObject.parsePost(request, cb),
 		middleware: ['post', (res, cb) => {
 			let middlewareTimeout = config.middlewareTimeout || module.meta.middlewareTimeout || 10;
 			init.middleware(requestObject, module.meta, init.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers) => {

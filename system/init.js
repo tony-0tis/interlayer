@@ -126,7 +126,7 @@ let defaultRequestFuncs = {
 			return cb();
 		});
 	},
-	modifyLog: logToFodify => {
+	modifyLog: function(logToFodify){
 		if(!logToFodify){
 			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
 		}
@@ -142,7 +142,7 @@ let defaultRequestFuncs = {
 
 			let original = logToFodify[color];
 			res[color] = (...args) => {
-				args.unshift('[rID:' + requestObject.id + ']');
+				args.unshift('[rID:' + this.id + ']');
 				original(...args)
 			};
 			res[color].modifed = true;
