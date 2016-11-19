@@ -537,7 +537,8 @@ exports.initModules = (paths, config) => {
 		url: '',
 		headers: {},
 		DAL: DAL_connections,
-		config: config
+		config: config,
+		helpers: exports.helpers
 	};
 	for(let ii in inits){
 		if(!inits.hasOwnProperty(ii)){
