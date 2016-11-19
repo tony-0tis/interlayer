@@ -17,7 +17,6 @@ let middlewares = [];
 let i18n = {};
 let pathCheck = /[\w\.\/]*/;
 
-
 let defaultRequestFuncs = {
 	i18n: function(key, def){
 		for(let i in this.langs){
@@ -143,7 +142,7 @@ let defaultRequestFuncs = {
 			let original = logToFodify[color];
 			res[color] = (...args) => {
 				args.unshift('[rID:' + this.id + ']');
-				original(...args)
+				original.apply({logModifed: true}, args);
 			};
 			res[color].modifed = true;
 			return res;
@@ -161,6 +160,268 @@ exports.pools = {};
 
 exports.helpers = require('./helpers');
 
+exports.getModule = module => modules[module];
+
+exports.parseRequest = (request, response, config) => {
+	let requestObject = {
+		id: exports.helpers.generateId(),
+		config: config,
+		helpers: exports.helpers,
+		DAL: DAL_connections,
+		mail: emailSenders,
+		url: request.url,
+		path: url.parse(request.url).pathname.substring(1),
+		method: request.method,
+		isPost: request.method == 'POST',
+		responseCookies: {},
+		cookies: {},
+		params: {},
+		post: {},
+		headers: JSON.parse(JSON.stringify(request.headers)),
+		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g),
+		ip: request.headers['x-forwarded-for'] ||
+			request.connection.remoteAddress ||
+			request.socket && request.socket.remoteAddress ||
+			request.connection.socket && request.connection.socket.remoteAddress,
+	};
+
+	requestObject.params = qs.parse(url.parse(requestObject.url).query);
+	for(let i in requestObject.params){
+		if(exports.helpers.isBoolean(requestObject[i])){
+			requestObject[i] = Boolean(requestObject[i]);
+		}
+	}
+
+	if(requestObject.params.callback){
+		requestObject.jsonpCallback = requestObject.params.callback;
+		delete requestObject.params.callback;
+	}
+
+	if(request.headers.cookie){
+		request.headers.cookie.split(';').forEach(cookie => {
+			let parts = cookie.split('=');
+			requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
+		});
+	}
+
+	let originalResposeEnd = response.end;
+	var clearRequest = () => {
+		//objects
+		delete requestObject.config;
+		delete requestObject.helpers;
+		delete requestObject.DAL;
+		delete requestObject.email;
+		
+		//current request functions
+		delete requestObject.getResponse;
+		delete requestObject.end;
+
+		// default functions
+		delete requestObject.i18n;
+		delete requestObject.error;
+		delete requestObject.addCookies;
+		delete requestObject.rmCookies;
+		delete requestObject.getView;
+		delete requestObject.getViewSync;
+		delete requestObject.parsePost;
+		delete requestObject.modifyLog;
+
+		if(originalResposeEnd){
+			response.end = originalResposeEnd;
+		}
+
+		originalResposeEnd = undefined;
+		requestObject = undefined;
+		clearRequest = undefined;
+	};
+
+	requestObject.i18n = defaultRequestFuncs.i18n;
+	requestObject.error = defaultRequestFuncs.error;
+	requestObject.addCookies = defaultRequestFuncs.addCookies;
+	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
+	requestObject.getView = defaultRequestFuncs.getView;
+	requestObject.getViewSync = defaultRequestFuncs.getViewSync;
+	requestObject.parsePost = defaultRequestFuncs.parsePost;
+	requestObject.modifyLog = defaultRequestFuncs.modifyLog;
+	requestObject.log = requestObject.modifyLog(global.logger.create());
+
+	requestObject.getResponse = () => {
+		response.end = function(...args){
+			if(!requestObject || requestObject.ended || !originalResposeEnd){
+				if(requestObject){
+					clearRequest();
+				}
+				requestObject = undefined;
+				throw 'FORBIDEN';
+			}
+
+			requestObject.ended = true;
+			response.end = originalResposeEnd;
+			originalResposeEnd = undefined;
+			response.end(args);
+			delete response.end;
+
+			clearRequest();
+		};
+		return response;
+	};
+	
+	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
+		if(!requestObject || requestObject.ended){
+			requestObject = undefined;
+			return;
+		}
+
+		requestObject.ended = true;
+
+		if(!text){
+			code = 204;
+		}
+
+		if(type == 'bin'){
+			headers['Content-Length'] = new Buffer(text, 'binary').length;
+		}
+		else{
+			text = text.toString().replace(new RegExp('\%\\$.*\%', 'g'), '');
+
+			if(requestObject.jsonpCallback){
+				if(headers['Content-Type'] == 'application/json'){
+					text = requestObject.jsonpCallback + '(\'' + text + '\');';
+				}
+				else{
+					text = requestObject.jsonpCallback + '("' + text + '");';
+				}
+			}
+
+			headers['Content-Length'] = new Buffer(text).length;
+		}
+
+		if(config.defaultHeaders){
+			for(let i in config.defaultHeaders){
+				if(!config.defaultHeaders.hasOwnProperty(i)){
+					continue;
+				}
+				headers[i] = config.defaultHeaders[i];
+			}
+		}
+
+		if(requestObject.responseCookies){
+			let cookies = [];
+			let expires = new Date();
+			expires.setDate(expires.getDate() + 5);
+			for(let i in requestObject.responseCookies){
+				if(!requestObject.responseCookies.hasOwnProperty(i)){
+					continue;
+				}
+				cookies.push(i + '=' + encodeURIComponent(requestObject.responseCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
+			}
+			headers['Set-Cookie'] = cookies;
+		}
+		
+		response.writeHead(code, headers);
+		if(type == 'bin'){
+			response.write(text, 'binary');
+		}
+		else{
+			response.write(text);
+		}
+		response.end();
+
+		clearRequest();
+	};
+
+	return requestObject;
+};
+
+exports.middleware = (request, moduleMeta, cb) => {
+	if(!middlewares.length){
+		log.d('No middlewares');
+		return cb();
+	}
+
+	let count = 0;
+	async.whilst(
+		() => {
+			return count < middlewares.length;
+		},
+		(cb) => {
+			let middleware = middlewares[count];
+			count++;
+			if(middleware.triggers['*']){
+				middleware.triggers['*'](request, moduleMeta, cb);
+				return;
+			}
+
+			let funcs = Object.keys(middleware.triggers).reduce((res, trigger) => {
+				let run = false;
+				let isMeta = trigger.match(/^meta\./);
+				let isRequest = trigger.match(/^request\./);
+				if(isMeta || isRequest){
+					let p = trigger.split('.').splice(1);
+					let path = isMeta ? moduleMeta : request;
+					for(let i in p){
+						if(!p.hasOwnProperty(i)){
+							continue;
+						}
+						if(path[p[i]]){
+							path = path[p[i]];
+							run = true;
+						}
+						else{
+							run = false;
+							break;
+						}
+					}
+				}
+				if(run){
+					res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
+				}
+				return res;
+			}, []);
+			async.series(funcs, cb);
+		},
+		(err, res) => {
+			log.d('middlewares result', err, res);
+			return cb(err, res);
+		}
+	);
+};
+
+exports.timeout = (config, meta, cb) => {
+	var called = false;
+	setTimeout(() => {
+		if(!called){
+			called = true;
+			return cb('TIMEOUT', null, 408);
+		}
+	}, (meta.timeout || config.timeout || 60) * 1000);
+	return (...args) => {
+		if(called){
+			log.e('request ended', args);
+			return;
+		}
+
+		called = true;
+		return cb(...args);
+	}
+}
+
+exports.auth = (module, request) => {
+	if(module.auth/* || module.rights*/){
+		let header = request.headers.authorization || '';
+		let token = header.split(/\s+/).pop() || '';
+		let auth = new Buffer(token, 'base64').toString();
+		let parts = auth.split(':');
+		auth = crypto.createHash('md5').update(auth).digest('hex');
+		let moduleAuth = module.auth == 'default' && helpers.defaultAuth ? helpers.defaultAuth : module.auth;
+
+		if(moduleAuth !== true && moduleAuth != auth){
+			return false;
+		}
+	}
+
+	return true;
+};
 
 // ### INITS
 exports.initDALs = (paths, config) => {
@@ -418,266 +679,4 @@ exports.initI18n = (paths, config) => {
 
 exports.initEmailSenders = (paths, config) => {
 	emailSenders = Emails.init(paths, config);
-};
-
-exports.getModule = module => modules[module];
-
-exports.parseRequest = (request, response, config) => {
-	let requestObject = {
-		id: exports.helpers.generateId(),
-		config: config,
-		helpers: exports.helpers,
-		DAL: DAL_connections,
-		mail: emailSenders,
-		url: request.url,
-		path: url.parse(request.url).pathname.substring(1),
-		method: request.method,
-		isPost: request.method == 'POST',
-		responseCookies: {},
-		cookies: {},
-		params: {},
-		post: {},
-		headers: JSON.parse(JSON.stringify(request.headers)),
-		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g),
-		ip: request.headers['x-forwarded-for'] ||
-			request.connection.remoteAddress ||
-			request.socket && request.socket.remoteAddress ||
-			request.connection.socket && request.connection.socket.remoteAddress
-	};
-
-	requestObject.params = qs.parse(url.parse(requestObject.url).query);
-	for(let i in requestObject.params){
-		if(exports.helpers.isBoolean(requestObject[i])){
-			requestObject[i] = Boolean(requestObject[i]);
-		}
-	}
-
-	if(requestObject.params.callback){
-		requestObject.jsonpCallback = requestObject.params.callback;
-		delete requestObject.params.callback;
-	}
-
-	if(request.headers.cookie){
-		request.headers.cookie.split(';').forEach(cookie => {
-			let parts = cookie.split('=');
-			requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
-		});
-	}
-
-	let originalResposeEnd = response.end;
-	var clearRequest = () => {
-		//objects
-		delete requestObject.config;
-		delete requestObject.helpers;
-		delete requestObject.DAL;
-		delete requestObject.email;
-		
-		//current request functions
-		delete requestObject.getResponse;
-		delete requestObject.end;
-
-		// default functions
-		delete requestObject.i18n;
-		delete requestObject.error;
-		delete requestObject.addCookies;
-		delete requestObject.rmCookies;
-		delete requestObject.getView;
-		delete requestObject.getViewSync;
-		delete requestObject.parsePost;
-		delete requestObject.modifyLog;
-
-		if(originalResposeEnd){
-			response.end = originalResposeEnd;
-		}
-
-		originalResposeEnd = undefined;
-		requestObject = undefined;
-		clearRequest = undefined;
-	};
-
-	requestObject.i18n = defaultRequestFuncs.i18n;
-	requestObject.error = defaultRequestFuncs.error;
-	requestObject.addCookies = defaultRequestFuncs.addCookies;
-	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
-	requestObject.getView = defaultRequestFuncs.getView;
-	requestObject.getViewSync = defaultRequestFuncs.getViewSync;
-	requestObject.parsePost = defaultRequestFuncs.parsePost;
-	requestObject.modifyLog = defaultRequestFuncs.modifyLog;
-
-	requestObject.getResponse = () => {
-		response.end = function(...args){
-			if(!requestObject || requestObject.ended || !originalResposeEnd){
-				if(requestObject){
-					clearRequest();
-				}
-				requestObject = undefined;
-				throw 'FORBIDEN';
-			}
-
-			requestObject.ended = true;
-			response.end = originalResposeEnd;
-			originalResposeEnd = undefined;
-			response.end(args);
-			delete response.end;
-
-			clearRequest();
-		};
-		return response;
-	};
-	
-	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
-		if(!requestObject || requestObject.ended){
-			requestObject = undefined;
-			return;
-		}
-
-		requestObject.ended = true;
-
-		if(!text){
-			code = 204;
-		}
-
-		if(type == 'bin'){
-			headers['Content-Length'] = new Buffer(text, 'binary').length;
-		}
-		else{
-			text = text.toString().replace(new RegExp('\%\\$.*\%', 'g'), '');
-
-			if(requestObject.jsonpCallback){
-				if(headers['Content-Type'] == 'application/json'){
-					text = requestObject.jsonpCallback + '(\'' + text + '\');';
-				}
-				else{
-					text = requestObject.jsonpCallback + '("' + text + '");';
-				}
-			}
-
-			headers['Content-Length'] = new Buffer(text).length;
-		}
-
-		if(config.defaultHeaders){
-			for(let i in config.defaultHeaders){
-				if(!config.defaultHeaders.hasOwnProperty(i)){
-					continue;
-				}
-				headers[i] = config.defaultHeaders[i];
-			}
-		}
-
-		if(requestObject.responseCookies){
-			let cookies = [];
-			let expires = new Date();
-			expires.setDate(expires.getDate() + 5);
-			for(let i in requestObject.responseCookies){
-				if(!requestObject.responseCookies.hasOwnProperty(i)){
-					continue;
-				}
-				cookies.push(i + '=' + encodeURIComponent(requestObject.responseCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
-			}
-			headers['Set-Cookie'] = cookies;
-		}
-		
-		response.writeHead(code, headers);
-		if(type == 'bin'){
-			response.write(text, 'binary');
-		}
-		else{
-			response.write(text);
-		}
-		response.end();
-
-		clearRequest();
-	};
-
-	return requestObject;
-};
-
-exports.middleware = (request, moduleMeta, cb) => {
-	if(!middlewares.length){
-		log.d('No middlewares');
-		return cb();
-	}
-
-	let count = 0;
-	async.whilst(
-		() => {
-			return count < middlewares.length;
-		},
-		(cb) => {
-			let middleware = middlewares[count];
-			count++;
-			if(middleware.triggers['*']){
-				middleware.triggers['*'](request, moduleMeta, cb);
-				return;
-			}
-
-			let funcs = Object.keys(middleware.triggers).reduce((res, trigger) => {
-				let run = false;
-				let isMeta = trigger.match(/^meta\./);
-				let isRequest = trigger.match(/^request\./);
-				if(isMeta || isRequest){
-					let p = trigger.split('.').splice(1);
-					let path = isMeta ? moduleMeta : request;
-					for(let i in p){
-						if(!p.hasOwnProperty(i)){
-							continue;
-						}
-						if(path[p[i]]){
-							path = path[p[i]];
-							run = true;
-						}
-						else{
-							run = false;
-							break;
-						}
-					}
-				}
-				if(run){
-					res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
-				}
-				return res;
-			}, []);
-			async.series(funcs, cb);
-		},
-		(err, res) => {
-			log.d('middlewares result', err, res);
-			return cb(err, res);
-		}
-	);
-};
-
-exports.timeout = (config, meta, cb) => {
-	var called = false;
-	setTimeout(() => {
-		if(!called){
-			called = true;
-			return cb('TIMEOUT', null, 408);
-		}
-	}, (meta.timeout || config.timeout || 60) * 1000);
-	return (...args) => {
-		if(called){
-			log.e('request ended', args);
-			return;
-		}
-
-		called = true;
-		return cb(...args);
-	}
-}
-
-exports.auth = (module, request) => {
-	if(module.auth/* || module.rights*/){
-		let header = request.headers.authorization || '';
-		let token = header.split(/\s+/).pop() || '';
-		let auth = new Buffer(token, 'base64').toString();
-		let parts = auth.split(':');
-		auth = crypto.createHash('md5').update(auth).digest('hex');
-		let moduleAuth = module.auth == 'default' && helpers.defaultAuth ? helpers.defaultAuth : module.auth;
-
-		if(moduleAuth !== true && moduleAuth != auth){
-			return false;
-		}
-	}
-
-	return true;
 };

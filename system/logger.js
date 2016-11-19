@@ -1,6 +1,7 @@
 "use strict"
 let fs = require('fs');
-let until = require('util')
+let until = require('util');
+let path = require('path');
 let colors = {
 	I: 32,
 	E: 31,
@@ -85,8 +86,23 @@ exports.logger = (dir, debug) => {
 			'|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
 			'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
 	};
+	let getFileName = (stack, createPath, isModifed) => {
+		let file = stack.split('\n');
+		if(!file[2]){
+			return '???';
+		}
+		let fPath = file[2].match(/.*\((.*):\d+:\d+\)/)[1];
+		if(isModifed){
+			fPath = file[3].match(/.*\((.*):\d+:\d+\)/)[1];
+		}
+		//return JSON.stringify([createPath, fPath])
+
+		return path.relative(createPath, fPath).replace(/(\.\.[\\/])+/, '');
+	};
 	return {
 		create: name => {
+			name = typeof name == 'string' ? name : '';
+			let createPath = !name ? new Error().stack.split('\n')[2].match(/.*\((.*):\d+:\d+\)/)[1] : '';
 			let log = {
 				add: str => write(str)
 			};
@@ -94,7 +110,10 @@ exports.logger = (dir, debug) => {
 				if(!colors.hasOwnProperty(i)){
 					continue;
 				}
-				log[i.toLowerCase()] = (...args) => {
+				log[i.toLowerCase()] = function(...args){
+					if(!name){
+						name = getFileName(new Error().stack, createPath, this.logModifed);
+					}
 					if(i == 'D' && !debug){
 						return;
 					}
