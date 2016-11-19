@@ -160,7 +160,7 @@ exports.pools = {};
 
 exports.helpers = require('./helpers');
 
-exports.getModule = module => modules[module];
+exports.getModule = module => modules[module] || modules[module.replace(/\/$/, '')];
 
 exports.parseRequest = (request, response, config) => {
 	let requestObject = {

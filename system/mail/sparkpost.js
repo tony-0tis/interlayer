@@ -10,9 +10,10 @@ exports.send = (email, cb) => {
 		content: {
 			from: email.from,
 			subject: email.subject,
-			html: email.text || email.html
+			text: email.text || undefined,
+			html: email.html || undefined
 		},
-		recipients: [email.to]
+		recipients: [{address: email.to}]
 	})
 	.then(data => {
 		cb(null, data);
