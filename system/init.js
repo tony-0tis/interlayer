@@ -155,6 +155,12 @@ let defaultRequestFuncs = {
 
 	// }
 };
+defaultRequestFuncs.addCookie = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.setCookie = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.setCookies = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.rmCookie = defaultRequestFuncs.rmCookies;
+defaultRequestFuncs.delCookie = defaultRequestFuncs.rmCookies;
+defaultRequestFuncs.delCookies = defaultRequestFuncs.rmCookies;
 
 exports.pools = {};
 
