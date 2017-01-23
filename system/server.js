@@ -25,6 +25,7 @@ exports.start = (paths, conf) => {
 	init.initMiddlewares(paths, conf);
 	init.initI18n(paths, conf);
 	init.initEmailSenders(paths, conf);
+	init.initServe(paths, config);
 }
 
 if(process.send){
@@ -98,14 +99,16 @@ function requestFunc(request, response){
 	
 	let module = init.getModule(requestObject.path);
 	if(!module){
-		log.d('BAD', requestObject.headers['x-forwarded-for'] ||
-			request.connection.remoteAddress ||
-			request.socket.remoteAddress ||
-			request.connection.socket.remoteAddress,
-			'REQ: ' + requestObject.path
-		);
+		init.serve(requestObject, (err, data) => {
+			if(data){
+				log.i(requestObject.ip, 'SERVE', requestObject.path)
+				return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
+			}
 
-		return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
+			log.d('BAD', requestObject.ip, 'REQ: ' + requestObject.path);
+			return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
+		});
+		return;
 	}
 
 	/*if(!init.auth(module.meta, requestObject)){
