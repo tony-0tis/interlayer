@@ -8,6 +8,8 @@
 *The desire to create own server pushes me to create a new and steeper server every year now for 8 years. The idea to create node.js package came after work in a large company, a web server which has a number of drawbacks (it was not written by me :joy:)  
 Because the server is in the alpha stage, you have the opportunity to advise what would you like to see the working from the box. [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)* 
 
+!!! MAJOR UPDATE: I'm was break old initialization, rewrite please it in your projects.
+
 ### Features
 * in its current form is a server REST-api or full-stack server
 * it is possible to add your own modules and dals
@@ -32,30 +34,25 @@ npm install --save interlayer
 ```	
 
 ### How to use
-Your project tree example
-* /dals
-    * [nameofdal.js](#example-of-dalsnameofdaljs)
-* /files
+Simple example tree:
+* /node_modules/
+* package.json
+* /files/
     * index.html
-    * index.js
-* /middleware
-    * [session.js](#example-of-middlewaresessionjs)
-* /modules
-    * [myModule.js](#example-of-modulesmymodulejs)
-* /node_modules
-    * /interlayer
-* [index.js](#example-of-indexjs)
+    * style.css
+    * script.js
+    * /images/
+        * logo.jpeg
+* index.js
 
 ##### Example of index.js
 ```js
 let interlayer = require('interlayer');
-let server = new interlayer();
-server.addModulesPath('modules');
 let config = {
-    useDals: ['redis'],
-    port: 80
+    port: 80,
+    serve: ['files']
 };
-server.init(config);
+interlayer(config);
 ```	
 
 ##### Methods
