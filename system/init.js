@@ -15,6 +15,7 @@ let emailSenders;
 let modules = {};
 let middlewares = [];
 let i18n = {};
+let serve = null;
 let pathCheck = /[\w\.\/]*/;
 
 let defaultRequestFuncs = {
@@ -58,8 +59,19 @@ let defaultRequestFuncs = {
 			}
 			tries.push(
 				new Promise((ok,fail) => {
+					try{
+						if(!fs.statSync(pathMod.join(this.config.view[i], file)).isFile()){
+							log.d('Not file', pathMod.join(this.config.view[i], file));
+							return fail();
+						}
+					}catch(e){
+						log.d('bad stat', pathMod.join(this.config.view[i], file), e);
+						return fail(e);
+					}
+
 					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
 						if(err){
+							log.d('read err', pathMod.join(this.config.view[i], file), err);
 							return fail(err);
 						}
 						return ok(res);
@@ -71,18 +83,22 @@ let defaultRequestFuncs = {
 		.then(result => cb(null, (result||'').toString()))
 		.catch(err => {
 			log.e(err);
-			cb('Not found')
+			cb('Not found');
 		});
 	},
-	getViewSync: function(view, file, cb){
-		if(cb){
-			throw 'maximum 2 arguments, without callback';
-		}
+	getViewSync: function(view, file){
 		if(!file){
 			file = view;
 		}
 		return this.config.view.requce((res, view)=>{
 			if(res){
+				return res;
+			}
+			try{
+				if(!fs.statSync(pathMod.join(view, file)).isFile()){
+					return res;
+				}
+			}catch(e){
 				return res;
 			}
 			try{
@@ -147,13 +163,25 @@ let defaultRequestFuncs = {
 			res[color].modifed = true;
 			return res;
 		}, {});
-	}
-	// fileToResponse: function(file){
-	// 	let contentType = this.helpers.mime(file);
-	// },
-	// binaryToResponse: function(file){
+	},
+	getFile: function(file, cb){
+		let contentType = this.helpers.mime(file);
+		try{
+			if(!fs.statSync(pathMod.join(view, file)).isFile()){
+				return cb('NO A FILE');
+			}
+		}catch(e){
+			return cb('NO FILE');
+		}
 
-	// }
+		fs.readFile(file, (err, res) => {
+			if(err){
+				return cb('BAD FILE');
+			}
+
+			cb(null, res, {'Content-Type': contentType});
+		});
+	}
 };
 
 exports.pools = {};
@@ -380,11 +408,47 @@ exports.middleware = (request, moduleMeta, cb) => {
 			}, []);
 			async.series(funcs, cb);
 		},
-		(err, res) => {
-			log.d('middlewares result', err, res);
-			return cb(err, res);
-		}
+		cb
 	);
+};
+
+exports.serve = (request, cb) => {
+	if(!serve){
+		return cb();
+	}
+
+	log.d('Try to serve', request.path);
+	let paths = [...serve];
+	let done = false;
+	async.whilst(
+		() => !done,
+		(cb) => {
+			if(paths.length == 0){
+				done = true;
+				return cb();
+			}
+			let p = paths.shift();
+			log.d('check path', p);
+			if(!p){
+				return cb();
+			}
+			request.getFile(pathMod.join(p, request.path), (err, res, headers) => {
+				if(err){
+					return cb();
+				}
+
+				done = true;
+				cb(null, [res, headers]);
+			});
+		},
+		(err, res) => {
+			if(err){
+				return cb(err);
+			}
+
+			cb(null, res[0], 200, res[1]);
+		}
+	)
 };
 
 exports.timeout = (config, meta, cb) => {
@@ -404,7 +468,7 @@ exports.timeout = (config, meta, cb) => {
 		called = true;
 		return cb(...args);
 	}
-}
+};
 
 exports.auth = (module, request) => {
 	if(module.auth/* || module.rights*/){
@@ -424,6 +488,13 @@ exports.auth = (module, request) => {
 };
 
 // ### INITS
+exports.initServe = (paths, config) => {
+	if(paths.serve){
+		serve = paths.serve;
+		log.i('Server start serve dirs', serve);
+	}
+};
+
 exports.initDALs = (paths, config) => {
 	DAL_connections = DAL.init(paths, config);
 	return DAL_connections;
