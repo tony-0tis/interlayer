@@ -245,7 +245,7 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.helpers;
 		delete requestObject.DAL;
 		delete requestObject.email;
-		
+
 		//current request functions
 		delete requestObject.getResponse;
 		delete requestObject.end;
@@ -299,7 +299,7 @@ exports.parseRequest = (request, response, config) => {
 		};
 		return response;
 	};
-	
+
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
 		if(!requestObject || requestObject.ended){
 			requestObject = undefined;
@@ -351,7 +351,7 @@ exports.parseRequest = (request, response, config) => {
 			}
 			headers['Set-Cookie'] = cookies;
 		}
-		
+
 		response.writeHead(code, headers);
 		if(type == 'bin'){
 			response.write(text, 'binary');
@@ -452,6 +452,10 @@ exports.serve = (request, cb) => {
 				return cb(err);
 			}
 
+			if(!res){
+				return cb('NOT FOUND', null, 404);
+			}
+
 			cb(null, res[0], 200, res[1]);
 		}
 	)
@@ -522,7 +526,7 @@ exports.initModules = (paths, config) => {
 
 			return moduleName + '/' + methodName;
 		};
-		
+
 		for(let file of pathModules){
 			try{
 				let isDir = false;
@@ -567,7 +571,7 @@ exports.initModules = (paths, config) => {
 					if(m.indexOf('_') === 0){
 						let methodMeta = module[m];
 						let methodName = m.substring(1);
-						
+
 						if(!module[methodName]){
 							log.e('module', moduleName, 'Method', methodName, 'in file', file, 'not found');
 							continue;
@@ -604,7 +608,7 @@ exports.initModules = (paths, config) => {
 			}
 			catch(err){
 				log.e('Error in module ' + path + '/' + file, err, err.stack);
-			} 
+			}
 		}
 	});
 
