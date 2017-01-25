@@ -499,7 +499,7 @@ exports.auth = (module, request) => {
 
 // ### INITS
 exports.initServe = (paths, config) => {
-	if(paths.serve){
+	if(paths.serve && paths.serve.length){
 		serve = paths.serve;
 		log.i('Server start serve dirs', serve);
 	}
