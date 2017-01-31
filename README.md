@@ -5,36 +5,31 @@
 [![Build Status](https://travis-ci.org/aidevio/interlayer.svg?branch=master)](https://travis-ci.org/aidevio/interlayer)
 [![Code Climate](https://codeclimate.com/github/aidevio/interlayer/badges/gpa.svg)](https://codeclimate.com/github/aidevio/interlayer)
 
-*The desire to create own server pushes me to create a new and steeper server every year now for 8 years. The idea to create node.js package came after work in a large company, a web server which has a number of drawbacks (it was not written by me :joy:)  
-Because the server is in the alpha stage, you have the opportunity to advise what would you like to see the working from the box. [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)* 
+Server current in alpha. You can offer or report new issue here: [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)*
 
-!!! MAJOR UPDATE: I'm was break old initialization, rewrite please it in your projects.
+!!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
 
 ### Features
-* in its current form is a server REST-api or full-stack server
-* it is possible to add your own modules and dals
-* the server can restart each time a file changes
-* coloring of the log in the console
-* as if to run the server as a service, can be seen through tailf colored logs
-* size of data obtained by POST maximum 976kb, 1e6 symbols
-* you can pick up a cluster of servers for load balancing. Dangling nodes will automatically restart
-* in built-in redis DAL implimented smart pool of connections
-* you can localize your templates and use localisation varibles for customize api responses
-* it is possible to use your middleware modules to implement authorization checks
-* check params by JSV
-
-#### Future
-* add file upload
-* add the ability to use the add-ons for each request, such as preauthorization
-* cover tests
+* Serve your files as is
+* auto-reload server on file changes(new files not handle reload)
+* cluster your server is need
+* mysql\redis DAL's for save data
+* simple localization
 
 ### Installation
 ```js
 npm install --save interlayer
-```	
+```
 
 ### How to use
-Simple example tree:
+```js
+let config = {
+    port: 80,
+    serve: ['files']
+};
+require('interlayer')(config);
+```
+Tree example:
 * /node_modules/
 * package.json
 * /files/
@@ -45,34 +40,20 @@ Simple example tree:
         * logo.jpeg
 * index.js
 
-##### Example of index.js
-```js
-let interlayer = require('interlayer');
-let config = {
-    port: 80,
-    serve: ['files']
-};
-interlayer(config);
-```	
-
-##### Methods
-* `server.addModulesPath('mymodules');` - Add the path to the folder with your modules. (_The folder **mymodules** must be in the same folder where is called `server.init(config);` or you can type absolute path_)  [How to create](#create-module)
-* `server.addDalsPath('dalPath');` - Add the path of the folder with dal. (_The folder **dalPath** must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal)
-* `server.init(config);` - start server. Configuration settings are specified [below](#configuration)
-
-##### Configuration:
+##### Possible configuration params:
 `Config` object properties
 
 | Property | Sever version | Default | Example | Description |
 | -------- | ------------- | ------- | ------- | ----------- |
-| startPath | >=0.1.8 | ./ | /myserver | Root path for modules, dals, views, middlewares, i18n if their paths is relative |
-| logPath | >=0.0.3 | ./ | /var/logs/myApp/ | Path where will be created `logs.log` file |
 | port | >=0.0.3 | 8080 | 80 / Number | Port of web server |
+| startPath/rootPath | >=0.1.8 | ./ | /myserver | Root path |
+| logPath | >=0.0.3 | ./ | /var/logs/myApp/ | Path where will be created `logs.log` file |
 | timeout | >=0.1.8 | 60 | 600 / Number | Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
-| numOfServers | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
+| numOfServers/clusters | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
 | useWatcher | >=0.0.8 | false | true/false | if this option is true the server will restart automatically when changing files in the folder with modules. |
 | useDals | >=0.0.8 | - | ['redis'] | An array of dals which need to include. |
 | useDals | >=0.1.6 | - | {redis: {host: ''}, mysqal: {database: 'test'}} | An object of dals which need to include. By using object settings can be specified to initialize the config for DAL. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options) |
+| serve | >=0.3.0 |  | ['files'] / ['/myserver/files'] | An array of serve folders. Priority over the last folder. |
 | modules | >=0.0.3 | ['modules'] | ['mymodules'] / ['/myserver/mymodules'] | An array of modules folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)|
 | dals | >=0.0.3 | - | ['mydals'] / ['/myserver/mydals'] | An array of dals folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal) |
 | middleware | >=0.1.8 | - | ['mymiddleware'] | ['/myserver/mymiddleware'] | An array of folders with middlewares. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-middleware) |
@@ -92,78 +73,72 @@ interlayer(config);
 | debug | >=0.1.1 | false | true/false | Allow to display `log.d` in console and adding to log file |
 
 
-### Create module
+### Config.modules option
 ##### Example of modules/myModule.js
 ```js
-let methodLog = global.logger.create('moduleID');
+// you may need to log something, see above methodLog methods
+let log = global.logger.create('moduleID');
 
-// You can use this logs
+// define meta information for method, without it method will be unvisible
+exports._myMethod = {
+    toJson: true
+};
+exports.myMethod = (request, cb) => {
+    log.i('I am log without requestId')
+    cb(null, {ok: true});
+};
+```
+##### Features
+`global.logger.create('moduleID')` params:
+```js
+let methodLog = global.logger.create('moduleID')
 methodLog.i() // Usual log - displayed in green
 methodLog.w() // Warn - displayed in yellow
 methodLog.e() // Error - displayed in red
 methodLog.c() // Critical error - displayed in white
+```
 
-// format of logs [YYYY/MM/DD|HH:MM:SS.sss|tz][logtype][process.id][module identification] value
-// ex: [2016/09/17|20:05:46.528|-3][I][6880][moduleID] Test log
-
-// You can add meta, then all of its properties will be extended to all methods of the module
+Also you can set default module meta information, which define module methods metas
+```js
 exports.__meta = {
     contentType: 'json'
 };
-
-// you can add initialization for module where simpleContext is Object({DAL: {... dals spicified in config.useDals}})
-exports.__init = (simpleContext) => {
-    // do something, example some work with using simpleContext.redis.blpop
-};
-
-// required! meta information for method, make module visible from outside. Avaliable properties see above
-exports._myMethod = {
-    toJson: true
-};
-
-// url will be `myModule/myMethod`. Also you can add GET params `myModule/myMethod?param1=param`
-// First parametr is request-like object(properties and methods see above)
-// Second parametr is callback function, given some parametrs(err, text, code, headers, type):
-// * err - may be error instance or string, number, array, object
-// * text - responce, may be string, number, array, object, buffer
-// * code - is HTTP status code
-// * headers - manual headers for response
-// * type - only makes sense in the value `bin` - for responce binary data
-exports.myMethod = (request, cb) => {
-    let error = null;
-    let responce = 'Ok';
-    let log = request.modifyLog(methodLog);
-    log.i('I am log with requestId, cause me modify by request.modifyLog method');
-    methodLog.i('I am log without requestId')
-    cb(error, response);
-};
 ```
 
-#### Module meta / module method meta properties
-May be used in module method meta `exports._myMethod[property]` and globaly in module meta `exports.__meta[property]`
-* `contentType = 'json';` || `toJson = true` - 
+These metas can be difined in module meta or in method meta:
+* `contentType = 'json';` || `toJson = true` -
 * `timeout = 60;` - timeout in seconds before response on hung request will be `{error: 'TIMEOUT'}`
 * `addToRoot = true;` - if you specify this option then the method will be located at ~~myModule~~/`myMethod` without specifying the module name
 * `skipRequestLog = true;` - if you specify this option it will disable save and display in console log information about calling this method
 * `prerun = (request, moduleMeta, cb) => {}` - prerun function, like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
 
-#### Request properties and methods
-##### Properties
+Also you can add initialization for module where simpleContext is `Object({DAL: {}})`
+```js
+exports.__init = (simpleContext) => {
+    // do something, example some work with using simpleContext.redis.blpop
+};
+```
+
+Lest consider request propetries and methods
+*exports.myMethod = (**request**, cb)*
+###### request properties
+* `request.ip` - Client ip adress
+* `request.method` - Uppercased type of request - POST|GET|...
+* `request.isPost` - true|false
 * `request.params` - An object of parsed GET params
 * `request.post` - An object of parsed POST params
 * `request.cookies` - An object parsed cookies
-* `request.method` - Uppercased type of request - POST|GET|...
-* `request.isPost` - true|false
-* `request.DAL` - An object with DALs, which you specified in `config.useDals`
 * `request.headers` - An object of request headers
 * `request.config` - An object of configuration which you specified at start of server
+* `request.DAL` - An object with DALs, which you specified in `config.useDals`
 
-##### Methods
+###### request methods
 * `request.modifyLog(log)` - *>=0.2.10* modify log instanse by adding to top of logged arguments by default
 * `request.getView('file.html', cb)` - *>=0.1.7* return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
 * `request.getViewSync('file')` - *>=0.1.7* sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found
-* `request.addCookies(key, value)` - set cookies to response
-* `request.rmCookies(key)` - delete cookies of expire cookies in responce
+* `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies - *>=0.3.4*)
+* `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie,delCookies - *>=0.3.4*)
+* `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`
 
 ###### Manual responses
 * `request.getResponse()` - this method return response instance
@@ -174,8 +149,18 @@ May be used in module method meta `exports._myMethod[property]` and globaly in m
  * *headers* is object with headers
  * *type* only makes sense in the value `bin` - for binary response
 
+And finally consider method callback
+*exports.myMethod = (request, **cb**)*
+```js
+cb(err, text, code, headers, type)
+//- err - may be error instance or string, number, array, object
+//- text - responce, may be string, number, array, object, buffer
+//- code - is HTTP status code
+//- headers - manual headers for response
+//- type - only makes sense in the value `bin` - for responce binary data
+```
 
-##### Use dals:
+###### Use dals:
 ```js
     request.DAL.redis.get('somekey', (err, data) => {
         if(err){
@@ -215,11 +200,11 @@ exports.triggers = {
 // but methods is required
 // request context and callback described in module
 exports.checkSession = (request, moduleMeta, cb) => {
-    
+
 };
 
 exports.test = (request, moduleMeta, cb) => {
-    
+
 };
 ```
 

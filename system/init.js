@@ -269,14 +269,10 @@ exports.parseRequest = (request, response, config) => {
 		clearRequest = undefined;
 	};
 
-	requestObject.i18n = defaultRequestFuncs.i18n;
-	requestObject.error = defaultRequestFuncs.error;
-	requestObject.addCookies = defaultRequestFuncs.addCookies;
-	requestObject.rmCookies = defaultRequestFuncs.rmCookies;
-	requestObject.getView = defaultRequestFuncs.getView;
-	requestObject.getViewSync = defaultRequestFuncs.getViewSync;
-	requestObject.parsePost = defaultRequestFuncs.parsePost;
-	requestObject.modifyLog = defaultRequestFuncs.modifyLog;
+	Onject.keys(defaultRequestFuncs).map(k => {
+		requestObject[k] = defaultRequestFuncs[k];
+	});
+
 	requestObject.log = requestObject.modifyLog(global.logger.create());
 
 	requestObject.getResponse = () => {
