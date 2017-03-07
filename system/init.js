@@ -269,7 +269,7 @@ exports.parseRequest = (request, response, config) => {
 		clearRequest = undefined;
 	};
 
-	Onject.keys(defaultRequestFuncs).map(k => {
+	Object.keys(defaultRequestFuncs).map(k => {
 		requestObject[k] = defaultRequestFuncs[k];
 	});
 
