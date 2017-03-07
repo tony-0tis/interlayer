@@ -1,9 +1,8 @@
-let log = global.logger.create('MYSQL');
-let mysql = require('mysql');
-let connectionMethods = require('mysql/lib/Connection')
+let log = global.logger.create('POSTGRES');
+let pg = require('pg');
 
 let DAL = {
-	getConnection: cb => cb('NO_CONNECTION')
+	connect: cb => cb('NO_CONNECTION')
 }
 exports.init = (config, dalConfig) => {
 	let conf = {
@@ -17,18 +16,17 @@ exports.init = (config, dalConfig) => {
 		conf[i] = dalConfig[i];
 	}
 	if(!conf.database){
-		throw 'wrong mysql config, check database';
+		throw 'wrong postgres config, check database';
 	}
-	DAL = mysql.createPool(conf);
+	DAL = new pg.Pool(conf);
+    DAL.on('error', (err, client) => {
+        log.e('idle client error', err.message, err.stack);
+    });
 };
 
 exports.methods = {};
-for(let name in connectionMethods.prototype){
+for(let name in pg.prototype){
 	if(name.indexOf('_') == 0){
-		continue;
-	}
-	if(['format', 'escapeId', 'escape'].indexOf(name) > -1){
-		exports.methods[name] = connectionMethods.prototype[name];
 		continue;
 	}
 
@@ -36,15 +34,12 @@ for(let name in connectionMethods.prototype){
 }
 function wrapMethod(name){
 	exports.methods[name] = (...args) => {
-		let conn;
+		let doneConn;
 		let originalCb = () => {};
 		let cb = (...resargs) => {
-			if(conn){
-				conn.release();
-			}
+			doneConn();
 
 			originalCb(...resargs);
-			conn = undefined;
 		};
 
 		if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
@@ -52,12 +47,12 @@ function wrapMethod(name){
 			args[args.length -1] = cb;
 		}
 
-		DAL.getConnection((err, connection) => {
+		DAL.connect((err, connection, done) => {
+            doneConn = done;
 			if(err){
 				return cb(err);
 			}
 
-			conn = connection;
 			connection[name](...args);
 		});
 	}

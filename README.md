@@ -13,7 +13,7 @@ Server current in alpha. You can offer or report new issue here: [New issue](htt
 * Serve your files as is
 * auto-reload server on file changes(new files not handle reload)
 * cluster your server is need
-* mysql\redis DAL's for save data
+* postgres\mysql\redis DAL's for save data
 * simple localization
 
 ### Installation
@@ -52,7 +52,7 @@ Tree example:
 | numOfServers/clusters | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
 | useWatcher | >=0.0.8 | false | true/false | if this option is true the server will restart automatically when changing files in the folder with modules. |
 | useDals | >=0.0.8 | - | ['redis'] | An array of dals which need to include. |
-| useDals | >=0.1.6 | - | {redis: {host: ''}, mysqal: {database: 'test'}} | An object of dals which need to include. By using object settings can be specified to initialize the config for DAL. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options) |
+| useDals | >=0.1.6 | - | {redis: {host: ''}, mysqal: {database: 'test'}}, postgres: {database: 'test'} | An object of dals which need to include. By using object settings can be specified to initialize the config for DAL. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres(**added in 0.3.5**) [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
 | serve | >=0.3.0 |  | ['files'] / ['/myserver/files'] | An array of serve folders. Priority over the last folder. |
 | modules | >=0.0.3 | ['modules'] | ['mymodules'] / ['/myserver/mymodules'] | An array of modules folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)|
 | dals | >=0.0.3 | - | ['mydals'] / ['/myserver/mydals'] | An array of dals folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal) |
