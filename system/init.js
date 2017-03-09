@@ -276,6 +276,7 @@ exports.parseRequest = (request, response, config) => {
 	requestObject.log = requestObject.modifyLog(global.logger.create());
 
 	requestObject.getResponse = () => {
+		requestObject.responseFree = true;
 		response.end = function(...args){
 			if(!requestObject || requestObject.ended || !originalResposeEnd){
 				if(requestObject){

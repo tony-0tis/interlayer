@@ -96,6 +96,7 @@ process.on('uncaughtException', err => (defLog && defLog.c || console.log)('Caug
 function requestFunc(request, response){
 	let requestObject = init.parseRequest(request, response, config);
 	let log = requestObject.modifyLog(defLog);
+	let reqStart = Date.now();
 	
 	let module = init.getModule(requestObject.path);
 	if(!module){
@@ -202,7 +203,8 @@ function requestFunc(request, response){
 				'FROM: ' + (requestObject.headers.referer || '---'),
 				'GET: ' + init.helpers.clearObj(requestObject.params, ['token']),
 				'POST: ' + init.helpers.clearObj(requestObject.post, ['token']),
-				'len:' + (res.data && res.data.length)
+				'len: ' + (res.data && res.data.length),
+				'time: ' + ((Date.now() - reqStart) / 1000) + 's'
 			);
 		}
 
@@ -210,6 +212,8 @@ function requestFunc(request, response){
 			return requestObject.error(err);
 		}
 
-		requestObject.end(res.data, res.code, res.headers, res.type);
+		if(!requestObject.responseFree){
+			requestObject.end(res.data, res.code, res.headers, res.type);
+		}
 	});
 }
