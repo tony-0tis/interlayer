@@ -98,12 +98,14 @@ exports.__meta = {
 };
 ```
 
-These metas can be difined in module meta or in method meta:
-* `contentType = 'json';` || `toJson = true` -
-* `timeout = 60;` - timeout in seconds before response on hung request will be `{error: 'TIMEOUT'}`
-* `addToRoot = true;` - if you specify this option then the method will be located at ~~myModule~~/`myMethod` without specifying the module name
-* `skipRequestLog = true;` - if you specify this option it will disable save and display in console log information about calling this method
-* `prerun = (request, moduleMeta, cb) => {}` - prerun function, like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
+These metas can be difined in the module meta or in the method meta:
+* `contentType = 'json'` / `toJson = true`: Return content as JSON content.
+* `timeout = 60`: Timeout number in seconds before response on hung request will be `{error: 'TIMEOUT'}`.
+* `addToRoot = true`: Boolean value which define is method must be located at ~~myModule~~/`myMethod` without specifying the module name.
+* `skipRequestLog = true;`: Boolean value which define is method call must be skipped in console log.
+* `prerun = (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. Its like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
+* `desc`: Describe information about method, can be used by call request.getMethodsInfo().
+* `hidden`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info.
 
 Also you can add initialization for module where simpleContext is `Object({DAL: {}})`
 ```js
@@ -126,12 +128,13 @@ Lest consider request propetries and methods
 * `request.DAL` - An object with DALs, which you specified in `config.useDals`
 
 ###### request methods
-* `request.modifyLog(log)` - *>=0.2.10* modify log instanse by adding to top of logged arguments by default
-* `request.getView('file.html', cb)` - *>=0.1.7* return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
-* `request.getViewSync('file')` - *>=0.1.7* sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found
-* `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies - *>=0.3.4*)
-* `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie,delCookies - *>=0.3.4*)
+* `request.modifyLog(log)` - modify log instanse by adding to top of logged arguments by default
+* `request.getView('file.html', cb)` - return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
+* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found
+* `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies)
+* `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie)
 * `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`
+* `request.getMethodsInfo()` - return an array of defined methods except hiddened by flag `hidden`. If called with 1-st param `true` return hiddened methods too
 
 ###### Manual responses
 * `request.getResponse()` - this method return response instance

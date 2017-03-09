@@ -17,8 +17,17 @@ let middlewares = [];
 let i18n = {};
 let serve = null;
 let pathCheck = /[\w\.\/]*/;
+let infoApi = [];
 
 let defaultRequestFuncs = {
+	getMethodsInfo: (showHidden, replaces) => {
+		return infoApi.filter(m=>{
+			if(m.hidden && !showHidden){
+				return false;
+			}
+			return true;
+		});
+	},
 	i18n: function(key, def){
 		for(let i in this.langs){
 			if(i18n[this.langs[i]] && i18n[this.langs[i]][key]){
@@ -579,8 +588,14 @@ exports.initModules = (paths, config) => {
 							meta: Object.assign({}, module.__meta || {}, methodMeta),
 							definedIn: file
 						};
+						let methodInfo = {
+							desc: method.meta.desc,
+							hidden: method.meta.hidden,
+							meta: Object.assign({}, method.meta)
+						};
+						infoApi.push(methodInfo);
 
-						methodName = getUrl(moduleName, methodName, module, methodMeta);
+						methodName = getUrl(moduleName, methodName, module, method.meta);
 
 						if(modules[methodName]){
 							log.e('module', moduleName, 'Method', methodName, 'in file', file, 'IS DEFINED IN', modules[methodName].definedIn);
@@ -588,16 +603,18 @@ exports.initModules = (paths, config) => {
 						}
 
 						modules[methodName] = method;
+						methodInfo.url = methodName;
 
 						let aliasURL = methodMeta.alias;
 						if(aliasURL){
-							aliasURL = getUrl(moduleName, aliasURL, module, methodMeta);
+							aliasURL = getUrl(moduleName, aliasURL, module, method.meta);
 							if(modules[aliasURL]){
 								log.e('module', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
 								continue;
 							}
 
 							modules[aliasURL] = method;
+							methodInfo.alias = aliasURL;
 						}
 					}
 				}
