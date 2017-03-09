@@ -43,27 +43,26 @@ Tree example:
 ## Possible configuration params:
 `Config` object properties
 
-`port`: Port number of web server. (Default: 8080)
-`startPath` / `rootPath`: Root server path. (Default: ./)
-`logPath`: Path where will be created `logs.log` file. (Default: ./)
-`timeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted**
-`numOfServers` / `clusters`: Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster.
-`useWatcher`: Boolean value determine is server will restart automatically when files in the folder with modules was changed.
-`useDals`: An object of dal modules which need to include. Last version supports redis, mysql, postgress. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters)
-`serve`: An array folders to serve. Priority over the last folder.
-`modules: An array folders with modules. Priority over the last folder. [How to create](#create-module)
-`dals`: An array of folders with your dal modules. Priority over the last folder. [How to create](#create-dal)
-`middleware`: An array of folders with middlewares. Priority over the last folder. [How to create](#create-middleware)
-`middlewareOrder`: An array with ordered names of middlewares
-`middlewareTimeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**
-`views`: An array of folders with files, which you can be uses as templates, or returned through the api. Priority over the last folder.
-`i18n`: An array of folders with localization files. Priority over the last folder. [How to create](#localization)
-`defaultHeaders`: An object with default headers, which have to be added at every response.
+* `port`: Port number of web server. (Default: 8080)
+* `startPath` / `rootPath`: Root server path. (Default: ./)
+* `logPath`: Path where will be created `logs.log` file. (Default: ./)
+* `timeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted**
+* `numOfServers` / `clusters`: Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster.
+* `useWatcher`: Boolean value determine is server will restart automatically when files in the folder with modules was changed.
+* `useDals`: An object of dal modules which need to include. Last version supports redis, mysql, postgress. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters)
+* `serve`: An array folders to serve. Priority over the last folder.
+* `modules: An array folders with modules. Priority over the last folder. [How to create](#create-module)
+* `dals`: An array of folders with your dal modules. Priority over the last folder. [How to create](#create-dal)
+* `middleware`: An array of folders with middlewares. Priority over the last folder. [How to create](#create-middleware)
+* `middlewareOrder`: An array with ordered names of middlewares
+* `middlewareTimeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**
+* `views`: An array of folders with files, which you can be uses as templates, or returned through the api. Priority over the last folder.
+* `i18n`: An array of folders with localization files. Priority over the last folder. [How to create](#localization)
+* `defaultHeaders`: An object with default headers, which have to be added at every response.
 
 ## Experimental properties
-`disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
-`debug`: Allow to display `log.d` in console and adding to log file
-
+* `disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
+* `debug`: Allow to display `log.d` in console and adding to log file
 
 ## Config.modules option
 Example of modules/myModule.js
