@@ -9,19 +9,19 @@ Server current in alpha. You can offer or report new issue here: [New issue](htt
 
 !!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
 
-### Features
+## Features
 * Serve your files as is
 * auto-reload server on file changes(new files not handle reload)
 * cluster your server is need
 * postgres\mysql\redis DAL's for save data
 * simple localization
 
-### Installation
+## Install
 ```js
 npm install --save interlayer
 ```
 
-### How to use
+## How to use
 ```js
 let config = {
     port: 80,
@@ -40,41 +40,34 @@ Tree example:
         * logo.jpeg
 * index.js
 
-##### Possible configuration params:
+## Possible configuration params:
 `Config` object properties
 
-| Property | Sever version | Default | Example | Description |
-| -------- | ------------- | ------- | ------- | ----------- |
-| port | >=0.0.3 | 8080 | 80 / Number | Port of web server |
-| startPath/rootPath | >=0.1.8 | ./ | /myserver | Root path |
-| logPath | >=0.0.3 | ./ | /var/logs/myApp/ | Path where will be created `logs.log` file |
-| timeout | >=0.1.8 | 60 | 600 / Number | Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
-| numOfServers/clusters | >=0.0.8 | 1 | 4 / Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster |
-| useWatcher | >=0.0.8 | false | true/false | if this option is true the server will restart automatically when changing files in the folder with modules. |
-| useDals | >=0.0.8 | - | ['redis'] | An array of dals which need to include. |
-| useDals | >=0.1.6 | - | {redis: {host: ''}, mysqal: {database: 'test'}}, postgres: {database: 'test'} | An object of dals which need to include. By using object settings can be specified to initialize the config for DAL. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres(**added in 0.3.5**) [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
-| serve | >=0.3.0 |  | ['files'] / ['/myserver/files'] | An array of serve folders. Priority over the last folder. |
-| modules | >=0.0.3 | ['modules'] | ['mymodules'] / ['/myserver/mymodules'] | An array of modules folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-module)|
-| dals | >=0.0.3 | - | ['mydals'] / ['/myserver/mydals'] | An array of dals folders. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-dal) |
-| middleware | >=0.1.8 | - | ['mymiddleware'] | ['/myserver/mymiddleware'] | An array of folders with middlewares. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#create-middleware) |
-| middlewareOrder | >=0.1.8 | - | ['session', 'checkAuth'] | An array with ordered names of middlewares |
-| middlewareTimeout | >=0.1.8 | 10 | 15 / Number |  Timeout in seconds after which the user will be shown `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**|
-| views | >=0.1.8 | ['files'] | ['myfiles'] / ['/myserver/myfiles'] | An array of folders with files, which you can use as templates, or to return them through the api. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_)  |
-| i18n | >=0.1.8 | ['i18n'] | ['myi18n'] / ['/myserver/myi18n'] | An array of folders with localization files. Priority over the last folder. (_The folders must be in the same folder where is called `server.init(config);` or you can type absolute path_) [How to create](#localization) |
-| defaultHeaders | >=0.1.6 | - | {'Access-Control-Allow-Origin',:'*'} | An object with headers, which have to be added to every response. |
-| - | - | - | - |
-| ~~type~~ | >=0.0.3 <0.0.8 | ~~'server'~~ | ~~'server'/'watcher'~~ | **Deprecated!** Use `useWatcher` instead. |
-| ~~initDals~~ | >=0.0.3 <0.0.8 | - | ~~['redis']~~ | **Deprecated!** Use `useDals` instead. |
+`port`: Port number of web server. (Default: 8080)
+`startPath` / `rootPath`: Root server path. (Default: ./)
+`logPath`: Path where will be created `logs.log` file. (Default: ./)
+`timeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted**
+`numOfServers` / `clusters`: Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster.
+`useWatcher`: Boolean value determine is server will restart automatically when files in the folder with modules was changed.
+`useDals`: An object of dal modules which need to include. Last version supports redis, mysql, postgress. For built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters)
+`serve`: An array folders to serve. Priority over the last folder.
+`modules: An array folders with modules. Priority over the last folder. [How to create](#create-module)
+`dals`: An array of folders with your dal modules. Priority over the last folder. [How to create](#create-dal)
+`middleware`: An array of folders with middlewares. Priority over the last folder. [How to create](#create-middleware)
+`middlewareOrder`: An array with ordered names of middlewares
+`middlewareTimeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**
+`views`: An array of folders with files, which you can be uses as templates, or returned through the api. Priority over the last folder.
+`i18n`: An array of folders with localization files. Priority over the last folder. [How to create](#localization)
+`defaultHeaders`: An object with default headers, which have to be added at every response.
 
-##### Experimental properties
-| Property | Sever version | Default | Example | Description |
-| -------- | ------------- | ------- | ------- | ----------- |
-| disableNagleAlgoritm | >=0.1.0 | false | true/false | Disable Nagle algoritm for connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
-| debug | >=0.1.1 | false | true/false | Allow to display `log.d` in console and adding to log file |
+## Experimental properties
+`disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
+`debug`: Allow to display `log.d` in console and adding to log file
 
 
-### Config.modules option
-##### Example of modules/myModule.js
+## Config.modules option
+Example of modules/myModule.js
+
 ```js
 // you may need to log something, see above methodLog methods
 let log = global.logger.create('moduleID');
@@ -88,7 +81,8 @@ exports.myMethod = (request, cb) => {
     cb(null, {ok: true});
 };
 ```
-##### Features
+
+### Features
 `global.logger.create('moduleID')` params:
 ```js
 let methodLog = global.logger.create('moduleID')
@@ -172,8 +166,8 @@ cb(err, text, code, headers, type)
 ```
 
 
-### Create dal
-##### Example of dals/nameofdal.js
+## Create dal
+Example of dals/nameofdal.js
 Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = ['nameofdal'];`)
 ```js
 // init is not required
@@ -188,8 +182,8 @@ exports.methods = {
 ```
 
 
-### Create middleware
-##### Example of middleware/session.js
+## Create middleware
+Example of middleware/session.js
 ```js
 
 exports.triggers = {
@@ -209,8 +203,8 @@ exports.test = (request, moduleMeta, cb) => {
 ```
 
 
-### Localization
-##### Example of i18n/en.js
+## Localization
+Example of i18n/en.js
 **Note! You have to use double quotes, instead single quotes, cause it's json file**
 ```json
 {
