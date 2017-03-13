@@ -5,16 +5,19 @@
 [![Build Status](https://travis-ci.org/aidevio/interlayer.svg?branch=master)](https://travis-ci.org/aidevio/interlayer)
 [![Code Climate](https://codeclimate.com/github/aidevio/interlayer/badges/gpa.svg)](https://codeclimate.com/github/aidevio/interlayer)
 
-Server current in alpha. You can offer or report new issue here: [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)*
+Server current in alpha. You can offer or report new issue here: [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)
 
-!!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
+Stable version will be released when will be provided all tests and determines all features of this server. Currently I use this server in the several projects.
+
+##### !!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
 
 ## Features
-* Serve your files as is
-* auto-reload server on file changes(new files not handle reload)
-* cluster your server is need
-* postgres\mysql\redis DAL's for save data
-* simple localization
+* serve your files
+* auto-reload server on file change (new files not support handle reload)
+* clusterization
+* postgres\mysql\redis built-in DAL's for data storage
+* mailgun\sparkpost build-in mail sender packages
+* localization
 
 ## Install
 ```js
@@ -29,10 +32,10 @@ let config = {
 };
 require('interlayer')(config);
 ```
-Tree example:
+Project tree example:
 * /node_modules/
 * package.json
-* /files/
+* /files/ *`- this folder will be served by confing.serve`*
     * index.html
     * style.css
     * script.js
@@ -40,8 +43,8 @@ Tree example:
         * logo.jpeg
 * index.js
 
-## Possible configuration params:
-`Config` object properties
+## All configuration params:
+`config` object properties
 
 * `port`: Port number of web server. (Default: 8080)
 * `startPath` / `rootPath`: Root server path. (Default: ./)
@@ -82,7 +85,7 @@ exports.myMethod = (request, cb) => {
 ```
 
 ### Features
-`global.logger.create('moduleID')` params:
+**Logging:**
 ```js
 let methodLog = global.logger.create('moduleID')
 methodLog.i() // Usual log - displayed in green
@@ -90,15 +93,19 @@ methodLog.w() // Warn - displayed in yellow
 methodLog.e() // Error - displayed in red
 methodLog.c() // Critical error - displayed in white
 ```
+Similar methods are provided in `request.log` but with writing down additional information about request id.
 
-Also you can set default module meta information, which define module methods metas
+**Method meta**
 ```js
-exports.__meta = {
-    contentType: 'json'
+// Meta is specified by adding an underscore before the method name
+exports._module = {
+    toJson: true
 };
+// definition of module - see below
+exports.module = ...
 ```
 
-These metas can be difined in the module meta or in the method meta:
+Metas:
 * `contentType = 'json'` / `toJson = true`: Return content as JSON content.
 * `timeout = 60`: Timeout number in seconds before response on hung request will be `{error: 'TIMEOUT'}`.
 * `addToRoot = true`: Boolean value which define is method must be located at ~~myModule~~/`myMethod` without specifying the module name.
@@ -107,16 +114,27 @@ These metas can be difined in the module meta or in the method meta:
 * `desc`: Describe information about method, can be used by call request.getMethodsInfo().
 * `hidden`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info.
 
-Also you can add initialization for module where simpleContext is `Object({DAL: {}})`
+These metas also can be specified in `exports.__meta = {}` and will be globaly defined for all module methods.
+
+**Module initialization**
+
+These method will be called at start of server.
 ```js
+// simpleContext -> {DAL: {...}}
 exports.__init = (simpleContext) => {
-    // do something, example some work with using simpleContext.redis.blpop
+    // do something, example some work with using simpleContext.DAL.redis.blpop
 };
 ```
 
-Lest consider request propetries and methods
-*exports.myMethod = (**request**, cb)*
-###### request properties
+**Method parametrs**
+```js
+// @request@ is an object provides all needed information and methods for working with datas, files, mails and other.
+// @callback(error, data, responseCode, responseHeaders, type)@ returns result to user
+exports.method = (request, callback) => {
+}
+```
+
+**`request` properties**
 * `request.ip` - Client ip adress
 * `request.method` - Uppercased type of request - POST|GET|...
 * `request.isPost` - true|false
@@ -127,17 +145,17 @@ Lest consider request propetries and methods
 * `request.config` - An object of configuration which you specified at start of server
 * `request.DAL` - An object with DALs, which you specified in `config.useDals`
 
-###### request methods
-* `request.modifyLog(log)` - modify log instanse by adding to top of logged arguments by default
-* `request.getView('file.html', cb)` - return in `cb` file(from one of folders specified in `config.view`) content `cb(null, content)` or error `cb(error)`
-* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found
-* `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies)
-* `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie)
-* `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`
-* `request.getMethodsInfo()` - return an array of defined methods except hiddened by flag `hidden`. If called with 1-st param `true` return hiddened methods too
+**`request` methods**
+* `request.modifyLog(log)` - modify log instance by add to top of logged arguments additional request information, but `request.log.i()` can be used instead.
+* `request.getView('file.html', cb)` - return file data in `cb` (from one of folders specified in `config.view`).
+* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found.
+* `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies).
+* `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie).
+* `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`.
+* `request.getMethodsInfo()` - return an array of defined methods except hidden by flag `hidden`. If called with 1-st param `true` return hidden methods too. This method can be helpful for return api information.
 
-###### Manual responses
-* `request.getResponse()` - this method return response instance
+**Manual responses**
+* `request.getResponse()` - this method return unchanged response instance.
 * `request.error(error)` - return an error in the response, where *error* is text of Error instance
 * `request.end(text, code, headers, type)` - instead of calling callback you can return custom response where:
  * *text* is responce
@@ -148,29 +166,35 @@ Lest consider request propetries and methods
 And finally consider method callback
 *exports.myMethod = (request, **cb**)*
 ```js
-cb(err, text, code, headers, type)
+cb(error, data, responseCode, responseHeaders, type)
 //- err - may be error instance or string, number, array, object
-//- text - responce, may be string, number, array, object, buffer
-//- code - is HTTP status code
-//- headers - manual headers for response
+//- data - responce, may be string, number, array, object, buffer
+//- responseCode - is HTTP status code
+//- responseHeaders - manual headers for response
 //- type - only makes sense in the value `bin` - for responce binary data
 ```
 
-###### Use dals:
+**Use dals:**
 ```js
-    request.DAL.redis.get('somekey', (err, data) => {
-        if(err){
-            log.e('redis.get somekey', err);
-            return cb(err);
-        }
-        ...
-    });
+request.DAL.redis.get('somekey', (err, data) => {
+    if(err){
+        request.log.e('redis.get somekey', err);
+        return cb(err);
+    }
+    ...
+});
+request.DAL.mysql.query('SELECT * FROM users WHERE login = ?', ['admin'], (err, data, fields) => {
+    if(err){
+        request.log.e('mysql.query', err);
+        return cb(err);
+    }
+})
 ```
 
 
 ## Create dal
 Example of dals/nameofdal.js
-Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = ['nameofdal'];`)
+Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = {nameofdal: {...config}};`)
 ```js
 // init is not required
 exports.init = (config) => {
