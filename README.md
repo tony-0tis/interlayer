@@ -145,6 +145,7 @@ exports.method = (request, callback) => {
 * `request.headers` - An object of request headers
 * `request.config` - An object of configuration which you specified at start of server
 * `request.DAL` - An object with DALs, which you specified in `config.useDals`
+* `request.mail` - An object with mail senders, which specified in `config.emails`. 
 
 **`request` methods**
 * `request.modifyLog(log)` - modify log instance by add to top of logged arguments additional request information, but `request.log.i()` can be used instead.
@@ -190,6 +191,15 @@ request.DAL.mysql.query('SELECT * FROM users WHERE login = ?', ['admin'], (err, 
         return cb(err);
     }
 })
+```
+
+**Use email senders**
+```js
+request.mail.mailgun.send({}, callback) -> see params here https://documentation.mailgun.com/api-sending.html#sending
+request.mail.sparkpost.send({}, callback) -> see params here https://developers.sparkpost.com/api/transmissions.html#header-transmission-attributes
+//or use initialized senders as you want
+request.mail.mailgun.client -> https://www.npmjs.com/package/mailgun-js
+request.mail.sparkpost.client -> https://www.npmjs.com/package/sparkpost
 ```
 
 

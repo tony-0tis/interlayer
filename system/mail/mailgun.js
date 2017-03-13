@@ -1,10 +1,10 @@
 let mailgun = require('mailgun-js');
-let sender = null;
+exports.client = null;
 
 exports.init = (sysConfig, config) => {
-	sender = mailgun(config);
+	exports.client = mailgun(config);
 };
 
 exports.send = (email, cb) => {
-	sender.messages().send(data, cb);
+	exports.client.messages().send(data, cb);
 };

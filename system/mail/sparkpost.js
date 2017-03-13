@@ -1,12 +1,12 @@
 var SparkPost = require('sparkpost');
-let sender = null;
+exports.client = null;
 
 exports.init = (sysConfig, config) => {
-	sender = new SparkPost(config.apiKey);
+	exports.client = new SparkPost(config.apiKey);
 };
 
 exports.send = (email, cb) => {
-	sender.transmissions.send({
+	exports.client.transmissions.send({
 		content: {
 			from: email.from,
 			subject: email.subject,
