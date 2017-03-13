@@ -113,6 +113,7 @@ Metas:
 * `prerun = (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. Its like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
 * `desc`: Describe information about method, can be used by call request.getMethodsInfo().
 * `hidden`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info.
+* `disableNagleAlgoritm`: Boolead value, experimetal, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method
 
 These metas also can be specified in `exports.__meta = {}` and will be globaly defined for all module methods.
 

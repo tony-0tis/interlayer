@@ -13,12 +13,8 @@ exports.start = (paths, conf) => {
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
-	if(conf.disableNagleAlgoritm == true){
-		server.on('connection', socket => {
-			socket.setNoDelay(); // Отключаем алгоритм Нагла.
-		});
-	}
 	defLog.i('server started on port: ' + conf.port || 8080);
+	
 	init = require('./init.js'); // eslint-disable-line global-require
 	init.initDALs(paths, conf);
 	init.initModules(paths, conf);
@@ -91,7 +87,7 @@ if(process.send){
 	}, 1000);
 }
 
-process.on('uncaughtException', err => (defLog && defLog.c || console.log)('Caught exception:', err));
+process.on('uncaughtException', err => (defLog && defLog.c || console.error)('Caught exception:', err));
 
 function requestFunc(request, response){
 	let requestObject = init.parseRequest(request, response, config);
@@ -110,6 +106,17 @@ function requestFunc(request, response){
 			return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
 		});
 		return;
+	}
+
+	let disableNagleAlgoritm = false;
+	if(conf.disableNagleAlgoritm == true || meta.disableNagleAlgoritm == true){
+		disableNagleAlgoritm = true;
+	}
+	if(meta.disableNagleAlgoritm == false){
+		disableNagleAlgoritm = false;
+	}
+	if(disableNagleAlgoritm == true){
+		request.socket.setNoDelay(); // Disable Nagle's algorytm
 	}
 
 	/*if(!init.auth(module.meta, requestObject)){
