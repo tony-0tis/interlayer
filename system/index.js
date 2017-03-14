@@ -36,7 +36,7 @@ module.exports = function(config = {}){
 
 	// Dals
 	checkPath.call(paths, startPath, config, 'dals');
-	if(!config.useDals && !config.useDals.length){
+	if(!config.useDals || !config.useDals.length){
 		if(!config.skipDbWarning){
 			console.log('config.useDals not defined, no one database will be included');
 		}
