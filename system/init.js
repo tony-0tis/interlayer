@@ -305,6 +305,7 @@ exports.parseRequest = (request, response, config) => {
 		};
 		return response;
 	};
+	requestObject.getRequest = () => request;
 
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
 		if(!requestObject || requestObject.ended){

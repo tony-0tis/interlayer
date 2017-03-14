@@ -99,7 +99,7 @@ function requestFunc(request, response){
 		init.serve(requestObject, (err, data) => {
 			if(data){
 				log.i(requestObject.ip, 'SERVE', requestObject.path)
-				return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
+				return requestObject.end(data, 200, {'Content-Type': requestObject.helpers.mime(requestObject.path)});
 			}
 
 			log.d('BAD', requestObject.ip, 'REQ: ' + requestObject.path);
