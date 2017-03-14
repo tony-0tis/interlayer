@@ -172,7 +172,25 @@ let defaultRequestFuncs = {
 			res[color].modifed = true;
 			return res;
 		}, {});
-	}
+	},
+	getFile: function(file, cb){
+		let contentType = this.helpers.mime(file);
+		try{
+			if(!fs.statSync(file).isFile()){
+				return cb('NO A FILE');
+			}
+		}catch(e){
+			return cb('NO FILE');
+		}
+
+		fs.readFile(file, (err, res) => {
+			if(err){
+				return cb('BAD FILE');
+			}
+
+			cb(null, res, {'Content-Type': contentType});
+		});
+ 	}
 };
 defaultRequestFuncs.addCookie = defaultRequestFuncs.addCookies;
 defaultRequestFuncs.setCookie = defaultRequestFuncs.addCookies;
