@@ -109,10 +109,10 @@ function requestFunc(request, response){
 	}
 
 	let disableNagleAlgoritm = false;
-	if(conf.disableNagleAlgoritm == true || meta.disableNagleAlgoritm == true){
+	if(config.disableNagleAlgoritm == true || module.meta.disableNagleAlgoritm == true){
 		disableNagleAlgoritm = true;
 	}
-	if(meta.disableNagleAlgoritm == false){
+	if(module.meta.disableNagleAlgoritm == false){
 		disableNagleAlgoritm = false;
 	}
 	if(disableNagleAlgoritm == true){
