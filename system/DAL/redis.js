@@ -37,7 +37,9 @@ let DAL = {
 	connections: [],
 	opened: [],
 	getOrCreate: (mainCb) => {
+		let lazy = lazyDefine.get()
 		let cb = (...args) => {
+			args.push(lazy);
 			mainCb(...args);
 			cb = soother;
 		}
@@ -124,6 +126,7 @@ let DAL = {
 		});
 
 		DAL._checkConnections();
+		return lazy;
 	},
 	_checkConnections: () => {
 		DAL.opened = DAL.opened.reduce((res, conn) =>{
@@ -176,7 +179,10 @@ let DAL = {
 exports.init = (config, dalConfig) =>{
 	DAL.config = dalConfig;
 }
-
+let lazyDefine = {
+	methods: {},
+	get: ()=>Object.assign({}, this.methods, {list: []})
+}
 exports.methods = {};
 for(let name in redis.RedisClient.prototype){// eslint-disable-line guard-for-in
 	wrapMethod(name);
@@ -202,13 +208,26 @@ function wrapMethod(name){
 			args.push(cb);
 		}
 
-		DAL.getOrCreate((err, connection) => {
+		return DAL.getOrCreate((err, connection, lazy) => {
 			if(err){
 				return cb(err);
 			}
 
 			conn = connection;
-			connection[name](...args);
+			if(!lazy.list.length){
+				return connection[name](...args);
+			}
+			else{
+				lazy.list.unshift({cmd: name, args: args});
+				lazy.list.map(i=>{
+					conn[i.cmd](...i.args)
+				});
+				setTimeout(cb, 2000);
+			}
 		});
 	};
+	Object.defineProperty(lazyDefine.methods, name, {get: function(...args){
+		this.list.push({cmd: name, args: args})
+		return this;
+	}}
 }

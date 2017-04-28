@@ -17,7 +17,7 @@ exports.init = (config, dalConfig) => {
 		conf[i] = dalConfig[i];
 	}
 	if(!conf.database){
-		throw 'wrong mysql config, check database';
+		throw 'wrong mysql config, check database set';
 	}
 	DAL = mysql.createPool(conf);
 };
@@ -28,7 +28,7 @@ for(let name in connectionMethods.prototype){
 		continue;
 	}
 	if(['format', 'escapeId', 'escape'].indexOf(name) > -1){
-		exports.methods[name] = connectionMethods.prototype[name];
+		exports.methods[name] = (...args) => connectionMethods.prototype[name].call(DAL, ...args);
 		continue;
 	}
 
