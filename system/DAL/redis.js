@@ -229,5 +229,5 @@ function wrapMethod(name){
 	Object.defineProperty(lazyDefine.methods, name, {get: function(...args){
 		this.list.push({cmd: name, args: args})
 		return this;
-	}}
+	}});
 }
