@@ -50,7 +50,7 @@ let DAL = {
 			DAL._checkConnections();
 			log.d('connection', connection.id, 'opened');
 			setImmediate(()=>{
-				cb(null, connection.redis);
+				cb(null, connection.redis, lazy);
 			});
 			return lazy;
 		}
@@ -217,7 +217,7 @@ function wrapMethod(name){
 			}
 
 			conn = connection;
-			if(!lazy.list.length){
+			if(lazy && !lazy.list.length){
 				return connection[name](...args);
 			}
 			else{
