@@ -49,7 +49,10 @@ let DAL = {
 			DAL.opened.push(connection);
 			DAL._checkConnections();
 			log.d('connection', connection.id, 'opened');
-			return cb(null, connection.redis);
+			setImmediate(()=>{
+				cb(null, connection.redis);
+			});
+			return lazy;
 		}
 
 		let connection = {
@@ -219,8 +222,9 @@ function wrapMethod(name){
 			}
 			else{
 				lazy.list.unshift({cmd: name, args: args});
+				let res = conn;
 				lazy.list.map(i=>{
-					conn[i.cmd](...i.args)
+					res = res[i.cmd](...i.args)
 				});
 				setTimeout(cb, 2000);
 			}
