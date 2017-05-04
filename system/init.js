@@ -22,12 +22,14 @@ let infoApi = [];
 let defaultRequestFuncs = {
 	getMethodsInfo: (showHidden) => {
 		return infoApi.map(m=>{
-			m.methods.filter(m=>{
+			m = Object.assign(m);
+			m.methods = m.methods.filter(m=>{
 				if(m.hidden && !showHidden){
 					return false;
 				}
 				return true;
-			})
+			});
+			return m;
 		}).filter(m=>{
 			if(m.hidden && !showHidden || !m.methods || !m.methods.length){
 				return false;
@@ -577,7 +579,7 @@ exports.initModules = (paths, config) => {
 						};
 					}
 				}
-				let moduleApi = Object.assign({}, module.__meta, {methods: []});
+				let moduleApi = Object.assign({name: moduleName}, module.__meta, {methods: []});
 				for(let m in module){
 					if(m.indexOf('__') === 0){
 						continue;
@@ -623,7 +625,9 @@ exports.initModules = (paths, config) => {
 						}
 					}
 				}
-				infoApi.push(moduleApi);
+				if(moduleApi.methods.length){
+					infoApi.push(moduleApi);
+				}
 				module = null;
 			}
 			catch(err){

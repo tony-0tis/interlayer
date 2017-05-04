@@ -10,7 +10,7 @@ Server current in alpha. You can offer or report new issue here: [New issue](htt
 Stable version will be released when will be provided all tests and determines all features of this server. Currently I use this server in the several projects.
 
 ##### !!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
-##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules.
+##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Consider the new structure of return;
 
 ## Features
 * serve your files
