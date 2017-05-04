@@ -10,6 +10,7 @@ Server current in alpha. You can offer or report new issue here: [New issue](htt
 Stable version will be released when will be provided all tests and determines all features of this server. Currently I use this server in the several projects.
 
 ##### !!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
+##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules.
 
 ## Features
 * serve your files
@@ -108,10 +109,10 @@ exports.module = ...
 Metas:
 * `contentType = 'json'` / `toJson = true`: Return content as JSON content.
 * `timeout = 60`: Timeout number in seconds before response on hung request will be `{error: 'TIMEOUT'}`.
+* `path = "method1/submethod1"`: Allows to define custom method path. Path will be defined as `/myModule/method1/submethod1`
 * `addToRoot = true`: Boolean value which define is method must be located at ~~myModule~~/`myMethod` without specifying the module name.
 * `skipRequestLog = true;`: Boolean value which define is method call must be skipped in console log.
 * `prerun = (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. Its like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
-* `desc`: Describe information about method, can be used by call request.getMethodsInfo().
 * `hidden`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info.
 * `disableNagleAlgoritm`: Boolead value, experimetal, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method
 
@@ -154,7 +155,7 @@ exports.method = (request, callback) => {
 * `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies).
 * `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie).
 * `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`.
-* `request.getMethodsInfo()` - return an array of defined methods except hidden by flag `hidden`. If called with 1-st param `true` return hidden methods too. This method can be helpful for return api information.
+* `request.getMethodsInfo()` - return an array of defined methods except hiddened by flag `hidden`. If called with 1-st param `true` return hidden methods. This method can be helpful for return api information.
 
 **Manual responses**
 * `request.getResponse()` - this method return unchanged response instance.

@@ -20,9 +20,16 @@ let pathCheck = /[\w\.\/]*/;
 let infoApi = [];
 
 let defaultRequestFuncs = {
-	getMethodsInfo: (showHidden, replaces) => {
-		return infoApi.filter(m=>{
-			if(m.hidden && !showHidden){
+	getMethodsInfo: (showHidden) => {
+		return infoApi.map(m=>{
+			m.methods.filter(m=>{
+				if(m.hidden && !showHidden){
+					return false;
+				}
+				return true;
+			})
+		}).filter(m=>{
+			if(m.hidden && !showHidden || !m.methods || !m.methods.length){
 				return false;
 			}
 			return true;
@@ -570,6 +577,7 @@ exports.initModules = (paths, config) => {
 						};
 					}
 				}
+				let moduleApi = Object.assign({}, module.__meta, {methods: []});
 				for(let m in module){
 					if(m.indexOf('__') === 0){
 						continue;
@@ -589,12 +597,7 @@ exports.initModules = (paths, config) => {
 							meta: Object.assign({}, module.__meta || {}, methodMeta),
 							definedIn: file
 						};
-						let methodInfo = {
-							desc: method.meta.desc,
-							hidden: method.meta.hidden,
-							meta: Object.assign({}, method.meta)
-						};
-						infoApi.push(methodInfo);
+						let methodInfo = Object.assign({}, method.meta);
 
 						methodName = getUrl(moduleName, methodName, module, method.meta);
 
@@ -605,6 +608,7 @@ exports.initModules = (paths, config) => {
 
 						modules[methodName] = method;
 						methodInfo.url = methodName;
+						moduleApi.methods.push(methodInfo);
 
 						let aliasURL = methodMeta.alias;
 						if(aliasURL){
@@ -619,6 +623,7 @@ exports.initModules = (paths, config) => {
 						}
 					}
 				}
+				infoApi.push(moduleApi);
 				module = null;
 			}
 			catch(err){
