@@ -2,6 +2,7 @@
 let defLog;
 let http = require('http');
 let async = require('async');
+//let WebSocket = require('ws');
 let logger = require('./logger.js')
 let config;
 let init;
@@ -13,6 +14,10 @@ exports.start = (paths, conf) => {
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
+	// let websocket;//https://github.com/websockets/ws#server-example
+	// if(conf.websocket == true){
+	// 	websocket = new WebSocket.Server({server});
+	// }
 	defLog.i('server started on port: ' + conf.port || 8080);
 	
 	init = require('./init.js'); // eslint-disable-line global-require

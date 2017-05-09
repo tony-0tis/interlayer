@@ -35,7 +35,7 @@ for(let name in connectionMethods.prototype){
 	wrapMethod(name);
 }
 function wrapMethod(name){
-	exports.methods[name] = (...args) => {
+	exports.methods[name] = function(...args){
 		let conn;
 		let originalCb = () => {};
 		let cb = (...resargs) => {
@@ -58,7 +58,10 @@ function wrapMethod(name){
 			}
 
 			conn = connection;
-			connection[name](...args);
+			let sql = connection[name](...args);
+			if(this.showSql){
+				log.w(sql.sql);
+			}
 		});
 	}
 }
