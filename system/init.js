@@ -385,7 +385,6 @@ exports.parseRequest = (request, response, config) => {
 
 exports.middleware = (request, moduleMeta, cb) => {
 	if(!middlewares.length){
-		log.d('No middlewares');
 		return cb();
 	}
 
