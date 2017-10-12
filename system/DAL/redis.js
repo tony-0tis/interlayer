@@ -92,7 +92,10 @@ let DAL = {
 
 			return cb(err);
 		});
-		connection.redis.on('ready', () => {
+		connection.redis.on('ready', () =>{
+			if(!connection){
+				return cb('NO CONNECTION READY');
+			}
 			connection.lastOpened = Date.now();
 			DAL.opened.push(connection);
 			log.d('connection', connection.id, 'created and added to opened');
