@@ -29,27 +29,28 @@ exports.start = (paths, conf) => {
 	init.initServe(paths, config);
 }
 
-if(process.send){
-	let intervals = {
-		si: setInterval(() => {
-			for(let i in intervals.funcs){
-				if(!intervals.funcs.hasOwnProperty(i)){
-					continue;
-				}
-
-				intervals.funcs[i](() => {
-					intervals.del(i);
-				});
+global.intervals = {
+	si: setInterval(() => {
+		for(let i in intervals.funcs){
+			if(!intervals.funcs.hasOwnProperty(i)){
+				continue;
 			}
-		}, 1000),
-		funcs: [],
-		add: function(f){
-			this.funcs.push(f);
-		},
-		del: function(ind){
-			this.funcs.splice(ind, 1);
+
+			intervals.funcs[i](() => {
+				intervals.del(i);
+			});
 		}
+	}, 1000),
+	funcs: [],
+	add: function(f){
+		this.funcs.push(f);
+	},
+	del: function(ind){
+		this.funcs.splice(ind, 1);
 	}
+};
+
+if(process.send){// only if this node in cluster	
 	let pings = [];
 	process.on('message', obj=> {
 		switch(obj.type){
@@ -74,7 +75,6 @@ if(process.send){
 			case 'exit':
 				process.exit(1);
 				break;
-
 		}
 	});
 	intervals.add((deleteInterval) => {
@@ -83,11 +83,13 @@ if(process.send){
 			process.exit(0);
 			return;
 		}
+
 		let ping = {
 			type: 'ping',
 			id: Date.now()
 		};
 		pings.push(ping.id);
+
 		process.send(ping);
 	}, 1000);
 }
