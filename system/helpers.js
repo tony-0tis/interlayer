@@ -2,6 +2,13 @@
 let log = global.logger.create('HELPERS');
 let path = require('path');
 let JSV = require('JSV').JSV;
+let crypto = require('crypto');
+let fs = require('fs');
+let qs = require('querystring');
+
+exports.pathCheck = /[\w\.\/]*/;
+exports.infoApi = [];
+exports.i18n = {};
 
 let ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 let ID_LENGTH = 8;
@@ -44,6 +51,77 @@ exports.clearObj = (obj, toRemove) => {
 	}
 };
 
+exports.timeout = (config, meta, cb) => {
+	var called = false;
+
+	global.intervals.add((del)=>{
+		del();
+		if(!called){
+			called = true;
+			return cb('TIMEOUT', null, 408);
+		}
+	}, meta.timeout || config.timeout || 60)
+
+	return (...args) => {
+		if(called){
+			log.e('request ended', args);
+			return;
+		}
+
+		called = true;
+		return cb(...args);
+	}
+};
+
+exports.auth = (module, request) => {
+	if(module.auth/* || module.rights*/){
+		let header = request.headers.authorization || '';
+		let token = header.split(/\s+/).pop() || '';
+		let auth = new Buffer(token, 'base64').toString();
+		let parts = auth.split(':');
+		auth = crypto.createHash('md5').update(auth).digest('hex');
+		let moduleAuth = module.auth == 'default' && exports.defaultAuth ? exports.defaultAuth : module.auth;
+
+		if(moduleAuth !== true && moduleAuth != auth){
+			return false;
+		}
+	}
+
+	return true;
+};
+
+exports.parsePost = function(reqObj, request, cb){
+	if(!reqObj.isPost){
+		return cb();
+	}
+
+	let body = '';
+
+	request.on('data', data => {
+		body += data;
+
+		if(body.length > 1e6){
+			request.connection.destroy();
+			return cb('POST TOO BIG');
+		}
+	});
+
+	request.on('end', () => {
+		try{
+			reqObj.post = JSON.parse(body);
+		}catch(e){
+			try{
+				reqObj.post = qs.parse(body);
+			}catch(ee){
+				reqObj.post = body;
+			}
+		}
+
+
+		return cb();
+	});
+};
+
 let regs = {
 	num: /^\d*$/,
 	bool: /^(true|false)$/
@@ -53,6 +131,7 @@ exports.isBoolean = val => {
 		return true;
 	}
 };
+
 exports.JSV = (params, schema, envId) => {
 	var env = JSV.createEnvironment(envId);
 	return env.validate(params, schema);
@@ -60,7 +139,7 @@ exports.JSV = (params, schema, envId) => {
 
 exports.mime = function(file, fallback){
 	return exports.mimeTypes[path.extname(file).toLowerCase()] || fallback || 'application/octet-stream';
-}
+};
 	// List of most common mime-types, stolen from Rack.
 exports.mimeTypes  = { 
 	'.3gp': 'video/3gpp',
@@ -229,3 +308,169 @@ exports.mimeTypes  = {
 	'.yml': 'text/yaml',
 	'.zip': 'application/zip'
 };
+
+let defaultRequestFuncs = {
+	getMethodsInfo: (showHidden) => {
+		return infoApi.map(m=>{
+			m = Object.assign(m);
+			m.methods = m.methods.filter(m=>{
+				if(m.hidden && !showHidden){
+					return false;
+				}
+				return true;
+			});
+			return m;
+		}).filter(m=>{
+			if(m.hidden && !showHidden || !m.methods || !m.methods.length){
+				return false;
+			}
+			return true;
+		});
+	},
+	i18n: function(key, def){
+		for(let i in this.langs){
+			if(exports.i18n[this.langs[i]] && exports.i18n[this.langs[i]][key]){
+				return exports.i18n[this.langs[i]][key];
+			}
+		}
+
+		return def;
+	},
+	addCookies: function(key, val){
+		this.responseCookies[key] = val;
+	},
+	rmCookies: function(key){
+		this.responseCookies[key] = '';
+	},
+	error: function(text){
+		this.end(
+			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
+			503,
+			{
+				'Content-Type': 'text/plain; charset=utf-8'
+			}
+		);
+	},
+	getView: function(view, file, cb){
+		if(!cb && !file){
+			throw 'minimum 2 arguments with last callback';
+		}
+		if(!cb){
+			cb = file;
+			file = view;
+			view = null;
+		}
+		let tries = [];
+		for(let i in this.config.view){
+			if(!this.config.view.hasOwnProperty(i)){
+				continue;
+			}
+			tries.push(
+				new Promise((ok,fail) => {
+					try{
+						if(!fs.statSync(path.join(this.config.view[i], file)).isFile()){
+							log.d('Not file', path.join(this.config.view[i], file));
+							return fail();
+						}
+					}catch(e){
+						log.d('bad stat', path.join(this.config.view[i], file), e);
+						return fail(e);
+					}
+
+					fs.readFile(path.join(this.config.view[i], file), (err, res) => {
+						if(err){
+							log.d('read err', path.join(this.config.view[i], file), err);
+							return fail(err);
+						}
+						return ok(res);
+					});
+				})
+			);
+		}
+		Promise.race(tries)
+		.then(result => cb(null, (result||'').toString()))
+		.catch(err => {
+			log.e(err);
+			cb('Not found');
+		});
+	},
+	getViewSync: function(view, file){
+		if(!file){
+			file = view;
+		}
+		return this.config.view.requce((res, view)=>{
+			if(res){
+				return res;
+			}
+			try{
+				if(!fs.statSync(path.join(view, file)).isFile()){
+					return res;
+				}
+			}catch(e){
+				return res;
+			}
+			try{
+				return fs.readFileSync(path.join(view, file));
+			}
+			catch(e){
+				return res;
+			}
+		}, '').toString() || null;
+	},
+	modifyLog: function(logToFodify){
+		if(!logToFodify){
+			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
+		}
+		return Object.keys(logToFodify).reduce((res, color) => {
+			color = color.toLowerCase();
+			if(color == 'add'){
+				return res;
+			}
+
+			if(logToFodify[color].modifed){
+				throw 'Do not call modifyLog twice at one log';
+			}
+
+			let original = logToFodify[color];
+			res[color] = (...args) => {
+				args.unshift('[rID:' + this.id + ']');
+				original.apply({logModifed: true}, args);
+			};
+			res[color].modifed = true;
+			return res;
+		}, {});
+	},
+	getFile: function(file, cb){
+		let contentType = exports.mime(file);
+		try{
+			if(!fs.statSync(file).isFile()){
+				return cb('NOt FILE');
+			}
+		}catch(e){
+			return cb('NO FILE', null, {err: e});
+		}
+
+		fs.readFile(file, (err, res) => {
+			if(err){
+				return cb('BAD FILE', null, {err: err});
+			}
+
+			cb(null, res, {'Content-Type': contentType});
+		});
+ 	}
+};
+defaultRequestFuncs.addCookie = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.setCookie = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.setCookies = defaultRequestFuncs.addCookies;
+defaultRequestFuncs.rmCookie = defaultRequestFuncs.rmCookies;
+defaultRequestFuncs.delCookie = defaultRequestFuncs.rmCookies;
+defaultRequestFuncs.delCookies = defaultRequestFuncs.rmCookies;
+defaultRequestFuncs.helpers = {
+	generateId: exports.generateId,
+	toJson: exports.toJson,
+	clearObj: exports.clearObj,
+	isBoolean: exports.isBoolean,
+	JSV: exports.JSV,
+	mime: exports.mime
+};
+exports.defaultRequestFuncs = defaultRequestFuncs;

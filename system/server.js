@@ -1,16 +1,21 @@
-"use strict";
-let defLog;
 let http = require('http');
 let async = require('async');
 //let WebSocket = require('ws');
-let logger = require('./logger.js')
-let config;
-let init;
+let logger = require('./logger.js');
+let init = null;
+let helpers = null;
+
+let defLog;
+let pings = [];
+
+process.on('uncaughtException', err => (defLog && defLog.c || console.error)('Caught exception:', err));
 
 exports.start = (paths, conf) => {
-	config = conf;
-	global.logger = logger.logger(config.logPath, config.debug);
+	global.logger = logger.logger(conf.logPath, conf.debug);
 	defLog = global.logger.create('SRV');
+
+	helpers = require('./helpers');
+	init = require('./init.js')(paths, conf);
 	
 	let server = http.createServer(requestFunc);
 	server.listen(conf.port || 8080);
@@ -18,105 +23,31 @@ exports.start = (paths, conf) => {
 	// if(conf.websocket == true){
 	// 	websocket = new WebSocket.Server({server});
 	// }
+
 	defLog.i('server started on port: ' + conf.port || 8080);
-	
-	init = require('./init.js'); // eslint-disable-line global-require
-	init.initDALs(paths, conf);
-	init.initModules(paths, conf);
-	init.initMiddlewares(paths, conf);
-	init.initI18n(paths, conf);
-	init.initEmailSenders(paths, conf);
-	init.initServe(paths, config);
-}
-
-global.intervals = {
-	si: setInterval(() => {
-		for(let i in intervals.funcs){
-			if(!intervals.funcs.hasOwnProperty(i)){
-				continue;
-			}
-
-			intervals.funcs[i](() => {
-				intervals.del(i);
-			});
-		}
-	}, 1000),
-	funcs: [],
-	add: function(f){
-		this.funcs.push(f);
-	},
-	del: function(ind){
-		this.funcs.splice(ind, 1);
-	}
 };
 
-if(process.send){// only if this node in cluster	
-	let pings = [];
-	process.on('message', obj=> {
-		switch(obj.type){
-			case 'start': 
-				exports.start(obj.paths, obj.config);
-				break;
-			case 'ping':
-				process.send({
-					type: 'pong',
-					id: obj.id
-				});
-				break;
-			case 'pong':
-				let ind = pings.indexOf(obj.id);
-				if(ind > -1){
-					pings.splice(ind, 1);
-				}
-				break;
-			case 'reload':
-				setTimeout(()=>process.exit(0),1);
-				break
-			case 'exit':
-				process.exit(1);
-				break;
-		}
-	});
-	intervals.add((deleteInterval) => {
-		if(pings.length > 2){
-			deleteInterval();
-			process.exit(0);
-			return;
-		}
-
-		let ping = {
-			type: 'ping',
-			id: Date.now()
-		};
-		pings.push(ping.id);
-
-		process.send(ping);
-	}, 1000);
-}
-
-process.on('uncaughtException', err => (defLog && defLog.c || console.error)('Caught exception:', err));
-
 function requestFunc(request, response){
-	let requestObject = init.parseRequest(request, response, config);
+	let requestObject = init.reconstructRequest(request, response);
 	let log = requestObject.modifyLog(defLog);
 	let reqStart = Date.now();
 	
 	let module = init.getModule(requestObject.path);
+	
 	if(!module){
-		init.serve(requestObject, (err, data) => {
+		return init.serve(requestObject, (err, data) => {
 			if(data){
 				log.i(requestObject.ip, 'SERVE', requestObject.path)
-				return requestObject.end(data, 200, {'Content-Type': requestObject.helpers.mime(requestObject.path)});
+				return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
 			}
 
 			log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path);
 			return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
 		});
-		return;
 	}
 
 	let disableNagleAlgoritm = false;
-	if(config.disableNagleAlgoritm == true || module.meta.disableNagleAlgoritm == true){
+	if(init.config.disableNagleAlgoritm == true || module.meta.disableNagleAlgoritm == true){
 		disableNagleAlgoritm = true;
 	}
 	if(module.meta.disableNagleAlgoritm == false){
@@ -126,19 +57,20 @@ function requestFunc(request, response){
 		request.socket.setNoDelay(); // Disable Nagle's algorytm
 	}
 
-	/*if(!init.auth(module.meta, requestObject)){
+	/*if(!helpers.auth(module.meta, requestObject)){
 		return requestObject.end('Access denied', 401, {'WWW-Authenticate': 'Basic realm="example"'});
 	}*/ // not working yet
 
 	async.auto({
-		post: cb => requestObject.parsePost(request, cb),
+		post: cb => helpers.parsePost(requestObject, request, cb),
 		middleware: ['post', (res, cb) => {
-			let middlewareTimeout = config.middlewareTimeout || module.meta.middlewareTimeout || 10;
-			init.middleware(requestObject, module.meta, init.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers) => {
+			let middlewareTimeout = init.config.middlewareTimeout || module.meta.middlewareTimeout || 10;
+			init.middleware(requestObject, module.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers) => {
 				if(e){
 					res.data = {error: e};
 					res.code = code || 200;
 					res.headers = headers || {'Content-Type': 'application/json'};
+					res.middlewareError = true;
 					return cb(null, true);
 				}
 
@@ -159,7 +91,7 @@ function requestFunc(request, response){
 
 			let poolId = requestObject.params.poolingId || requestObject.post.poolingId;
 			let withPool = requestObject.params.withPooling || requestObject.post.withPooling;
-			let next = init.timeout(config, module.meta, (e, data, code, headers, type) => {
+			let next = helpers.timeout(init.config, module.meta, (e, data, code, headers, type) => {
 				if(e){
 					data = {error: e};
 					code = code || 200;
@@ -182,7 +114,7 @@ function requestFunc(request, response){
 				return next(null, init.pools[poolId]);
 			}
 			else if(withPool){
-				let id = init.helpers.generateId();
+				let id = helpers.generateId();
 				init.pools[id] = {
 					poolingId: id
 				};
@@ -203,7 +135,7 @@ function requestFunc(request, response){
 		}],
 		json: ['module', (res, cb) =>{
 			if(module.meta.toJson || module.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
-				init.helpers.toJson(res);
+				helpers.toJson(res);
 			}
 
 			cb();
@@ -215,8 +147,8 @@ function requestFunc(request, response){
 				requestObject.ip,
 				'REQ: ' + requestObject.path,
 				'FROM: ' + (requestObject.headers.referer || '---'),
-				'GET: ' + init.helpers.clearObj(requestObject.params, ['token']),
-				'POST: ' + init.helpers.clearObj(requestObject.post, ['token']),
+				'GET: ' + helpers.clearObj(requestObject.params, ['token']),
+				'POST: ' + helpers.clearObj(requestObject.post, ['token']),
 				'len: ' + (res.data && res.data.length),
 				'time: ' + ((Date.now() - reqStart) / 1000) + 's'
 			);
@@ -230,4 +162,92 @@ function requestFunc(request, response){
 			requestObject.end(res.data, res.code, res.headers, res.type);
 		}
 	});
+}
+
+global.intervals = {
+	_si: setInterval(() => {
+		for(let i in intervals._funcs){
+			if(!intervals._funcs.hasOwnProperty(i)){
+				continue;
+			}
+
+			if(intervals._funcs[i].runafter && Date.now() < intervals._funcs[i].runafter){
+				continue;
+			}
+
+			if(intervals._funcs[i].runafter){
+				intervals._funcs[i].runafter = Date.now() + intervals._funcs[i].t * 1000
+			}
+
+			intervals._funcs[i].f(() => {
+				intervals.del(intervals._funcs[i].key);
+			});
+		}
+	}, 1000),
+	_funcs: [],
+	add: function(f, t){
+		let key = Math.random() * Date.now();
+		this._funcs.push({
+			key: key,
+			f: f,
+			t: t,
+			runafter: t ? Date.now() + t * 1000 : null
+		});
+	},
+	del: function(key){
+		let ind = this._funcs.reduce((r,f,ind)=>{
+			if(f.key == key){
+				r = ind;
+			}
+			return r;
+		}, -1);
+		this._funcs.splice(ind, 1);
+		return key;
+	}
+};
+
+process.on('message', obj=> {
+	switch(obj.type){
+		case 'start': 
+			exports.start(obj.paths, obj.config);
+			break;
+		case 'ping':
+			if(process.send){
+				process.send({
+					type: 'pong',
+					id: obj.id
+				});
+			}
+			break;
+		case 'pong':
+			let ind = pings.indexOf(obj.id);
+			if(ind > -1){
+				pings.splice(ind, 1);
+			}
+			break;
+		case 'reload':
+			setTimeout(()=>process.exit(0),1);
+			break
+		case 'exit':
+			process.exit(1);
+			break;
+	}
+});
+
+if(process.send){// only if this node in cluster	
+	intervals.add((deleteInterval) => {
+		if(pings.length > 2){
+			deleteInterval();
+			process.exit(0);
+			return;
+		}
+
+		let ping = {
+			type: 'ping',
+			id: Date.now()
+		};
+		pings.push(ping.id);
+
+		process.send(ping);
+	}, 1);
 }

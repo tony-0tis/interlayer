@@ -1,245 +1,67 @@
-"use strict"
+
 let log = global.logger.create('INIT');
 let fs = require('fs');
 let pathMod = require('path');
 let url = require('url');
 let qs = require('querystring');
-let crypto = require('crypto');
 let async = require('async');
 
 let DAL = require('./DAL');
 let Emails = require('./mail');
 
+let helpers = require('./helpers');
+
 let DAL_connections;
-let emailSenders;
 let modules = {};
 let middlewares = [];
-let i18n = {};
+let emailSenders;
 let serve = null;
-let pathCheck = /[\w\.\/]*/;
-let infoApi = [];
 
-let defaultRequestFuncs = {
-	getMethodsInfo: (showHidden) => {
-		return infoApi.map(m=>{
-			m = Object.assign(m);
-			m.methods = m.methods.filter(m=>{
-				if(m.hidden && !showHidden){
-					return false;
-				}
-				return true;
-			});
-			return m;
-		}).filter(m=>{
-			if(m.hidden && !showHidden || !m.methods || !m.methods.length){
-				return false;
-			}
-			return true;
-		});
-	},
-	i18n: function(key, def){
-		for(let i in this.langs){
-			if(i18n[this.langs[i]] && i18n[this.langs[i]][key]){
-				return i18n[this.langs[i]][key];
-			}
-		}
+module.exports = (paths, config)=>{
+	exports.paths = paths;
+	exports.config = config;
 
-		return def;
-	},
-	addCookies: function(key, val){
-		this.responseCookies[key] = val;
-	},
-	rmCookies: function(key){
-		this.responseCookies[key] = '';
-	},
-	error: function(text){
-		this.end(
-			this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
-			503,
-			{
-				'Content-Type': 'text/plain; charset=utf-8'
-			}
-		);
-	},
-	getView: function(view, file, cb){
-		if(!cb && !file){
-			throw 'minimum 2 arguments with last callback';
-		}
-		if(!cb){
-			cb = file;
-			file = view;
-			view = null;
-		}
-		let tries = [];
-		for(let i in this.config.view){
-			if(!this.config.view.hasOwnProperty(i)){
-				continue;
-			}
-			tries.push(
-				new Promise((ok,fail) => {
-					try{
-						if(!fs.statSync(pathMod.join(this.config.view[i], file)).isFile()){
-							log.d('Not file', pathMod.join(this.config.view[i], file));
-							return fail();
-						}
-					}catch(e){
-						log.d('bad stat', pathMod.join(this.config.view[i], file), e);
-						return fail(e);
-					}
-
-					fs.readFile(pathMod.join(this.config.view[i], file), (err, res) => {
-						if(err){
-							log.d('read err', pathMod.join(this.config.view[i], file), err);
-							return fail(err);
-						}
-						return ok(res);
-					});
-				})
-			);
-		}
-		Promise.race(tries)
-		.then(result => cb(null, (result||'').toString()))
-		.catch(err => {
-			log.e(err);
-			cb('Not found');
-		});
-	},
-	getViewSync: function(view, file){
-		if(!file){
-			file = view;
-		}
-		return this.config.view.requce((res, view)=>{
-			if(res){
-				return res;
-			}
-			try{
-				if(!fs.statSync(pathMod.join(view, file)).isFile()){
-					return res;
-				}
-			}catch(e){
-				return res;
-			}
-			try{
-				return fs.readFileSync(pathMod.join(view, file));
-			}
-			catch(e){
-				return res;
-			}
-		}, '').toString() || null;
-	},
-	parsePost: function(request, cb){
-		if(!this.isPost){
-			return cb();
-		}
-
-		let body = '';
-
-		request.on('data', data => {
-			body += data;
-
-			if(body.length > 1e6){
-				request.connection.destroy();
-				return cb('POST TOO BIG');
-			}
-		});
-
-		request.on('end', () => {
-			try{
-				this.post = JSON.parse(body);
-			}catch(e){
-				try{
-					this.post = qs.parse(body);
-				}catch(ee){
-					this.post = body;
-				}
-			}
-
-			delete this.parsePost;
-
-			return cb();
-		});
-	},
-	modifyLog: function(logToFodify){
-		if(!logToFodify){
-			throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
-		}
-		return Object.keys(logToFodify).reduce((res, color) => {
-			color = color.toLowerCase();
-			if(color == 'add'){
-				return res;
-			}
-
-			if(logToFodify[color].modifed){
-				throw 'Do not call modifyLog twice at one log';
-			}
-
-			let original = logToFodify[color];
-			res[color] = (...args) => {
-				args.unshift('[rID:' + this.id + ']');
-				original.apply({logModifed: true}, args);
-			};
-			res[color].modifed = true;
-			return res;
-		}, {});
-	},
-	getFile: function(file, cb){
-		let contentType = this.helpers.mime(file);
-		try{
-			if(!fs.statSync(file).isFile()){
-				return cb('NO A FILE');
-			}
-		}catch(e){
-			return cb('NO FILE');
-		}
-
-		fs.readFile(file, (err, res) => {
-			if(err){
-				return cb('BAD FILE');
-			}
-
-			cb(null, res, {'Content-Type': contentType});
-		});
- 	}
-};
-defaultRequestFuncs.addCookie = defaultRequestFuncs.addCookies;
-defaultRequestFuncs.setCookie = defaultRequestFuncs.addCookies;
-defaultRequestFuncs.setCookies = defaultRequestFuncs.addCookies;
-defaultRequestFuncs.rmCookie = defaultRequestFuncs.rmCookies;
-defaultRequestFuncs.delCookie = defaultRequestFuncs.rmCookies;
-defaultRequestFuncs.delCookies = defaultRequestFuncs.rmCookies;
+	exports.initDALs();
+	exports.initModules();
+	exports.initMiddlewares();
+	exports.initI18n();
+	exports.initEmailSenders();
+	exports.initServe();
+	return exports;
+}
 
 exports.pools = {};
-
-exports.helpers = require('./helpers');
+exports.config = {};
+exports.paths = {};
 
 exports.getModule = module => modules[module] || modules[module.replace(/\/$/, '').replace(/^\//, '')];
 
-exports.parseRequest = (request, response, config) => {
+exports.reconstructRequest = (request, response) => {
 	let requestObject = {
-		id: exports.helpers.generateId(),
-		config: config,
-		helpers: exports.helpers,
+		config: exports.config,
 		DAL: DAL_connections,
 		mail: emailSenders,
+
+		id: helpers.generateId(),
 		url: request.url,
 		path: url.parse(request.url).pathname.substring(1),
 		method: request.method,
 		isPost: request.method == 'POST',
-		responseCookies: {},
-		cookies: {},
-		params: {},
-		post: {},
 		headers: JSON.parse(JSON.stringify(request.headers)),
 		langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g),
 		ip: request.headers['x-forwarded-for'] ||
 			request.connection.remoteAddress ||
 			request.socket && request.socket.remoteAddress ||
 			request.connection.socket && request.connection.socket.remoteAddress,
+		responseCookies: {},
+		cookies: {},
+		params: {},
+		post: {}
 	};
 
 	requestObject.params = qs.parse(url.parse(requestObject.url).query);
 	for(let i in requestObject.params){
-		if(exports.helpers.isBoolean(requestObject[i])){
+		if(helpers.isBoolean(requestObject[i])){
 			requestObject[i] = Boolean(requestObject[i]);
 		}
 	}
@@ -249,57 +71,31 @@ exports.parseRequest = (request, response, config) => {
 		delete requestObject.params.callback;
 	}
 
-	if(request.headers.cookie){
-		request.headers.cookie.split(';').forEach(cookie => {
+	if(requestObject.headers.cookie){
+		requestObject.headers.cookie.split(';').forEach(cookie => {
 			let parts = cookie.split('=');
 			requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
 		});
 	}
 
-	let originalResposeEnd = response.end;
-	var clearRequest = () => {
-		//objects
-		delete requestObject.config;
-		delete requestObject.helpers;
-		delete requestObject.DAL;
-		delete requestObject.email;
-
-		//current request functions
-		delete requestObject.getResponse;
-		delete requestObject.end;
-
-		// default functions
-		delete requestObject.i18n;
-		delete requestObject.error;
-		delete requestObject.addCookies;
-		delete requestObject.rmCookies;
-		delete requestObject.getView;
-		delete requestObject.getViewSync;
-		delete requestObject.parsePost;
-		delete requestObject.modifyLog;
-
-		if(originalResposeEnd){
-			response.end = originalResposeEnd;
-		}
-
-		originalResposeEnd = undefined;
-		requestObject = undefined;
-		clearRequest = undefined;
-	};
-
-	Object.keys(defaultRequestFuncs).map(k => {
-		requestObject[k] = defaultRequestFuncs[k];
+	Object.keys(helpers.defaultRequestFuncs).map(k => {
+		requestObject[k] = helpers.defaultRequestFuncs[k];
 	});
 
+	//modifyLog defined in defaultRequestFuncs
 	requestObject.log = requestObject.modifyLog(global.logger.create());
 
+
+	let originalResposeEnd;
+
 	requestObject.getResponse = () => {
-		requestObject.responseFree = true;
+		originalResposeEnd = response.end
 		response.end = function(...args){
-			if(!requestObject || requestObject.ended || !originalResposeEnd){
+			if(!requestObject || requestObject.ended){
 				if(requestObject){
 					clearRequest();
 				}
+
 				requestObject = undefined;
 				throw 'FORBIDEN';
 			}
@@ -312,13 +108,17 @@ exports.parseRequest = (request, response, config) => {
 
 			clearRequest();
 		};
+
+		requestObject.responseFree = true;
 		return response;
 	};
+
 	requestObject.getRequest = () => request;
 
 	requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
 		if(!requestObject || requestObject.ended){
 			requestObject = undefined;
+			clearRequest();
 			return;
 		}
 
@@ -346,12 +146,13 @@ exports.parseRequest = (request, response, config) => {
 			headers['Content-Length'] = new Buffer(text).length;
 		}
 
-		if(config.defaultHeaders){
-			for(let i in config.defaultHeaders){
-				if(!config.defaultHeaders.hasOwnProperty(i)){
+		if(exports.config.defaultHeaders){
+			for(let i in exports.config.defaultHeaders){
+				if(!exports.config.defaultHeaders.hasOwnProperty(i)){
 					continue;
 				}
-				headers[i] = config.defaultHeaders[i];
+				
+				headers[i] = exports.config.defaultHeaders[i];
 			}
 		}
 
@@ -359,25 +160,59 @@ exports.parseRequest = (request, response, config) => {
 			let cookies = [];
 			let expires = new Date();
 			expires.setDate(expires.getDate() + 5);
+			
 			for(let i in requestObject.responseCookies){
 				if(!requestObject.responseCookies.hasOwnProperty(i)){
 					continue;
 				}
+				
 				cookies.push(i + '=' + encodeURIComponent(requestObject.responseCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
 			}
+			
 			headers['Set-Cookie'] = cookies;
 		}
 
 		response.writeHead(code, headers);
+		
 		if(type == 'bin'){
 			response.write(text, 'binary');
 		}
 		else{
 			response.write(text);
 		}
+
 		response.end();
 
 		clearRequest();
+	};
+
+	var clearRequest = () => {
+		if(requestObject){
+			//objects
+			delete requestObject.config;
+			delete requestObject.DAL;
+			delete requestObject.mail;
+			delete requestObject.log;
+
+			//current request functions
+			delete requestObject.getResponse;
+			delete requestObject.getRequest;
+			delete requestObject.end;
+
+			// default functions
+			Object.keys(helpers.defaultRequestFuncs).map(k => {
+				delete requestObject[k];
+			});
+		}
+
+		if(originalResposeEnd){
+			response.end = originalResposeEnd;
+		}
+
+		originalResposeEnd = undefined;
+		requestObject = undefined;
+		clearRequest = undefined;
+		request = undefined;
 	};
 
 	return requestObject;
@@ -455,6 +290,7 @@ exports.serve = (request, cb) => {
 			}
 			request.getFile(pathMod.join(p, request.path), (err, res, headers) => {
 				if(err){
+					log.d(pathMod.join(p, request.path), err, res, headers);
 					return cb();
 				}
 
@@ -476,58 +312,22 @@ exports.serve = (request, cb) => {
 	)
 };
 
-exports.timeout = (config, meta, cb) => {
-	var called = false;
-	setTimeout(() => {
-		if(!called){
-			called = true;
-			return cb('TIMEOUT', null, 408);
-		}
-	}, (meta.timeout || config.timeout || 60) * 1000);
-	return (...args) => {
-		if(called){
-			log.e('request ended', args);
-			return;
-		}
-
-		called = true;
-		return cb(...args);
-	}
-};
-
-exports.auth = (module, request) => {
-	if(module.auth/* || module.rights*/){
-		let header = request.headers.authorization || '';
-		let token = header.split(/\s+/).pop() || '';
-		let auth = new Buffer(token, 'base64').toString();
-		let parts = auth.split(':');
-		auth = crypto.createHash('md5').update(auth).digest('hex');
-		let moduleAuth = module.auth == 'default' && helpers.defaultAuth ? helpers.defaultAuth : module.auth;
-
-		if(moduleAuth !== true && moduleAuth != auth){
-			return false;
-		}
-	}
-
-	return true;
-};
-
 // ### INITS
-exports.initServe = (paths, config) => {
-	if(paths.serve && paths.serve.length){
-		serve = paths.serve;
+exports.initServe = () => {
+	if(exports.paths.serve && exports.paths.serve.length){
+		serve = exports.paths.serve;
 		log.i('Server start serve dirs', serve);
 	}
 };
 
-exports.initDALs = (paths, config) => {
-	DAL_connections = DAL.init(paths, config);
+exports.initDALs = () => {
+	DAL_connections = DAL.init(exports.paths, exports.config);
 	return DAL_connections;
 };
 
-exports.initModules = (paths, config) => {
+exports.initModules = () => {
 	let inits = {};
-	paths.modules.forEach(path => {
+	exports.paths.modules.forEach(path => {
 		let pathModules = fs.readdirSync(path);
 
 		let getUrl = (moduleName, methodName, module, meta) => {
@@ -535,7 +335,7 @@ exports.initModules = (paths, config) => {
 				return methodName;
 			}
 
-			if(meta.path && meta.path.match(pathCheck)){
+			if(meta.path && meta.path.match(helpers.pathCheck)){
 				methodName = meta.path;
 			}
 
@@ -598,6 +398,7 @@ exports.initModules = (paths, config) => {
 							meta: Object.assign({}, module.__meta || {}, methodMeta),
 							definedIn: file
 						};
+
 						let methodInfo = Object.assign({}, method.meta);
 
 						methodName = getUrl(moduleName, methodName, module, method.meta);
@@ -625,7 +426,7 @@ exports.initModules = (paths, config) => {
 					}
 				}
 				if(moduleApi.methods.length){
-					infoApi.push(moduleApi);
+					helpers.infoApi.push(moduleApi);
 				}
 				module = null;
 			}
@@ -641,13 +442,14 @@ exports.initModules = (paths, config) => {
 		url: '',
 		headers: {},
 		DAL: DAL_connections,
-		config: config,
-		helpers: exports.helpers
+		config: exports.config
 	};
+
 	for(let ii in inits){
 		if(!inits.hasOwnProperty(ii)){
 			continue;
 		}
+
 		try{
 			inits[ii](context, function(){});
 		}catch(e){
@@ -656,9 +458,9 @@ exports.initModules = (paths, config) => {
 	}
 };
 
-exports.initMiddlewares = (paths, config) => {
+exports.initMiddlewares = () => {
 	let inits = {};
-	paths.middleware.forEach(path => {
+	exports.paths.middleware.forEach(path => {
 		let pathMiddleware = fs.readdirSync(path);
 
 		for(let file of pathMiddleware){
@@ -686,6 +488,7 @@ exports.initMiddlewares = (paths, config) => {
 						log.e('middleware', file, 'have no property `triggers` and method `run`');
 						continue;
 					}
+
 					middlewareObject.triggers = {
 						'*': middleware.run
 					};
@@ -695,6 +498,7 @@ exports.initMiddlewares = (paths, config) => {
 						log.e('middleware', file, 'have no method `run`');
 						continue;
 					}
+
 					middlewareObject.triggers = middleware.triggers.reduce((res, cur) => {
 						res[cur] = middleware.run;
 						return res;
@@ -732,30 +536,32 @@ exports.initMiddlewares = (paths, config) => {
 		}
 	});
 
-	if(config.middlewareOrder){
-		for(let i in config.middlewareOrder){
-			if(!config.middlewareOrder.hasOwnProperty(i)){
+	if(exports.config.middlewareOrder){
+		for(let i in exports.config.middlewareOrder){
+			if(!exports.config.middlewareOrder.hasOwnProperty(i)){
 				continue;
 			}
 
 			let ind = -1;
-			for(let i in middlewares){
-				if(middlewares[i].name == config.middlewareOrder[i]){
-					ind = i;
+			for(let j in middlewares){
+				if(middlewares[j].name == exports.config.middlewareOrder[i]){
+					ind = j;
 					break;
 				}
 			}
+
 			if(ind < 0){
-				log.e('middleware specified in config.middlewareOrder has not been initialized', middlewares, config.middlewareOrder[i]);
+				log.e('middleware specified in config.middlewareOrder has not been initialized', middlewares, exports.config.middlewareOrder[i]);
 				continue;
 			}
+
 			middlewares.splice(i, 0, middlewares.splice(ind, 1).pop());
 		}
 	}
 };
 
-exports.initI18n = (paths, config) => {
-	paths.i18n.forEach(path => {
+exports.initI18n = () => {
+	exports.paths.i18n.forEach(path => {
 		let pathI18n = fs.readdirSync(path);
 
 		for(let file of pathI18n){
@@ -773,7 +579,7 @@ exports.initI18n = (paths, config) => {
 					continue;
 				}
 
-				i18n[file.replace('.json', '')] = JSON.parse(fs.readFileSync(pathMod.join(path, file)));
+				helpers.i18n[file.replace('.json', '')] = JSON.parse(fs.readFileSync(pathMod.join(path, file)));
 			}
 			catch(err){
 				log.e('Error in i18n ' + path + '/' + file, err, err.stack);
@@ -782,6 +588,6 @@ exports.initI18n = (paths, config) => {
 	});
 };
 
-exports.initEmailSenders = (paths, config) => {
-	emailSenders = Emails.init(paths, config);
+exports.initEmailSenders = () => {
+	emailSenders = Emails.init(exports.paths, exports.config);
 };

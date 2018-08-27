@@ -4,24 +4,29 @@ let pg = require('pg');
 let DAL = {
 	connect: cb => cb('NO_CONNECTION')
 }
+
 exports.init = (config, dalConfig) => {
 	let conf = {
 		host: '127.0.0.1',
 		user: 'root'
 	};
+
 	for(let i in dalConfig){
 		if(!dalConfig.hasOwnProperty(i)){
 			continue;
 		}
+
 		conf[i] = dalConfig[i];
 	}
+
 	if(!conf.database){
 		throw 'wrong postgres config, check database';
 	}
+
 	DAL = new pg.Pool(conf);
-    DAL.on('error', (err, client) => {
-        log.e('idle client error', err.message, err.stack);
-    });
+  DAL.on('error', (err, client) => {
+      log.e('idle client error', err.message, err.stack);
+  });
 };
 
 exports.methods = {};
@@ -32,6 +37,7 @@ for(let name in pg.prototype){
 
 	wrapMethod(name);
 }
+
 function wrapMethod(name){
 	exports.methods[name] = (...args) => {
 		let doneConn;
@@ -48,7 +54,8 @@ function wrapMethod(name){
 		}
 
 		DAL.connect((err, connection, done) => {
-            doneConn = done;
+      doneConn = done;
+			
 			if(err){
 				return cb(err);
 			}

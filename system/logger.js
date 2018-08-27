@@ -70,6 +70,7 @@ exports.logger = (dir, debug) => {
 		
 		return str.join(del);
 	};
+
 	let ND = (num, l) => {
 		num = String(num);
 		l = l || 2;
@@ -80,21 +81,25 @@ exports.logger = (dir, debug) => {
 		
 		return num;
 	};
+
 	let date = () => {
 		let d = new Date();
 		return '[' + d.getFullYear() + '/' + ND(d.getMonth() + 1) + '/' + ND(d.getDate()) +
 			'|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
 			'.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
 	};
+
 	let getFileName = (stack, createPath, isModifed) => {
 		let file = stack.split('\n');
 		if(!file[2]){
 			return '???';
 		}
+
 		let fPath = file[2].match(/.*\((.*):\d+:\d+\)/)[1];
 		if(isModifed){
 			fPath = file[3].match(/.*\((.*):\d+:\d+\)/)[1];
 		}
+
 		//return JSON.stringify([createPath, fPath])
 
 		return path.relative(createPath, fPath).replace(/(\.\.[\\/])+/, '');
@@ -106,23 +111,28 @@ exports.logger = (dir, debug) => {
 			let log = {
 				add: str => write(str)
 			};
+
 			for(let i in colors){
 				if(!colors.hasOwnProperty(i)){
 					continue;
 				}
+
 				log[i.toLowerCase()] = function(...args){
 					if(!name){
 						name = getFileName(new Error().stack, createPath, this.logModifed);
 					}
+
 					if(i == 'D' && !debug){
 						return;
 					}
+
 					args = split(args);
 					let str = date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
 					str = '\x1b[37;' + colors[i] + ';1m' + str + '\x1b[0m' + breaker;
 					write(str);
 				}
 			}
+			
 			return log;
 		}
 	};

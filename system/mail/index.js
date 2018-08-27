@@ -4,13 +4,13 @@ let path = require('path');
 let log = global.logger.create('EMAILS');
 
 exports.init = (paths, config) => {
-	if(!config.emails || Object.keys(config.emails) == 0){
+	if(!config.useEmailSenders || Object.keys(config.useEmailSenders) == 0){
 		return;
 	}
 
 	let EmailSenders = {};
-	let pathsToCheck = [__dirname].concat(paths.emails||[]).reverse();
-	for(let sender in config.emails){
+	let pathsToCheck = [__dirname].concat(paths.useEmailSenders||[]).reverse();
+	for(let sender in config.useEmailSenders){
 		let senderName = sender + '.js';
 		for(let senderPath of pathsToCheck){
 			try{
@@ -22,7 +22,7 @@ exports.init = (paths, config) => {
 					if(!senderFile.init){
 						throw 'exports.init no defined';
 					}
-					senderFile.init(config, config.emails[sender]);
+					senderFile.init(config, config.useEmailSenders[sender]);
 
 					EmailSenders[sender] = senderFile.send;
 					senderFile = undefined;

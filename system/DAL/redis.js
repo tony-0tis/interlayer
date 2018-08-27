@@ -184,15 +184,18 @@ let DAL = {
 
 exports.init = (config, dalConfig) =>{
 	DAL.config = dalConfig;
-}
+};
+
 let lazyDefine = {
 	methods: {},
-	get: ()=>Object.assign({}, this.methods, {list: []})
+	get: ()=>Object.assign({}, lazyDefine.methods, {list: []})
 }
+
 exports.methods = {};
 for(let name in redis.RedisClient.prototype){// eslint-disable-line guard-for-in
 	wrapMethod(name);
 }
+
 function wrapMethod(name){
 	exports.methods[name] = (...args) => {
 		let conn;
@@ -226,13 +229,16 @@ function wrapMethod(name){
 			else{
 				lazy.list.unshift({cmd: name, args: args});
 				let res = conn;
+				
 				lazy.list.map(i=>{
 					res = res[i.cmd](...i.args)
 				});
+				
 				setTimeout(cb, 2000);
 			}
 		});
 	};
+	
 	lazyDefine.methods[name] = function(...args){
 		this.list.push({cmd: name, args: args})
 		return this;

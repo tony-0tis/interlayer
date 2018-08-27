@@ -1,20 +1,21 @@
 # interlayer
 [![npm version](https://img.shields.io/npm/v/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![npm downloads](https://img.shields.io/npm/dm/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
-[![github license](https://img.shields.io/github/license/donkilluminatti/interlayer.svg)](https://github.com/DonKilluminatti/interlayer/blob/master/LICENSE)
+[![github license](https://img.shields.io/github/license/aidevio/interlayer.svg)](https://github.com/aidevio/interlayer/blob/master/LICENSE)
 [![Build Status](https://travis-ci.org/aidevio/interlayer.svg?branch=master)](https://travis-ci.org/aidevio/interlayer)
 [![Code Climate](https://codeclimate.com/github/aidevio/interlayer/badges/gpa.svg)](https://codeclimate.com/github/aidevio/interlayer)
 
-Server current in alpha. You can offer or report new issue here: [New issue](https://github.com/DonKilluminatti/interlayer/issues/new)
+Server current in alpha. You can offer/report new issue here: [New issue](https://github.com/aidevio/interlayer/issues/new)
 
-Stable version will be released when will be provided all tests and determines all features of this server. Currently I use this server in the several projects.
+Stable version of this server will be released after all tests and features would be released.
 
-##### !!! MAJOR UPDATE 0.3.0: I'm was break old initialization, rewrite please it in your projects.
-##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Consider the new structure of return;
+##### !!! MAJOR UPDATE 0.3.0: I broke old initialization, please rewrite it's in your projects.
+##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Watch the new structure of return.
+##### !!! MAJOR UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
 
 ## Features
 * serve your files
-* auto-reload server on file change (new files not support handle reload)
+* auto-reload server on file change (reload on new files not supported)
 * clusterization
 * postgres\mysql\redis built-in DAL's for data storage
 * mailgun\sparkpost build-in mail sender packages
@@ -33,6 +34,10 @@ let config = {
 };
 require('interlayer')(config);
 ```
+or
+```js
+require('interlayer')('config.json');
+```
 Project tree example:
 * /node_modules/
 * package.json
@@ -43,42 +48,46 @@ Project tree example:
     * /images/
         * logo.jpeg
 * index.js
+* config.json
 
 ## All configuration params:
-`config` object properties
+Avaliable properties in `config` object or `config.json` file
 
-* `port`: Port number of web server. (Default: 8080)
-* `startPath` / `rootPath`: Root server path. (Default: ./)
-* `logPath`: Path where will be created `logs.log` file. (Default: ./)
-* `timeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted**
-* `numOfServers` / `clusters`: Number of phisical processors | number of parallel servers for load balancing. If number more than 1, uses node cluster.
-* `useWatcher`: Boolean value determine is server will restart automatically when files in the folder with modules was changed.
-* `useDals`: An object of dal modules which need to include. Last version supports redis(for use specify `redis:{}`), mysql(for use specify `mysql:{}` and default will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress:{}` and default will be `{host: '127.0.0.1',user: 'root'}`). For built-in redis avaliable params [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) (Example of dals config: `useDals: {mysql: {port: 6375, user: 'admin'}, redis: {}}`)
+* `port`: Web server port number. (Default: 8080)
+* `initPath` : Web server root path. (Default: ./)
+* `logPath`: Path to create the `logs.log` file. (Default: ./)
+* `skipDbWarning`: Boolean value. Skip warning in console if useDals not defined in config.
+* `timeout`: Timeout in seconds, then user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted**
+* `workers`: Number of instances for load balancing. If number more than 1, uses node.js cluster.
+* `restartOnChange`: Boolean value determine is server will restart automatically when files in the folder with `modules` was changed.
+* `useDals`: The configuration object for dal modules to be used. Supports redis(for use specify `redis:{}`), mysql(for use specify `mysql:{}` and default will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress:{}` and default will be `{host: '127.0.0.1',user: 'root'}`). For config built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) (Example of dal's config: `useDals: {mysql: {port: 6375, user: 'admin'}, redis: {}}`)
+* `useEmailSenders`: The configuration object for the mail senders to be used. Supports mailgun(for use specify `mailgun:{}`) and sparkpost(for use specify `sparkpost:{}`). For config built-in mailgun [see here](https://github.com/mailgun/mailgun-js#setup-client), sparkpost [see here](https://github.com/SparkPost/node-sparkpost#initialization)
+
 * `serve`: An array folders to serve. Priority over the last folder.
-* `modules`: An array folders with modules. Priority over the last folder. (Default dir 'modules' unless otherwise specified.) [How to create](#create-module)
-* `dals`: An array of folders with your dal modules. Priority over the last folder. (Default dir 'dals' unless otherwise specified.) [How to create](#create-dal)
+* `modules`: An array folders with modules. Priority over the last folder. (Default directory is './modules' unless otherwise specified.) [How to create](#module-creation)
+* `views`: An array of folders with files, which you can be uses as templates, or returned through the api(by using request.getView). Priority over the last folder. (Default directory is 'files' unless otherwise specified.)
+* `i18n`: An array of folders with localization files. Priority over the last folder. (Default directory is './i18n' unless otherwise specified.) [How to create](#localization)
+* `dals`: An array of folders with your dal modules. Priority over the last folder. [How to create](#create-dal)
+* `emailSenders`: An array of folders with your email senders. Priority over the last folder. [How to create](#create-email-sender)
 * `middleware`: An array of folders with middlewares. Priority over the last folder. [How to create](#create-middleware)
 * `middlewareOrder`: An array with ordered names of middlewares
-* `middlewareTimeout`: Timeout number in seconds at the expiration of user will see `{error: 'TIMEOUT'}` **Note, execution of the middlewares is not interrupted**
-* `views`: An array of folders with files, which you can be uses as templates, or returned through the api. Priority over the last folder. (Default dir 'files' unless otherwise specified.)
-* `i18n`: An array of folders with localization files. Priority over the last folder. (Default dir 'i18n' unless otherwise specified.) [How to create](#localization)
-* `defaultHeaders`: An object with default headers, which have to be added at every response.
-* `debug`: Allow to display `log.d` in console and adding to log file.
+* `middlewareTimeout`: Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted**
 
-## Experimental properties
+* `defaultHeaders`: An object with default headers, which have to be added to the every response.
+* `debug`: Allow to display `log.d` in console and add to the `logs.log` file.
+
+### Experimental properties
 * `disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
 
-## Create module
+## Module creation
 Example of modules/myModule.js
 
 ```js
-// you may need to log something, see above methodLog methods
-let log = global.logger.create('moduleID');
-
-// define meta information for method, without it method will be unvisible
+// Define meta information for method by adding underscore symbol before the method name, required!
 exports._myMethod = {
     toJson: true
 };
+// Define module itself with two params: request and cb. 
 exports.myMethod = (request, cb) => {
     log.i('I am log without requestId')
     cb(null, {ok: true});
@@ -88,51 +97,86 @@ exports.myMethod = (request, cb) => {
 ### Features
 **Logging:**
 ```js
-let methodLog = global.logger.create('moduleID')
-methodLog.i() // Usual log - displayed in green
-methodLog.w() // Warn - displayed in yellow
-methodLog.e() // Error - displayed in red
-methodLog.c() // Critical error - displayed in white
+let log = global.logger.create('moduleID')
+log.i() // Usual log - displayed in green
+log.w() // Warn - displayed in yellow
+log.e() // Error - displayed in red
+log.c() // Critical error - displayed in white
 ```
-Similar methods are provided in `request.log` but with writing down additional information about request id.
+
+Note that this type of logging don't allow to track the request id.
+To have ability track the request id use the `request.modifyLog`:
+```js
+let log = global.logger.create('moduleID')
+exports.myMethod = (request, cb)=>{
+    let log = request.modifyLog(log);
+}
+```
+
+Or use the `request.log` instead, if 'moduleID' not required.
+```js
+let log = global.logger.create('moduleID')
+exports.myMethod = (request, cb)=>{
+    let log = request.log;
+}
+```
 
 **Method meta**
 ```js
-// Meta is specified by adding an underscore before the method name
-exports._module = {
+// Meta is required and specified by adding underscore symbol before the method name
+exports._myMethod = {
     toJson: true
 };
-// definition of module - see below
-exports.module = ...
+// Module definition - see below...
+// exports.myMethod = ...
 ```
 
-Metas:
-* `contentType = 'json'` / `toJson = true`: Return content as JSON content.
-* `timeout = 60`: Timeout number in seconds before response on hung request will be `{error: 'TIMEOUT'}`.
-* `path = "method1/submethod1"`: Allows to define custom method path. Path will be defined as `/myModule/method1/submethod1`
-* `addToRoot = true`: Boolean value which define is method must be located at ~~myModule~~/`myMethod` without specifying the module name.
-* `skipRequestLog = true;`: Boolean value which define is method call must be skipped in console log.
-* `prerun = (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. Its like main method, takes request, and cb, but also takes module meta at the second parametr; May be usefull for preparing request.
-* `hidden`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info.
-* `disableNagleAlgoritm`: Boolead value, experimetal, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method
+Meta's:
+* `contentType: 'json'` / `toJson = true`: Return content as JSON content. Default: not defined.
+* `timeout: 60`: Timeout in seconds before user will see the `{error: 'TIMEOUT'}`. Default: `60`.
+* `path: "method1/submethod1"`: Allows to define custom method path. Path will be defined as `/myModule/method1/submethod1`. Default:  `/myModule/method1/`
+* `addToRoot: true`: Boolean value which define is method must be located at ~~myModule~~`/myMethod` without specifying the module name. Default: not defined.
+* `skipRequestLog: true;`: Boolean value which define is method call must be skipped in console log.Default: not defined.
+* `prerun: (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. May be usefull for preparing request. Default: not defined.
+* `hidden: true`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info. Default: not defined.
+* `disableNagleAlgoritm: true`: Boolead value, experimetal, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method. Default: not defined.
 
-These metas also can be specified in `exports.__meta = {}` and will be globaly defined for all module methods.
+If you need specify meta's for all methods in this module use:
+```js
+exports.__meta = {
+    toJson: true
+};
+```
 
 **Module initialization**
-
-These method will be called at start of server.
+These method for current module will be called when web server starts.
 ```js
 // simpleContext -> {DAL: {...}}
 exports.__init = (simpleContext) => {
     // do something, example some work with using simpleContext.DAL.redis.blpop
 };
 ```
+Also might be useful to use
+```js
+// `fun` - function, required; `interval` - number in seconds, not required
+let key = global.intervals.add(fun, interval);
+//where `key` is identificator of delayed function, might me deleted by `global.intervals.del(key)`
+// `fun` is function with callback:
+(deleteInerval)=>{
+    //dosomething
+    deleteInerval();
+}
+// if `deleteInerval` is not called, `fun` will be called each time after `interval` or 1 second if `interval` is not specified
+```
 
 **Method parametrs**
 ```js
-// @request@ is an object provides all needed information and methods for working with datas, files, mails and other.
+exports._myMethod = {};
+// @request@ is an object provides information and methods for working with data's, file's, mail's and other.
 // @callback(error, data, responseCode, responseHeaders, type)@ returns result to user
-exports.method = (request, callback) => {
+exports.myMethod = (request, callback) => {
+    request.log.i('method called');
+    callback(null, 'I\'m a teapot.', 418, {'hiddenHeader':'I\'m a teapot.'}, 'text');
 }
 ```
 
@@ -142,16 +186,16 @@ exports.method = (request, callback) => {
 * `request.isPost` - true|false
 * `request.params` - An object of parsed GET params
 * `request.post` - An object of parsed POST params
-* `request.cookies` - An object parsed cookies
+* `request.cookies` - An object of parsed cookies
 * `request.headers` - An object of request headers
-* `request.config` - An object of configuration which you specified at start of server
-* `request.DAL` - An object with DALs, which you specified in `config.useDals`
-* `request.mail` - An object with mail senders, which specified in `config.emails`. 
+* `request.config` - An object of configuration specified at start of server
+* `request.DAL` - An object with DALs, which was initialized by `config.useDals`
+* `request.mail` - An object with mail senders, which was initialized by `config.useEmails`. 
 
 **`request` methods**
 * `request.modifyLog(log)` - modify log instance by add to top of logged arguments additional request information, but `request.log.i()` can be used instead.
-* `request.getView('file.html', cb)` - return file data in `cb` (from one of folders specified in `config.view`).
-* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.view`) content or *null* if file not found.
+* `request.getView('file.html', cb)` - return file data in `cb` (from one of folders specified in `config.views`).
+* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.views`) content or *null* if file not found.
 * `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies).
 * `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie).
 * `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`.
@@ -209,13 +253,29 @@ Example of dals/nameofdal.js
 Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = {nameofdal: {...config}};`)
 ```js
 // init is not required
-exports.init = (config) => {
+exports.init = (config, dalConfig) => {
+
 };
 
 // but methods is required
 exports.methods = {
     get: () => {},
     set: () => {}
+}
+```
+
+## Create email sender
+Example of emailSenders/nameofsender.js
+Then you can add `nameofsender` to `config.useEmailSenders` array (ex: `config.useEmailSenders = {nameofsender: {...config}};`)
+```js
+// init is required
+exports.init = (config, emailConfig) => {
+
+};
+
+// send is required
+exports.send = (email, cb)=>{
+
 }
 ```
 
