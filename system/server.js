@@ -24,7 +24,7 @@ exports.start = (paths, conf) => {
 	// 	websocket = new WebSocket.Server({server});
 	// }
 
-	defLog.i('server started on port: ' + conf.port || 8080);
+	defLog.i('server started on port: ' + (conf.port || 8080));
 };
 
 function requestFunc(request, response){
