@@ -1,3 +1,6 @@
+env:
+  global:
+    - CC_TEST_REPORTER_ID=771822c8fb9710fb551adee4d059d4b5abc5f6fc053ef8ba70a2cd696f606121
 language: node_js
 sudo: required
 node_js: 

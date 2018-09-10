@@ -1,5 +1,7 @@
 let http = require('http');
+let https = require('https');
 let async = require('async');
+let fs = require('fs');
 //let WebSocket = require('ws');
 let logger = require('./logger.js');
 let init = null;
@@ -17,14 +19,28 @@ exports.start = (paths, conf) => {
   helpers = require('./helpers');
   init = require('./init.js')(paths, conf);
   
-  let server = http.createServer(requestFunc);
+  let server;
+  if(conf.secure){
+    if(!conf.secure.key || !conf.secure.cert){
+      throw 'SECURE.KEY & SECURE.CERT MUST TO BE FILLED';
+    }
+
+    let opts = {
+      key: fs.readFileSync(conf.secure.key),
+      cert: fs.readFileSync(conf.secure.cert)
+    };
+    server = https.createServer(opts, requestFunc);
+  }
+  else{
+    server = http.createServer(requestFunc);
+  }
   server.listen(conf.port || 8080);
   // let websocket;//https://github.com/websockets/ws#server-example
   // if(conf.websocket == true){
   //  websocket = new WebSocket.Server({server});
   // }
 
-  defLog.i('server started on port: ' + (conf.port || 8080));
+  defLog.i('server started on port: ' + (conf.port || 8080), conf.secure && 'https');
 };
 
 function requestFunc(request, response){
@@ -41,7 +57,7 @@ function requestFunc(request, response){
         return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
       }
 
-      log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path);
+      log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'),);
       return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
     });
   }

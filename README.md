@@ -54,6 +54,7 @@ Project tree example:
 Avaliable properties in `config` object or `config.json` file
 
 * `port`: Web server port number. (Default: 8080)
+* `secure`: The configuration object with paths to files: `{key:'',cert:''}`
 * `initPath` : Web server root path. (Default: ./)
 * `logPath`: Path to create the `logs.log` file. (Default: ./)
 * `skipDbWarning`: Boolean value. Skip warning in console if useDals not defined in config.
@@ -156,6 +157,8 @@ exports.__init = (simpleContext) => {
     // do something, example some work with using simpleContext.DAL.redis.blpop
 };
 ```
+Defenition of `simpleContext` [see here](https://github.com/aidevio/interlayer/blob/c350c45f21f5c02678e3314d23eed31e0cab0586/system/init.js#L440)
+
 Also might be useful to use
 ```js
 // `fun` - function, required; `interval` - number in seconds, not required
