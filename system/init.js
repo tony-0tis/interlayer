@@ -287,6 +287,9 @@ exports.serve = (request, cb) => {
       if(!p){
         return cb();
       }
+      if(fs.lstatSync(pathMod.join(p, request.path)).isDirectory()){
+        request.path += 'index.html';
+      }
       request.getFile(pathMod.join(p, request.path), (err, res, headers) => {
         if(err){
           log.d(pathMod.join(p, request.path), err, res, headers);

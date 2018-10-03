@@ -195,6 +195,10 @@ global.intervals = {
         global.intervals._funcs[i].runafter = Date.now() + global.intervals._funcs[i].t * 1000;
       }
 
+      if(global.intervals._funcs[i].disabled){
+        continue;
+      }
+
       global.intervals._funcs[i].f(() => {
         global.intervals.del(global.intervals._funcs[i].key);
       });
@@ -219,6 +223,18 @@ global.intervals = {
     }, -1);
     this._funcs.splice(ind, 1);
     return key;
+  },
+  disable: function(key, val){
+    this._funcs.map(f=>{
+      if(f.key == key){
+        if(val == false){
+          f.disabled = false;
+        }
+        else{
+          f.disabled = true;
+        }
+      }
+    });
   }
 };
 

@@ -170,6 +170,7 @@ let key = global.intervals.add(fun, interval);
     deleteInerval();
 }
 // if `deleteInerval` is not called, `fun` will be called each time after `interval` or 1 second if `interval` is not specified
+global.intervals.disable(key, true) // to disable starting of interval until you call global.intervals.disable(key, false)
 ```
 
 **Method parametrs**
