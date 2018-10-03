@@ -11,7 +11,7 @@ let colors = {
 
 let breaker = /^win/.test(process.platform) ? '' : '\n';
 let streams = {};
-exports.logger = (dir, debug) => {
+exports.logger = (dir, debug, pingponglog) => {
   //console.log(dir);
 
   let logFile;
@@ -108,7 +108,8 @@ exports.logger = (dir, debug) => {
       name = typeof name == 'string' ? name : '';
       let createPath = !name ? new Error().stack.split('\n')[2].match(/.*\((.*):\d+:\d+\)/)[1] : '';
       let log = {
-        add: str => write(str)
+        add: str => write(str),
+        dd: (...args)=> pingponglog && log.d(...args)
       };
 
       for(let i in colors){

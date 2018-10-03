@@ -119,7 +119,7 @@ let clusters = {
   servers: [],
   log: {},
   start: (paths, config)=>{
-    clusters.log = logger.logger(config.logPath, config.debug).create('CLUSTER');
+    clusters.log = logger.logger(config.logPath, config.debug, config.pingponglog).create('CLUSTER');
   
     let toStart = config.workers || 1;
     if(toStart == 1 && !config.restartOnChange){
@@ -152,7 +152,20 @@ let clusters = {
     clusters.config = config || {};
     clusters.inited = true;
 
-    process.on('exit', () => clusters.exit());
+    process.on('exit', () => {
+      clusters.log.i('exit event', process.exitCode);
+      clusters.exit();
+    });
+    process.on('SIGINT', () => {
+      clusters.log.i('SIGINT event', process.exitCode);
+      clusters.exit();
+    });
+    process.on('message', msg=>{
+      if (msg == 'shutdown') {
+        clusters.log.i('process message shutdown');
+        clusters.exit();
+      }
+    });
   },
   add: (i) => {
     if(!clusters.inited){
@@ -206,12 +219,15 @@ let clusters = {
           type: 'pong',
           id: obj.id
         });
+        clusters.log.pp('cluster obtain ping');
+        clusters.log.pp('cluster send pong');
         break;
       case 'pong':
         let ind = pings.indexOf(obj.id);
         if(ind > -1){
           pings.splice(ind, 1);
         }
+        clusters.log.pp('cluster obtain pong');
         break;
       default: 
         clusters.log.e('wrong message type', obj);
@@ -237,6 +253,7 @@ let clusters = {
       };
       pings.push(ping.id);
       server.send(ping);
+      clusters.log.pp('cluster send ping');
     });
 
     clusters.log.i('start worker process', server.process.pid);

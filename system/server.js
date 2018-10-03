@@ -13,7 +13,7 @@ let pings = [];
 process.on('uncaughtException', err => (defLog && defLog.c || console.error)('Caught exception:', err));
 
 exports.start = (paths, conf) => {
-  global.logger = logger.logger(conf.logPath, conf.debug);
+  global.logger = logger.logger(conf.logPath, conf.debug, conf.pingponglog);
   defLog = global.logger.create('SRV');
 
   helpers = require('./helpers');
@@ -249,6 +249,9 @@ process.on('message', obj=> {
         type: 'pong',
         id: obj.id
       });
+      defLog.pp('server obtain ping');
+      defLog.pp('server send pong');
+      startPing();
     }
     break;
   case 'pong':
@@ -256,20 +259,32 @@ process.on('message', obj=> {
     if(ind > -1){
       pings.splice(ind, 1);
     }
+    defLog.pp('server obtain pong');
     break;
   case 'reload':
+    defLog.i('reload command');
     setTimeout(()=>process.exit(0),1);
     break;
   case 'exit':
+    defLog.i('exit command');
     process.exit(1);
     break;
   }
 });
 
-if(process.send){// only if this node in cluster  
+// only if this node in cluster  
+function startPing(){
+  if(startPing.started){
+    return;
+  }
+
+  startPing.started = true;
+  defLog.d('start ping-pong with cluster');
+
   global.intervals.add((deleteInterval) => {
     if(pings.length > 2){
       deleteInterval();
+      defLog.c('cluster not answered');
       process.exit(0);
       return;
     }
@@ -281,5 +296,6 @@ if(process.send){// only if this node in cluster
     pings.push(ping.id);
 
     process.send(ping);
+    defLog.pp('server send ping');
   }, 1);
 }
