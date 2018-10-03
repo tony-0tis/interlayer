@@ -109,7 +109,7 @@ exports.logger = (dir, debug, pingponglog) => {
       let createPath = !name ? new Error().stack.split('\n')[2].match(/.*\((.*):\d+:\d+\)/)[1] : '';
       let log = {
         add: str => write(str),
-        dd: (...args)=> pingponglog && log.d(...args)
+        pp: (...args)=> pingponglog && log.d(...args)
       };
 
       for(let i in colors){
