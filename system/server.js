@@ -7,10 +7,14 @@ let logger = require('./logger.js');
 let init = null;
 let helpers = null;
 
-let defLog;
-let pings = [];
+let defLog = null;
+let instantShutdownDelay;
+let serverStat = {
+  started: null,
+  pings: []
+};
 
-process.on('uncaughtException', err => (defLog && defLog.c || console.error)('Caught exception:', err));
+process.on('uncaughtException', err => (defLog && defLog.c || console.error)(Date.now(), 'Caught exception:', err));
 
 exports.start = (paths, conf) => {
   global.logger = logger.logger(conf.logPath, conf.debug, conf.pingponglog);
@@ -18,6 +22,9 @@ exports.start = (paths, conf) => {
 
   helpers = require('./helpers');
   init = require('./init.js')(paths, conf);
+  if(conf.instantShutdownDelay){
+    instantShutdownDelay = conf.instantShutdownDelay;
+  }
   
   let server;
   if(conf.secure){
@@ -35,6 +42,24 @@ exports.start = (paths, conf) => {
     server = http.createServer(requestFunc);
   }
   server.listen(conf.port || 8080);
+  serverStat.started = new Date();
+
+  process.on('exit', function(){
+    if(gracefulShutdownInited){
+      return process.exit();
+    }
+
+    console.log('exit event', process.exitCode, serverStat);
+    graceful_shutdown();
+  });
+  process.on('SIGINT', () => {
+    defLog.i('SIGINT event', process.exitCode);
+    graceful_shutdown(1);
+  });
+  process.on('SIGTERM', () => {
+    defLog.ilog('SIGTERM event', process.exitCode);
+    graceful_shutdown(1);
+  });
   // let websocket;//https://github.com/websockets/ws#server-example
   // if(conf.websocket == true){
   //  websocket = new WebSocket.Server({server});
@@ -44,6 +69,14 @@ exports.start = (paths, conf) => {
 };
 
 function requestFunc(request, response){
+  if(gracefulShutdownInited){
+    response.writeHead(503, {
+      'Retry-After': init.config.retryAter || 10
+    });
+    response.end('Server Unavailable Or In Reboot');
+    return;
+  }
+
   let requestObject = init.reconstructRequest(request, response);
   let log = requestObject.modifyLog(defLog);
   let reqStart = Date.now();
@@ -255,20 +288,25 @@ process.on('message', obj=> {
     }
     break;
   case 'pong':
-    let ind = pings.indexOf(obj.id);
+    let ind = serverStat.pings.indexOf(obj.id);
     if(ind > -1){
-      pings.splice(ind, 1);
+      serverStat.pings.splice(ind, 1);
     }
     defLog.pp('server obtain pong');
     break;
   case 'reload':
     defLog.i('reload command');
-    setTimeout(()=>process.exit(0),1);
+    graceful_shutdown(0);
     break;
   case 'exit':
     defLog.i('exit command');
-    process.exit(1);
+    graceful_shutdown(1);
     break;
+  }
+
+  if(obj == 'shutdown') {
+    defLog.i('process message shutdown');
+    graceful_shutdown(1);
   }
 });
 
@@ -282,10 +320,10 @@ function startPing(){
   defLog.d('start ping-pong with cluster');
 
   global.intervals.add((deleteInterval) => {
-    if(pings.length > 2){
+    if(serverStat.pings.length > 2){
       deleteInterval();
       defLog.c('cluster not answered');
-      process.exit(0);
+      graceful_shutdown(0);
       return;
     }
 
@@ -293,9 +331,28 @@ function startPing(){
       type: 'ping',
       id: Date.now()
     };
-    pings.push(ping.id);
+    serverStat.pings.push(ping.id);
 
     process.send(ping);
     defLog.pp('server send ping');
   }, 1);
+}
+let gracefulShutdownInited;
+function graceful_shutdown(code){
+  if(gracefulShutdownInited){
+    return;
+  }
+
+  if(!helpers || !Object.keys(helpers.processLocks).length){
+    process.exit(code);
+    return;
+  }
+
+  gracefulShutdownInited = Date.now();
+  let si = setInterval(()=>{
+    if(!Object.keys(helpers.processLocks).length || Date.now() - gracefulShutdownInited >= instantShutdownDelay || 1500){
+      process.exit(code);
+      clearInterval(si);
+    }
+  }, 50);
 }

@@ -86,10 +86,12 @@ exports.reconstructRequest = (request, response) => {
 
 
   let originalResposeEnd;
+  requestObject.lockProcess();
 
   requestObject.getResponse = () => {
     originalResposeEnd = response.end;
     response.end = function(...args){
+      requestObject.unlockProcess();
       if(!requestObject || requestObject.ended){
         if(requestObject){
           clearRequest();
@@ -115,6 +117,7 @@ exports.reconstructRequest = (request, response) => {
   requestObject.getRequest = () => request;
 
   requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
+    requestObject.unlockProcess();
     if(!requestObject || requestObject.ended){
       requestObject = undefined;
       clearRequest();

@@ -153,11 +153,20 @@ let clusters = {
     clusters.inited = true;
 
     process.on('exit', () => {
+      if(clusters.exitProcess){
+        process.exit();
+        return;
+      }
+
       clusters.log.i('exit event', process.exitCode);
       clusters.exit();
     });
     process.on('SIGINT', () => {
       clusters.log.i('SIGINT event', process.exitCode);
+      clusters.exit();
+    });
+    process.on('SIGTERM', () => {
+      clusters.log.i('SIGTERM event', process.exitCode);
       clusters.exit();
     });
     process.on('message', msg=>{
@@ -265,7 +274,7 @@ let clusters = {
     }
 
     let toDel;
-    for(let i = clusters.servers - 1; i >= 0; i--){
+    for(let i = clusters.servers.length - 1; i >= 0; i--){
       if(clusters.servers[i].n == n){
         toDel = i;
         break;
@@ -364,11 +373,23 @@ let clusters = {
       throw 'Not inited';
     }
 
+    if(clusters.exitProcess){
+      return;
+    }
+
+    clusters.exitProcess = true;
+
     clusters.log.d('Command exit servers');
     for(let i = clusters.servers.length - 1; i >= 0; i--){
       clusters.servers[i].srv.exitFlag = true;
       clusters.servers[i].srv.send({type: 'exit'});
     }
-    clusters = null;
+
+    let si = setInterval(()=>{
+      if(!clusters.servers.length){
+        process.exit();
+        clearInterval(si);
+      }
+    }, 50);
   }
 };

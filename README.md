@@ -76,6 +76,9 @@ Avaliable properties in `config` object or `config.json` file
 
 * `defaultHeaders`: An object with default headers, which have to be added to the every response.
 * `debug`: Allow to display `log.d` in console and add to the `logs.log` file.
+* `instantShutdownDelay`: Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown. (Default: 1500)
+* `retryAter`: Time in seconds for Retry-After response header with server HTTP 503 status. Works until `instantShutdownDelay`. (Default: 10)
+
 
 ### Experimental properties
 * `disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
@@ -204,6 +207,8 @@ exports.myMethod = (request, callback) => {
 * `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie).
 * `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`.
 * `request.getMethodsInfo()` - return an array of defined methods except hiddened by flag `hidden`. If called with 1-st param `true` return hidden methods. This method can be helpful for return api information.
+* `request.lockShutdown(ms)` - lock instant process shutdown by request for 10 000 ms or for `ms` ms, delay instant shutdown for application setted to 1500 ms(or see `config.instantShutdownDelay`)
+* `request.unlockShutdown()` - again allow instant process shutdown
 
 **Manual responses**
 * `request.getResponse()` - this method return unchanged response instance.

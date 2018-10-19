@@ -129,6 +129,8 @@ exports.isBoolean = val => {
   if(String(val).toLowerCase().match(regs.bool)){
     return true;
   }
+  
+  return false;
 };
 
 exports.JSV = (params, schema, envId) => {
@@ -308,8 +310,17 @@ exports.mimeTypes  = {
   '.yml': 'text/yaml',
   '.zip': 'application/zip'
 };
-
+exports.processLocks = {};
 let defaultRequestFuncs = {
+  lockShutdown: function(time){
+    exports.processLocks[this.id] = true;
+    setTimeout(()=>{
+      delete exports.processLocks[this.id];
+    }, (time||10000));
+  },
+  unlockShutdown: function(){
+    delete exports.processLocks[this.id];
+  },
   getMethodsInfo: (showHidden) => {
     return exports.infoApi.map(m=>{
       m = Object.assign(m);
