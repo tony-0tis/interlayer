@@ -75,7 +75,9 @@ module.exports = function(config = {}){
   
   process.chdir(serverPath);
 
-  return clusters.start(paths, config);
+  setTimeout(()=>{
+    clusters.start(paths, config);
+  }, 20);
 };
 
 function checkPath(paths, serverPath, config, type, def){
@@ -205,14 +207,14 @@ let clusters = {
       clusters.log.e('server', pid, 'error', error);
     });
     server.on('exit', (code, sig) => {
-      if(server.exitFlag && code == 1){
-        clusters.log.i('worker', (server && server.process || {}).pid, 'killed');
+      if(server.exitFlag || code == 1){
+        clusters.log.i('worker', (server && server.process || {}).pid, 'killed at end');
         server = null;
         clusters.rem(i);
         return;
       }
 
-      clusters.log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig);
+      clusters.log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig, 'respawn!');
 
       server = null;
       clusters.rem(i);
@@ -246,8 +248,16 @@ let clusters = {
 
     clusters.intervals.add((deleteInterval) => {
       if(pings.length > 10){
+        clusters.log.w('Pings length more that 10', server.process.pid);
+        pings = [];
         deleteInterval();
         server.kill();
+        
+        setInterval(()=>{
+          if(server){
+            server.kill('SIGKILL');
+          }
+        }, clusters.config.instantShutdownDelay || 2000);
         return;
       }
 
@@ -332,6 +342,7 @@ let clusters = {
   },
   intervals: {
     si: setInterval(() => {
+      if(!clusters)
       for(let i in clusters.intervals.funcs){
         if(!clusters.intervals.funcs.hasOwnProperty(i)){
           continue;

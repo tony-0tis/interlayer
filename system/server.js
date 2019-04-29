@@ -90,7 +90,7 @@ function requestFunc(request, response){
         return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
       }
 
-      log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'),);
+      log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'));
       return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
     });
   }

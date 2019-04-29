@@ -313,12 +313,18 @@ exports.mimeTypes  = {
 exports.processLocks = {};
 let defaultRequestFuncs = {
   lockShutdown: function(time){
+    log.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
     exports.processLocks[this.id] = true;
     setTimeout(()=>{
-      delete exports.processLocks[this.id];
+      this.unlockShutdown(true);
     }, (time||10000));
   },
-  unlockShutdown: function(){
+  unlockShutdown: function(ontimeout){
+    if(!exports.processLocks[this.id]){
+      return;
+    }
+
+    log.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
     delete exports.processLocks[this.id];
   },
   getMethodsInfo: (showHidden) => {

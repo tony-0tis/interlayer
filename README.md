@@ -26,31 +26,16 @@ Stable version of this server will be released after all tests and features woul
 npm install --save interlayer
 ```
 
-## How to use
+## Configure
+`config.json` file:
 ```js
-let config = {
-    port: 80,
-    serve: ['files']
-};
-require('interlayer')(config);
+{
+    "port": 80,
+    "serve": ["files"]
+}
 ```
-or
-```js
-require('interlayer')('config.json');
-```
-Project tree example:
-* /node_modules/
-* package.json
-* /files/ *`- this folder will be served by confing.serve`*
-    * index.html
-    * style.css
-    * script.js
-    * /images/
-        * logo.jpeg
-* index.js
-* config.json
 
-## All configuration params:
+### All configuration params:
 Avaliable properties in `config` object or `config.json` file
 
 * `port`: Web server port number. (Default: 8080)
@@ -83,13 +68,37 @@ Avaliable properties in `config` object or `config.json` file
 ### Experimental properties
 * `disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
 
+## How to use
+```js
+let config = {
+    port: 80,
+    serve: ['files']
+};
+require('interlayer')(config);
+```
+or
+```js
+require('interlayer')('config.json');
+```
+Project tree example:
+* /node_modules/
+* package.json
+* /files/ *`- this folder will be served by confing.serve`*
+    * index.html
+    * style.css
+    * script.js
+    * /images/
+        * logo.jpeg
+* index.js
+* config.json
+
 ## Module creation
 Example of modules/myModule.js
 
 ```js
 // Define meta information for method by adding underscore symbol before the method name, required!
 exports._myMethod = {
-    toJson: true
+    toJson: true,// or contentType: 'json' - Return content as JSON content. Default: not defined.
 };
 // Define module itself with two params: request and cb. 
 exports.myMethod = (request, cb) => {
@@ -168,10 +177,11 @@ Also might be useful to use
 let key = global.intervals.add(fun, interval);
 //where `key` is identificator of delayed function, might me deleted by `global.intervals.del(key)`
 // `fun` is function with callback:
-(deleteInerval)=>{
-    //dosomething
-    deleteInerval();
-}
+//>> (deleteInerval)=>{
+//>>    //dosomething
+//>>    deleteInerval();
+//>> }
+
 // if `deleteInerval` is not called, `fun` will be called each time after `interval` or 1 second if `interval` is not specified
 global.intervals.disable(key, true) // to disable starting of interval until you call global.intervals.disable(key, false)
 ```
@@ -311,8 +321,8 @@ exports.test = (request, moduleMeta, cb) => {
 
 
 ## Localization
-Example of i18n/en.js
-**Note! You have to use double quotes, instead single quotes, cause it's json file**
+Example of `i18n/en.js`
+**Note! You have to use double quotes, instead single quotes, because it's json file**
 ```json
 {
     "title_error_404": "Nothing found, 404, Bill Gates site"

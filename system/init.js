@@ -86,12 +86,12 @@ exports.reconstructRequest = (request, response) => {
 
 
   let originalResposeEnd;
-  requestObject.lockProcess();
+  requestObject.lockShutdown();
 
   requestObject.getResponse = () => {
     originalResposeEnd = response.end;
     response.end = function(...args){
-      requestObject.unlockProcess();
+      requestObject.unlockShutdown();
       if(!requestObject || requestObject.ended){
         if(requestObject){
           clearRequest();
@@ -117,7 +117,7 @@ exports.reconstructRequest = (request, response) => {
   requestObject.getRequest = () => request;
 
   requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
-    requestObject.unlockProcess();
+    requestObject.unlockShutdown();
     if(!requestObject || requestObject.ended){
       requestObject = undefined;
       clearRequest();
@@ -447,8 +447,12 @@ exports.initModules = () => {
     url: '',
     headers: {},
     DAL: DAL_connections,
-    config: exports.config
+    config: exports.config,
   };
+
+  Object.keys(helpers.defaultRequestFuncs).map(k => {
+    context[k] = helpers.defaultRequestFuncs[k];
+  });
 
   for(let ii in inits){
     if(!inits.hasOwnProperty(ii)){
