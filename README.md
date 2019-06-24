@@ -25,6 +25,10 @@ Stable version of this server will be released after all tests and features woul
 ```js
 npm install --save interlayer
 ```
+or
+```js
+yarn add interlayer
+```
 
 ## Configure
 `config.json` file:

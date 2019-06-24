@@ -76,7 +76,7 @@ exports.auth = (module, request) => {
   if(module.auth/* || module.rights*/){
     let header = request.headers.authorization || '';
     let token = header.split(/\s+/).pop() || '';
-    let auth = new Buffer(token, 'base64').toString();
+    let auth = Buffer.from(token, 'base64').toString();
     //let parts = auth.split(':');
     auth = crypto.createHash('md5').update(auth).digest('hex');
     let moduleAuth = module.auth == 'default' && exports.defaultAuth ? exports.defaultAuth : module.auth;
@@ -316,6 +316,9 @@ let defaultRequestFuncs = {
     log.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
     exports.processLocks[this.id] = true;
     setTimeout(()=>{
+      if(this.cleared){
+        return;
+      }
       this.unlockShutdown(true);
     }, (time||10000));
   },

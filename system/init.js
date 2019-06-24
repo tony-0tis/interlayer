@@ -131,7 +131,7 @@ exports.reconstructRequest = (request, response) => {
     }
 
     if(type == 'bin'){
-      headers['Content-Length'] = new Buffer(text, 'binary').length;
+      headers['Content-Length'] = Buffer.from(text, 'binary').length;
     }
     else{
       text = text.toString().replace(new RegExp('%\\$.*%', 'g'), '');
@@ -145,7 +145,7 @@ exports.reconstructRequest = (request, response) => {
         }
       }
 
-      headers['Content-Length'] = new Buffer(text).length;
+      headers['Content-Length'] = Buffer.from(text).length;
     }
 
     if(exports.config.defaultHeaders){
@@ -210,6 +210,8 @@ exports.reconstructRequest = (request, response) => {
     if(originalResposeEnd){
       response.end = originalResposeEnd;
     }
+
+    requestObject.cleared = true;
 
     originalResposeEnd = undefined;
     requestObject = undefined;
