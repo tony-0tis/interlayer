@@ -25,11 +25,11 @@
   "scripts": {
     "test": "./run_tests.sh"
   },
-  "author": "A.I. Developer <npmdev@aidev.io> (https://aidev.io)",
+  "author": "A.I. Developer <npmdev@8ai.pw> (https://8ai.pw)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/8ai.pw/interlayer.git"
+    "url": "git+https://github.com/8ai/interlayer.git"
   },
   "keywords": [
     "webserver",
@@ -44,7 +44,7 @@
   ],
   "bugs": {
     "mail": "npmdev@aidev.io",
-    "url": "https://github.com/8ai.pw/interlayer/issues"
+    "url": "https://github.com/8ai/interlayer/issues"
   },
-  "homepage": "https://github.com/8ai.pw/interlayer#readme"
+  "homepage": "https://github.com/8ai/interlayer#readme"
 }
