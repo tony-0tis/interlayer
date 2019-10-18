@@ -1,7 +1,7 @@
 let redis = require('redis');
 let log = global.logger.create('REDIS');
 let helpers = require('../helpers');
-let soother = () => {};
+let soother = ()=>{};
 
 let retry_strategy = function(options){
   if(options.error && options.error.code === 'ECONNREFUSED'){
@@ -35,9 +35,9 @@ let retry_strategy = function(options){
 let DAL = {
   connections: [],
   opened: [],
-  getOrCreate: (mainCb) => {
+  getOrCreate: (mainCb)=>{
     let lazy = lazyDefine.get();
-    let cb = (...args) => {
+    let cb = (...args)=>{
       args.push(lazy);
       mainCb(...args);
       cb = soother;
@@ -78,7 +78,7 @@ let DAL = {
     }
     
     connection.redis = redis.createClient(config);
-    connection.redis.on('error', err => {
+    connection.redis.on('error', err=>{
       log.e('Error in redis exports.connection:', connection.id, err);
       if(!connection){
         return;
@@ -105,7 +105,7 @@ let DAL = {
       log.d('connection', connection.id, 'created and added to opened');
       return cb(null, connection.redis);
     });
-    connection.redis.on('requestEnded', () => {
+    connection.redis.on('requestEnded', ()=>{
       if(!connection){
         return;
       }
@@ -119,7 +119,7 @@ let DAL = {
 
       log.d('connection', connection.id, 'moved to waited');
     });
-    connection.redis.on('end', () => {
+    connection.redis.on('end', ()=>{
       if(!connection){
         return;
       }
@@ -138,7 +138,7 @@ let DAL = {
     DAL._checkConnections();
     return lazy;
   },
-  _checkConnections: () => {
+  _checkConnections: ()=>{
     let actualizeConnections = (res, conn)=>{
       if(Date.now() - conn.lastOpened > 14400000){
         conn.redis.quit();
@@ -154,7 +154,7 @@ let DAL = {
     DAL.opened = DAL.opened.reduce(actualizeConnections, []);
     DAL.connections = DAL.connections.reduce(actualizeConnections, []);
   },
-  _closeConnection: (id) => {
+  _closeConnection: (id)=>{
     let sid;
     //let conn;
     for(let i in DAL.opened){
@@ -193,10 +193,10 @@ for(let name in redis.RedisClient.prototype){// eslint-disable-line guard-for-in
 }
 
 function wrapMethod(name){
-  exports.methods[name] = (...args) => {
+  exports.methods[name] = (...args)=>{
     let conn;
     let originalCb = soother;
-    let cb = (...resargs) => {
+    let cb = (...resargs)=>{
       if(conn){
         conn.emit('requestEnded');
       }
@@ -213,7 +213,7 @@ function wrapMethod(name){
       args.push(cb);
     }
 
-    return DAL.getOrCreate((err, connection, lazy) => {
+    return DAL.getOrCreate((err, connection, lazy)=>{
       if(err){
         return cb(err);
       }

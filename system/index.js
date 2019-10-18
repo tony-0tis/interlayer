@@ -96,7 +96,7 @@ function checkPath(paths, serverPath, config, type, def){
     paths[type].push(path.join(serverPath, def));
   }
 
-  paths[type] = paths[type].reduce((res, mpath) => {
+  paths[type] = paths[type].reduce((res, mpath)=>{
     if(!path.isAbsolute(mpath)){
       mpath = path.join(serverPath, mpath);
     }
@@ -139,9 +139,9 @@ let clusters = {
       
       if(config.restartOnChange){
         let st;
-        clusters.startWatch(paths, config, () => {
+        clusters.startWatch(paths, config, ()=>{
           clearTimeout(st);
-          st = setTimeout(() => {
+          st = setTimeout(()=>{
             clusters.log.i('Many files changed, restart');
             clusters.restart();
           }, 1500);
@@ -149,12 +149,12 @@ let clusters = {
       }
     }
   },
-  init: (paths, config) => {
+  init: (paths, config)=>{
     clusters.paths = paths || [];
     clusters.config = config || {};
     clusters.inited = true;
 
-    process.on('exit', () => {
+    process.on('exit', ()=>{
       if(clusters.exitProcess){
         process.exit();
         return;
@@ -163,22 +163,22 @@ let clusters = {
       clusters.log.i('exit event', process.exitCode);
       clusters.exit();
     });
-    process.on('SIGINT', () => {
+    process.on('SIGINT', ()=>{
       clusters.log.i('SIGINT event', process.exitCode);
       clusters.exit();
     });
-    process.on('SIGTERM', () => {
+    process.on('SIGTERM', ()=>{
       clusters.log.i('SIGTERM event', process.exitCode);
       clusters.exit();
     });
     process.on('message', msg=>{
-      if (msg == 'shutdown') {
+      if(msg == 'shutdown'){
         clusters.log.i('process message shutdown');
         clusters.exit();
       }
     });
   },
-  add: (i) => {
+  add: (i)=>{
     if(!clusters.inited){
       throw 'Not inited';
     }
@@ -191,14 +191,14 @@ let clusters = {
     let pings = [];
 
     let server = cluster.fork(process.env);
-    server.on('online', () => {
+    server.on('online', ()=>{
       server.send({
         type: 'start',
         paths: clusters.paths,
         config: clusters.config
       });
     });
-    server.on('error', error => {
+    server.on('error', error=>{
       if(error && String(error).indexOf('channel closed') > -1){
         return;
       }
@@ -206,7 +206,7 @@ let clusters = {
       let pid = ((server||{}).process||{}).pid;
       clusters.log.e('server', pid, 'error', error);
     });
-    server.on('exit', (code, sig) => {
+    server.on('exit', (code, sig)=>{
       if(server.exitFlag || code == 1){
         clusters.log.i('worker', (server && server.process || {}).pid, 'killed at end');
         server = null;
@@ -220,7 +220,7 @@ let clusters = {
       clusters.rem(i);
       clusters.add(i);
     });
-    server.on('message', obj => {
+    server.on('message', obj=>{
       switch(obj.type){
       case 'log':
         clusters.log.add(obj.log);
@@ -246,7 +246,7 @@ let clusters = {
       obj = null;
     });
 
-    clusters.intervals.add((deleteInterval) => {
+    clusters.intervals.add((deleteInterval)=>{
       if(pings.length > 10){
         clusters.log.w('Pings length more that 10', server.process.pid);
         pings = [];
@@ -278,7 +278,7 @@ let clusters = {
     clusters.log.i('start worker process', server.process.pid);
     clusters.servers.push({n: i, srv: server});
   },
-  rem: n => {
+  rem: n=>{
     if(!clusters.inited){
       throw 'Not inited';
     }
@@ -296,11 +296,11 @@ let clusters = {
     }
   },
   size: () => clusters.servers.length,
-  startWatch: (paths, config, cbRestart) => {
+  startWatch: (paths, config, cbRestart)=>{
     let pathsToWatch = [].concat(paths.modules, paths.dals, paths.middleware, paths.i18n);
     pathsToWatch.forEach(function watchDir(pth){
       clusters.log.i('start watch - ', pth);
-      fs.watch(pth, (type, chFile) => {
+      fs.watch(pth, (type, chFile)=>{
         if(!chFile || chFile.indexOf('.log') != -1){
           return;
         }
@@ -315,18 +315,18 @@ let clusters = {
         cbRestart();
       });
 
-      fs.readdir(pth, (e, f) => {
+      fs.readdir(pth, (e, f)=>{
         if(e){
           clusters.log.e(e);
           return;
         }
 
-        f.forEach(f => {
+        f.forEach(f=>{
           if(f == 'node_modules' || f == '.git' || f == 'logs'){
             return;
           }
 
-          fs.stat(path.join(pth, f), (e, s) => {
+          fs.stat(path.join(pth, f), (e, s)=>{
             if(e){
               clusters.log.e(e);
               return;
@@ -341,14 +341,14 @@ let clusters = {
     });
   },
   intervals: {
-    si: setInterval(() => {
+    si: setInterval(()=>{
       if(!clusters)
       for(let i in clusters.intervals.funcs){
         if(!clusters.intervals.funcs.hasOwnProperty(i)){
           continue;
         }
 
-        clusters.intervals.funcs[i].f(() => {
+        clusters.intervals.funcs[i].f(()=>{
           clusters.intervals.del(clusters.intervals.funcs[i].key);
         });
       }
@@ -369,7 +369,7 @@ let clusters = {
       this.funcs.splice(ind, 1);
     }
   },
-  restart: () => {
+  restart: ()=>{
     if(!clusters.inited){
       throw 'Not inited';
     }
@@ -379,7 +379,7 @@ let clusters = {
       clusters.servers[i].srv.send({type: 'reload'});
     }
   },
-  exit: () => {
+  exit: ()=>{
     if(!clusters.inited){
       throw 'Not inited';
     }

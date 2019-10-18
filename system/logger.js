@@ -11,19 +11,19 @@ let colors = {
 
 let breaker = /^win/.test(process.platform) ? '' : '\n';
 let streams = {};
-exports.logger = (dir, debug, pingponglog) => {
+exports.logger = (dir, debug, pingponglog)=>{
   //console.log(dir);
 
   let logFile;
   if(process.send){
     logFile = {
-      write: (str) => {
+      write: (str)=>{
         process.send({
           type: 'log',
           log: str
         });
       },
-      close: () => {}
+      close: ()=>{}
     };
   }
   else if(streams[dir]){
@@ -33,7 +33,7 @@ exports.logger = (dir, debug, pingponglog) => {
     logFile = fs.createWriteStream(dir + '/logs.log');
   }
 
-  let write = (str) => {
+  let write = (str)=>{
     try{
       logFile.write(str);
       console.log(str);
@@ -43,7 +43,7 @@ exports.logger = (dir, debug, pingponglog) => {
     }
   };
 
-  let split = (obj, del) => {
+  let split = (obj, del)=>{
     let str = [];
     del = del || ' ';
     
@@ -70,7 +70,7 @@ exports.logger = (dir, debug, pingponglog) => {
     return str.join(del);
   };
 
-  let ND = (num, l) => {
+  let ND = (num, l)=>{
     num = String(num);
     l = l || 2;
     
@@ -81,14 +81,14 @@ exports.logger = (dir, debug, pingponglog) => {
     return num;
   };
 
-  let date = () => {
+  let date = ()=>{
     let d = new Date();
     return '[' + d.getFullYear() + '/' + ND(d.getMonth() + 1) + '/' + ND(d.getDate()) +
       '|' + ND(d.getHours()) + ':' + ND(d.getMinutes()) + ':' + ND(d.getSeconds()) + 
       '.' + ND(d.getMilliseconds(), 3) + '|' + (d.getTimezoneOffset() / 60) + ']';
   };
 
-  let getFileName = (stack, createPath, isModifed) => {
+  let getFileName = (stack, createPath, isModifed)=>{
     let file = stack.split('\n');
     if(!file[2]){
       return '???';
@@ -104,7 +104,7 @@ exports.logger = (dir, debug, pingponglog) => {
     return path.relative(createPath, fPath).replace(/(\.\.[\\/])+/, '');
   };
   return {
-    create: name => {
+    create: name=>{
       name = typeof name == 'string' ? name : '';
       let createPath = !name ? new Error().stack.split('\n')[2].match(/.*\((.*):\d+:\d+\)/)[1] : '';
       let log = {

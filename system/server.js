@@ -16,7 +16,7 @@ let serverStat = {
 
 process.on('uncaughtException', err => (defLog && defLog.c || console.error)(Date.now(), 'Caught exception:', err));
 
-exports.start = (paths, conf) => {
+exports.start = (paths, conf)=>{
   global.logger = logger.logger(conf.logPath, conf.debug, conf.pingponglog);
   defLog = global.logger.create('SRV');
 
@@ -52,11 +52,11 @@ exports.start = (paths, conf) => {
     console.log('exit event', process.exitCode, serverStat);
     graceful_shutdown();
   });
-  process.on('SIGINT', () => {
+  process.on('SIGINT', ()=>{
     defLog.i('SIGINT event', process.exitCode);
     graceful_shutdown(1);
   });
-  process.on('SIGTERM', () => {
+  process.on('SIGTERM', ()=>{
     defLog.ilog('SIGTERM event', process.exitCode);
     graceful_shutdown(1);
   });
@@ -84,7 +84,7 @@ function requestFunc(request, response){
   let module = init.getModule(requestObject.path);
   
   if(!module){
-    return init.serve(requestObject, (err, data) => {
+    return init.serve(requestObject, (err, data)=>{
       if(data){
         log.i(requestObject.ip, 'SERVE', requestObject.path);
         return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
@@ -112,9 +112,9 @@ function requestFunc(request, response){
 
   async.auto({
     post: cb => helpers.parsePost(requestObject, request, cb),
-    middleware: ['post', (res, cb) => {
+    middleware: ['post', (res, cb)=>{
       let middlewareTimeout = init.config.middlewareTimeout || module.meta.middlewareTimeout || 10;
-      init.middleware(requestObject, module.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers) => {
+      init.middleware(requestObject, module.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
         if(e){
           res.data = {error: e};
           res.code = code || 200;
@@ -126,21 +126,21 @@ function requestFunc(request, response){
         cb();
       }));
     }],
-    prerun: ['middleware', (res, cb) => {
+    prerun: ['middleware', (res, cb)=>{
       if(!module.meta.prerun || res.middleware){
         return cb();
       }
 
       module.meta.prerun(requestObject, module.meta, cb);
     }],
-    module: ['post', 'prerun', (res, cb) => {
+    module: ['post', 'prerun', (res, cb)=>{
       if(res.middleware){
         return cb();
       }
 
       let poolId = requestObject.params.poolingId || requestObject.post.poolingId;
       let withPool = requestObject.params.withPooling || requestObject.post.withPooling;
-      let next = helpers.timeout(init.config, module.meta, (e, data, code, headers, type) => {
+      let next = helpers.timeout(init.config, module.meta, (e, data, code, headers, type)=>{
         if(e){
           data = {error: e};
           code = code || 200;
@@ -177,7 +177,7 @@ function requestFunc(request, response){
         };
 
         next(null, init.pools[id]);//eslint-disable-line callback-return
-        next = (err, res) => {
+        next = (err, res)=>{
           init.pools[id] = err || res;
         };
       }
@@ -198,7 +198,7 @@ function requestFunc(request, response){
       cb();
     }]
   },
-  (err, res) => {
+  (err, res)=>{
     if(module.meta && module.meta.skipRequestLog !== true){
       log.i(
         requestObject.ip,
@@ -222,7 +222,7 @@ function requestFunc(request, response){
 }
 
 global.intervals = {
-  _si: setInterval(() => {
+  _si: setInterval(()=>{
     for(let i in global.intervals._funcs){
       if(!global.intervals._funcs.hasOwnProperty(i)){
         continue;
@@ -240,7 +240,7 @@ global.intervals = {
         continue;
       }
 
-      global.intervals._funcs[i].f(() => {
+      global.intervals._funcs[i].f(()=>{
         global.intervals.del(global.intervals._funcs[i].key);
       });
     }
@@ -327,7 +327,7 @@ function startPing(){
   startPing.started = true;
   defLog.d('start ping-pong with cluster');
 
-  global.intervals.add((deleteInterval) => {
+  global.intervals.add((deleteInterval)=>{
     if(serverStat.pings.length > 2){
       deleteInterval();
       defLog.c('cluster not answered');

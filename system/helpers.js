@@ -11,7 +11,7 @@ exports.i18n = {};
 
 let ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 let ID_LENGTH = 8;
-exports.generateId = () => {
+exports.generateId = ()=>{
   let rtn = '';
   for (let i = 0; i < ID_LENGTH; i++) {
     rtn += ALPHABET.charAt(Math.floor(Math.random() * ALPHABET.length));
@@ -19,7 +19,7 @@ exports.generateId = () => {
   return rtn;
 };
 
-exports.toJson = res => {
+exports.toJson = res=>{
   try{
     res.data = JSON.stringify(res.data);
     res.headers['Content-Type'] = 'application/json';
@@ -28,7 +28,7 @@ exports.toJson = res => {
   }
 };
 
-exports.clearObj = (obj, toRemove) => {
+exports.clearObj = (obj, toRemove)=>{
   if(!obj){
     return '{}';
   }
@@ -50,7 +50,7 @@ exports.clearObj = (obj, toRemove) => {
   }
 };
 
-exports.timeout = (config, meta, cb) => {
+exports.timeout = (config, meta, cb)=>{
   var called = false;
 
   global.intervals.add((del)=>{
@@ -61,7 +61,7 @@ exports.timeout = (config, meta, cb) => {
     }
   }, meta.timeout || config.timeout || 60);
 
-  return (...args) => {
+  return (...args)=>{
     if(called){
       log.e('request ended', args);
       return;
@@ -72,7 +72,7 @@ exports.timeout = (config, meta, cb) => {
   };
 };
 
-exports.auth = (module, request) => {
+exports.auth = (module, request)=>{
   if(module.auth/* || module.rights*/){
     let header = request.headers.authorization || '';
     let token = header.split(/\s+/).pop() || '';
@@ -96,7 +96,7 @@ exports.parsePost = function(reqObj, request, cb){
 
   let body = '';
 
-  request.on('data', data => {
+  request.on('data', data=>{
     body += data;
 
     if(body.length > 1e6){
@@ -105,7 +105,7 @@ exports.parsePost = function(reqObj, request, cb){
     }
   });
 
-  request.on('end', () => {
+  request.on('end', ()=>{
     try{
       reqObj.post = JSON.parse(body);
     }catch(e){
@@ -125,7 +125,7 @@ let regs = {
   num: /^\d*$/,
   bool: /^(true|false)$/
 };
-exports.isBoolean = val => {
+exports.isBoolean = val=>{
   if(String(val).toLowerCase().match(regs.bool)){
     return true;
   }
@@ -133,7 +133,7 @@ exports.isBoolean = val => {
   return false;
 };
 
-exports.JSV = (params, schema, envId) => {
+exports.JSV = (params, schema, envId)=>{
   var env = JSV.createEnvironment(envId);
   return env.validate(params, schema);
 };
@@ -330,7 +330,7 @@ let defaultRequestFuncs = {
     log.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
     delete exports.processLocks[this.id];
   },
-  getMethodsInfo: (showHidden) => {
+  getMethodsInfo: (showHidden)=>{
     return exports.infoApi.map(m=>{
       m = Object.assign(m);
       m.methods = m.methods.filter(m=>{
@@ -386,7 +386,7 @@ let defaultRequestFuncs = {
         continue;
       }
       tries.push(
-        new Promise((ok,fail) => {
+        new Promise((ok,fail)=>{
           try{
             if(!fs.statSync(path.join(this.config.view[i], file)).isFile()){
               log.d('Not file', path.join(this.config.view[i], file));
@@ -397,7 +397,7 @@ let defaultRequestFuncs = {
             return fail(e);
           }
 
-          fs.readFile(path.join(this.config.view[i], file), (err, res) => {
+          fs.readFile(path.join(this.config.view[i], file), (err, res)=>{
             if(err){
               log.d('read err', path.join(this.config.view[i], file), err);
               return fail(err);
@@ -409,7 +409,7 @@ let defaultRequestFuncs = {
     }
     Promise.race(tries)
       .then(result => cb(null, (result||'').toString()))
-      .catch(err => {
+      .catch(err=>{
         log.e(err);
         cb('Not found');
       });
@@ -441,7 +441,7 @@ let defaultRequestFuncs = {
     if(!logToFodify){
       throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
     }
-    return Object.keys(logToFodify).reduce((res, color) => {
+    return Object.keys(logToFodify).reduce((res, color)=>{
       color = color.toLowerCase();
       if(color == 'add'){
         return res;
@@ -452,7 +452,7 @@ let defaultRequestFuncs = {
       }
 
       let original = logToFodify[color];
-      res[color] = (...args) => {
+      res[color] = (...args)=>{
         args.unshift('[rID:' + this.id + ']');
         original.apply({logModifed: true}, args);
       };
@@ -470,7 +470,7 @@ let defaultRequestFuncs = {
       return cb('NO FILE', null, {err: e});
     }
 
-    fs.readFile(file, (err, res) => {
+    fs.readFile(file, (err, res)=>{
       if(err){
         return cb('BAD FILE', null, {err: err});
       }

@@ -2,7 +2,7 @@ let fs = require('fs');
 let path = require('path');
 let log = global.logger.create('DAL');
 
-exports.init = (paths, config) => {
+exports.init = (paths, config)=>{
   if(!config.useDals){
     return;
   }

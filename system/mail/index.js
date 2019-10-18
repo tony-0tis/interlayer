@@ -2,7 +2,7 @@ let fs = require('fs');
 let path = require('path');
 let log = global.logger.create('EMAILS');
 
-exports.init = (paths, config) => {
+exports.init = (paths, config)=>{
   if(!config.useEmailSenders || Object.keys(config.useEmailSenders) == 0){
     return;
   }

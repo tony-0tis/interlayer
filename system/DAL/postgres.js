@@ -5,7 +5,7 @@ let DAL = {
   connect: cb => cb('NO_CONNECTION')
 };
 
-exports.init = (config, dalConfig) => {
+exports.init = (config, dalConfig)=>{
   let conf = {
     host: '127.0.0.1',
     user: 'root'
@@ -24,7 +24,7 @@ exports.init = (config, dalConfig) => {
   }
 
   DAL = new pg.Pool(conf);
-  DAL.on('error', (err/*, client*/) => {
+  DAL.on('error', (err/*, client*/)=>{
     log.e('idle client error', err.message, err.stack);
   });
 };
@@ -39,10 +39,10 @@ for(let name in pg.prototype){
 }
 
 function wrapMethod(name){
-  exports.methods[name] = (...args) => {
+  exports.methods[name] = (...args)=>{
     let doneConn;
-    let originalCb = () => {};
-    let cb = (...resargs) => {
+    let originalCb = ()=>{};
+    let cb = (...resargs)=>{
       doneConn();
 
       originalCb(...resargs);
@@ -53,7 +53,7 @@ function wrapMethod(name){
       args[args.length -1] = cb;
     }
 
-    DAL.connect((err, connection, done) => {
+    DAL.connect((err, connection, done)=>{
       doneConn = done;
       
       if(err){

@@ -5,7 +5,7 @@ let connectionMethods = require('mysql/lib/Connection');
 let DAL = {
   getConnection: cb => cb('NO_CONNECTION')
 };
-exports.init = (config, dalConfig) => {
+exports.init = (config, dalConfig)=>{
   let conf = {
     host: '127.0.0.1',
     user: 'root'
@@ -37,8 +37,8 @@ for(let name in connectionMethods.prototype){
 function wrapMethod(name){
   exports.methods[name] = function(...args){
     let conn;
-    let originalCb = () => {};
-    let cb = (...resargs) => {
+    let originalCb = ()=>{};
+    let cb = (...resargs)=>{
       if(conn){
         conn.release();
       }
@@ -52,7 +52,7 @@ function wrapMethod(name){
       args[args.length -1] = cb;
     }
 
-    DAL.getConnection((err, connection) => {
+    DAL.getConnection((err, connection)=>{
       if(err){
         return cb(err);
       }
