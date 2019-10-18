@@ -148,6 +148,14 @@ function requestFunc(request, response){
           type = null;
         }
 
+        if(typeof data == 'object'){
+          try{
+            data = JSON.stringify(data);
+          }catch(e){
+            //
+          }
+        }
+
         res.data = data;
         res.code = code || 200;
         res.headers = headers || {};

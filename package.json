@@ -23,7 +23,8 @@
     "sinon": "^6.1.5"
   },
   "scripts": {
-    "test": "./run_tests.sh"
+    "test": "./run_tests.sh",
+    "_postinstall": "node postinstall.js"
   },
   "author": "A.I. Developer <npmdev@8ai.pw> (https://8ai.pw)",
   "license": "Apache-2.0",

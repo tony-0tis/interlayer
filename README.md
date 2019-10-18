@@ -9,9 +9,9 @@ Server current in alpha. You can offer/report new issue here: [New issue](https:
 
 Stable version of this server will be released after all tests and features would be released.
 
-##### !!! MAJOR UPDATE 0.3.0: I broke old initialization, please rewrite it's in your projects.
-##### !!! Important update 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Watch the new structure of return.
-##### !!! MAJOR UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
+##### !!! UPDATE 0.3.0: I broke old initialization, please rewrite it's in your projects.
+##### !!! UPDATE 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Watch the new structure of return.
+##### !!! UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
 
 ## Features
 * serve your files
@@ -69,7 +69,7 @@ Avaliable properties in `config` object or `config.json` file
 * `retryAter`: Time in seconds for Retry-After response header with server HTTP 503 status. Works until `instantShutdownDelay`. (Default: 10)
 
 
-### Experimental properties
+### Additional properties
 * `disableNagleAlgoritm`: Boolean flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm)
 
 ## How to use
@@ -98,7 +98,6 @@ Project tree example:
 
 ## Module creation
 Example of modules/myModule.js
-
 ```js
 // Define meta information for method by adding underscore symbol before the method name, required!
 exports._myMethod = {
@@ -106,33 +105,83 @@ exports._myMethod = {
 };
 // Define module itself with two params: request and cb. 
 exports.myMethod = (request, cb) => {
-    log.i('I am log without requestId')
+    log.i('I am log without requestId');
     cb(null, {ok: true});
 };
 ```
 
+### Module initialization
+These method for current module will be called when web server starts.
+```js
+// simpleContext -> {DAL: {...}}
+exports.__init = (simpleContext) => {
+    // do something, example some work with using simpleContext.DAL.redis.blpop
+};
+```
+Defenition of `simpleContext` [see here](https://github.com/aidevio/interlayer/blob/c350c45f21f5c02678e3314d23eed31e0cab0586/system/init.js#L440)
+
+Also in the `__init` might be useful to use:
+```js
+let fun = deleteInerval=>{
+    //dosomething
+    deleteInerval();
+};
+let interval = 1;
+// `fun` - function, required; `interval` - number in seconds, not required - 1 second default
+let key = global.intervals.add(fun, interval);
+//where `key` is identificator of delayed function, might me deleted by `global.intervals.del(key)`
+
+// if `deleteInerval` is not called, `fun` will be called each time after `interval`
+global.intervals.disable(key, true) // to disable starting of interval until you call global.intervals.disable(key, false)
+```
+
+### Module meta
+This specify meta's for all methods in this module:
+```js
+exports.__meta = {
+    toJson: true
+};
+```
+
+For the case, when you need to return content from the root of the module(ex: /mymodule) without method name you can use:
+```js
+exports.___meta = {
+    html: (request, cb)=>{}
+};
+```
+
+If you want to process method name manualy or implement `/go/myLink` functionality you can use:
+```js
+exports.___meta = {
+    find: (request, cb)=>{
+        //request.path to parse moduleId/methodId
+    }
+};
+```
+*Remember that priority in processing a method name will be over explicitly spelled method names*
+
 ### Features
 **Logging:**
 ```js
-let log = global.logger.create('moduleID')
-log.i() // Usual log - displayed in green
-log.w() // Warn - displayed in yellow
-log.e() // Error - displayed in red
-log.c() // Critical error - displayed in white
+let log = global.logger.create('moduleID');
+log.i(); // Usual log - displayed in green
+log.w(); // Warn - displayed in yellow
+log.e(); // Error - displayed in red
+log.c(); // Critical error - displayed in white
 ```
 
 Note that this type of logging don't allow to track the request id.
-To have ability track the request id use the `request.modifyLog`:
+To have ability track the request id use the `request.modifyLog` method:
 ```js
-let log = global.logger.create('moduleID')
+let log = global.logger.create('moduleID');
 exports.myMethod = (request, cb)=>{
     let log = request.modifyLog(log);
 }
 ```
 
-Or use the `request.log` instead, if 'moduleID' not required.
+Or use the `request.log` instead, if 'moduleID'(identifier specified in `global.logger.create` function) not required.
 ```js
-let log = global.logger.create('moduleID')
+let log = global.logger.create('moduleID');
 exports.myMethod = (request, cb)=>{
     let log = request.log;
 }
@@ -140,7 +189,7 @@ exports.myMethod = (request, cb)=>{
 
 **Method meta**
 ```js
-// Meta is required and specified by adding underscore symbol before the method name
+// Meta is REQUIRED  and specified by adding underscore symbol before the method name
 exports._myMethod = {
     toJson: true
 };
@@ -156,41 +205,10 @@ Meta's:
 * `skipRequestLog: true;`: Boolean value which define is method call must be skipped in console log.Default: not defined.
 * `prerun: (request, moduleMeta, cb) => {}`: Function or link to function which will be runned before method. May be usefull for preparing request. Default: not defined.
 * `hidden: true`: Boolean value which used to hide method in return of request.getMethodsInfo(), but ignored if method request.getMethodsInfo calls with first boolead param true. Be carefull, cause this method also return methods meta info. Default: not defined.
-* `disableNagleAlgoritm: true`: Boolead value, experimetal, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method. Default: not defined.
+* `disableNagleAlgoritm: true`: Boolead value, which disable or enable Nagle algorytm, redefine `config.disableNagleAlgoritm` value for current module\method. Default: not defined.
 
-If you need specify meta's for all methods in this module use:
-```js
-exports.__meta = {
-    toJson: true
-};
-```
 
-**Module initialization**
-These method for current module will be called when web server starts.
-```js
-// simpleContext -> {DAL: {...}}
-exports.__init = (simpleContext) => {
-    // do something, example some work with using simpleContext.DAL.redis.blpop
-};
-```
-Defenition of `simpleContext` [see here](https://github.com/aidevio/interlayer/blob/c350c45f21f5c02678e3314d23eed31e0cab0586/system/init.js#L440)
-
-Also might be useful to use
-```js
-// `fun` - function, required; `interval` - number in seconds, not required
-let key = global.intervals.add(fun, interval);
-//where `key` is identificator of delayed function, might me deleted by `global.intervals.del(key)`
-// `fun` is function with callback:
-//>> (deleteInerval)=>{
-//>>    //dosomething
-//>>    deleteInerval();
-//>> }
-
-// if `deleteInerval` is not called, `fun` will be called each time after `interval` or 1 second if `interval` is not specified
-global.intervals.disable(key, true) // to disable starting of interval until you call global.intervals.disable(key, false)
-```
-
-**Method parametrs**
+**Method request parameters**
 ```js
 exports._myMethod = {};
 // @request@ is an object provides information and methods for working with data's, file's, mail's and other.
@@ -202,27 +220,41 @@ exports.myMethod = (request, callback) => {
 ```
 
 **`request` properties**
+* `request.config` - An object of configuration specified at start of server
 * `request.ip` - Client ip adress
+* `request.url` - Request url
+* `request.path` - Request path(module/method)
 * `request.method` - Uppercased type of request - POST|GET|...
 * `request.isPost` - true|false
 * `request.params` - An object of parsed GET params
 * `request.post` - An object of parsed POST params
 * `request.cookies` - An object of parsed cookies
 * `request.headers` - An object of request headers
-* `request.config` - An object of configuration specified at start of server
 * `request.DAL` - An object with DALs, which was initialized by `config.useDals`
 * `request.mail` - An object with mail senders, which was initialized by `config.useEmails`. 
+* `request.id` - requestID
+* `request.log` - The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID)
+
 
 **`request` methods**
 * `request.modifyLog(log)` - modify log instance by add to top of logged arguments additional request information, but `request.log.i()` can be used instead.
 * `request.getView('file.html', cb)` - return file data in `cb` (from one of folders specified in `config.views`).
-* `request.getViewSync('file')` - sync version of getView. return file(from one of folders specified in `config.views`) content or *null* if file not found.
+* `request.getViewSync('file.html')` - sync version of getView. return file(from one of folders specified in `config.views`) content or *null* if file not found.
+* `request.getFile('file.mp3', cb)` - return file as is with third cb argument with Content-Type
 * `request.addCookies(key, value)` - set cookies to response (alias: addCookie,setCookie,setCookies).
 * `request.rmCookies(key)` - delete cookies of expire cookies in responce (alias: rmCookie,delCookie).
 * `request.l18n(key, def)` - return localized string(folder with localization must be defined in `config.i18n = []`). In key not found, returns `def`.
 * `request.getMethodsInfo()` - return an array of defined methods except hiddened by flag `hidden`. If called with 1-st param `true` return hidden methods. This method can be helpful for return api information.
 * `request.lockShutdown(ms)` - lock instant process shutdown by request for 10 000 ms or for `ms` ms, delay instant shutdown for application setted to 1500 ms(or see `config.instantShutdownDelay`)
 * `request.unlockShutdown()` - again allow instant process shutdown
+* `request.error(text)` - 503 http code with `text` error return when `config.debug` == true
+
+**`request.helpers`** methods
+* `request.helpers.generateId()` - geneate 8-character identifier(a-zA-Z0-9)
+* `request.helpers.clearObj(obj, toRemove)` - delete parameters of `obj` from `toRemove` array of strings
+* `request.helpers.isBoolean(val)` - check is `val` string is Boolean(true|false)
+* `request.helpers.JSV(json, schema, envId)` - https://www.npmjs.com/package/JSV. Create environment with `envId` and call `validate` with `json` and `schema`
+* `request.helpers.mime(file, fallback)` - return mime type by file extension or `fallback` or 'application/octet-stream'
 
 **Manual responses**
 * `request.getResponse()` - this method return unchanged response instance.
@@ -234,10 +266,10 @@ exports.myMethod = (request, callback) => {
  * *type* only makes sense in the value `bin` - for binary response
 
 And finally consider method callback
-*exports.myMethod = (request, **cb**)*
+*exports.myMethod = (request, **cb**)=>{}*
 ```js
 cb(error, data, responseCode, responseHeaders, type)
-//- err - may be error instance or string, number, array, object
+//- error - may be error instance or string, number, array, object
 //- data - responce, may be string, number, array, object, buffer
 //- responseCode - is HTTP status code
 //- responseHeaders - manual headers for response

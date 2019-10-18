@@ -139,7 +139,7 @@ let DAL = {
     return lazy;
   },
   _checkConnections: () => {
-    DAL.opened = DAL.opened.reduce((res, conn) =>{
+    let actualizeConnections = (res, conn)=>{
       if(Date.now() - conn.lastOpened > 14400000){
         conn.redis.quit();
         delete conn.redis;
@@ -150,19 +150,9 @@ let DAL = {
       }
 
       return res;
-    }, []);
-
-    DAL.connections = DAL.connections.reduce((res, conn) => {
-      if(Date.now() - conn.lastOpened > 14400000){
-        conn.redis.quit();
-        delete conn.redis;
-        conn = null;
-      }
-      else{
-        res.push(conn);
-      }
-      return res;
-    }, []);
+    };
+    DAL.opened = DAL.opened.reduce(actualizeConnections, []);
+    DAL.connections = DAL.connections.reduce(actualizeConnections, []);
   },
   _closeConnection: (id) => {
     let sid;

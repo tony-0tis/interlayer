@@ -33,9 +33,28 @@ exports.pools = {};
 exports.config = {};
 exports.paths = {};
 
-exports.getModule = module => modules[module] || modules[module.replace(/\/$/, '').replace(/^\//, '')];
+exports.getModule = module=>{
+  if(modules[module]){
+    return modules[module];
+  }
 
-exports.reconstructRequest = (request, response) => {
+  module = module.replace(/\/$/, '').replace(/^\//, '');
+
+  if(modules[module]){
+    return modules[module];
+  }
+
+  let subs = module.split('/');
+  if(subs.length > 1){
+    if(modules[subs[0] + '/*']){
+      return modules[subs[0] + '/*'];
+    }
+  }
+
+  return false;
+};
+
+exports.reconstructRequest = (request, response)=>{
   let requestObject = {
     config: exports.config,
     DAL: DAL_connections,
@@ -71,13 +90,13 @@ exports.reconstructRequest = (request, response) => {
   }
 
   if(requestObject.headers.cookie){
-    requestObject.headers.cookie.split(';').forEach(cookie => {
+    requestObject.headers.cookie.split(';').forEach(cookie=>{
       let parts = cookie.split('=');
       requestObject.cookies[parts.shift().trim()] = decodeURI(parts.join('='));
     });
   }
 
-  Object.keys(helpers.defaultRequestFuncs).map(k => {
+  Object.keys(helpers.defaultRequestFuncs).forEach(k=>{
     requestObject[k] = helpers.defaultRequestFuncs[k];
   });
 
@@ -88,7 +107,7 @@ exports.reconstructRequest = (request, response) => {
   let originalResposeEnd;
   requestObject.lockShutdown();
 
-  requestObject.getResponse = () => {
+  requestObject.getResponse = ()=>{
     originalResposeEnd = response.end;
     response.end = function(...args){
       requestObject.unlockShutdown();
@@ -114,9 +133,9 @@ exports.reconstructRequest = (request, response) => {
     return response;
   };
 
-  requestObject.getRequest = () => request;
+  requestObject.getRequest = ()=>request;
 
-  requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text') => {
+  requestObject.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text')=>{
     requestObject.unlockShutdown();
     if(!requestObject || requestObject.ended){
       requestObject = undefined;
@@ -188,7 +207,7 @@ exports.reconstructRequest = (request, response) => {
     clearRequest();
   };
 
-  var clearRequest = () => {
+  var clearRequest = ()=>{
     if(requestObject){
       //objects
       delete requestObject.config;
@@ -202,7 +221,7 @@ exports.reconstructRequest = (request, response) => {
       delete requestObject.end;
 
       // default functions
-      Object.keys(helpers.defaultRequestFuncs).map(k => {
+      Object.keys(helpers.defaultRequestFuncs).forEach(k=>{
         delete requestObject[k];
       });
     }
@@ -222,28 +241,28 @@ exports.reconstructRequest = (request, response) => {
   return requestObject;
 };
 
-exports.middleware = (request, moduleMeta, cb) => {
+exports.middleware = (request, moduleMeta, cb)=>{
   if(!middlewares.length){
     return cb();
   }
 
   let count = 0;
   async.whilst(
-    () => {
-      return count < middlewares.length;
-    },
-    (cb) => {
+    ()=>count < middlewares.length,
+    cb=>{
       let middleware = middlewares[count];
       count++;
+      
       if(middleware.triggers['*']){
         middleware.triggers['*'](request, moduleMeta, cb);
         return;
       }
 
-      let funcs = Object.keys(middleware.triggers).reduce((res, trigger) => {
+      let funcs = Object.keys(middleware.triggers).reduce((res, trigger)=>{
         let run = false;
         let isMeta = trigger.match(/^meta\./);
         let isRequest = trigger.match(/^request\./);
+        
         if(isMeta || isRequest){
           let p = trigger.split('.').splice(1);
           let path = isMeta ? moduleMeta : request;
@@ -251,6 +270,7 @@ exports.middleware = (request, moduleMeta, cb) => {
             if(!p.hasOwnProperty(i)){
               continue;
             }
+            
             if(path[p[i]]){
               path = path[p[i]];
               run = true;
@@ -261,9 +281,11 @@ exports.middleware = (request, moduleMeta, cb) => {
             }
           }
         }
+        
         if(run){
           res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
         }
+        
         return res;
       }, []);
       async.series(funcs, cb);
@@ -272,32 +294,48 @@ exports.middleware = (request, moduleMeta, cb) => {
   );
 };
 
-exports.serve = (request, cb) => {
+exports.serve = (request, cb)=>{
   if(!serve){
     return cb();
   }
 
-  log.d('Try to serve', request.path);
+  log.i('Try to serve', request.path);
   let paths = [...serve];
   let done = false;
   async.whilst(
-    () => !done,
-    (cb) => {
+    ()=>!done,
+    cb=>{
       if(paths.length == 0){
         done = true;
         return cb();
       }
+
       let p = paths.shift();
       log.d('check path', p);
+      
       if(!p){
         return cb();
       }
-      if(fs.lstatSync(pathMod.join(p, request.path)).isDirectory()){
+      
+      let stat;
+      try{
+        stat = fs.lstatSync(pathMod.join(p, request.path));
+      }catch(e){
+        log.e('No requested file', pathMod.join(p, request.path));
+        return cb();
+      }
+
+      if(stat && stat.isDirectory()){
+        if (['\\', '/'].indexOf(request.path.slice(-1)) == -1){
+          request.path += '/';
+        }
+        
         request.path += 'index.html';
       }
-      request.getFile(pathMod.join(p, request.path), (err, res, headers) => {
+      
+      request.getFile(pathMod.join(p, request.path), (err, res, headers)=>{
         if(err){
-          log.d(pathMod.join(p, request.path), err, res, headers);
+          log.i(pathMod.join(p, request.path), err, res, headers);
           return cb();
         }
 
@@ -305,7 +343,7 @@ exports.serve = (request, cb) => {
         cb(null, [res, headers]);
       });
     },
-    (err, res) => {
+    (err, res)=>{
       if(err){
         return cb(err);
       }
@@ -320,24 +358,24 @@ exports.serve = (request, cb) => {
 };
 
 // ### INITS
-exports.initServe = () => {
+exports.initServe = ()=>{
   if(exports.paths.serve && exports.paths.serve.length){
     serve = exports.paths.serve;
     log.i('Server start serve dirs', serve);
   }
 };
 
-exports.initDALs = () => {
+exports.initDALs = ()=>{
   DAL_connections = DAL.init(exports.paths, exports.config);
   return DAL_connections;
 };
 
-exports.initModules = () => {
+exports.initModules = ()=>{
   let inits = {};
-  exports.paths.modules.forEach(path => {
+  exports.paths.modules.forEach(path=>{
     let pathModules = fs.readdirSync(path);
 
-    let getUrl = (moduleName, methodName, module, meta) => {
+    let getUrl = (moduleName, methodName, module, meta)=>{
       if(module.addToRoot || meta.addToRoot){
         return methodName;
       }
@@ -384,7 +422,14 @@ exports.initModules = () => {
               meta: module.__meta
             };
           }
+          if(module.__meta.find){
+            modules[moduleName + '/*'] = {
+              func: module.__meta.find,
+              meta: module.__meta
+            };
+          }
         }
+
         let moduleApi = Object.assign({name: moduleName}, module.__meta, {methods: []});
         for(let m in module){
           if(m.indexOf('__') === 0){
@@ -432,9 +477,11 @@ exports.initModules = () => {
             }
           }
         }
+
         if(moduleApi.methods.length){
           helpers.infoApi.push(moduleApi);
         }
+
         module = null;
       }
       catch(err){
@@ -452,7 +499,7 @@ exports.initModules = () => {
     config: exports.config,
   };
 
-  Object.keys(helpers.defaultRequestFuncs).map(k => {
+  Object.keys(helpers.defaultRequestFuncs).forEach(k=>{
     context[k] = helpers.defaultRequestFuncs[k];
   });
 
@@ -469,9 +516,9 @@ exports.initModules = () => {
   }
 };
 
-exports.initMiddlewares = () => {
+exports.initMiddlewares = ()=>{
   let inits = {};
-  exports.paths.middleware.forEach(path => {
+  exports.paths.middleware.forEach(path=>{
     let pathMiddleware = fs.readdirSync(path);
 
     for(let file of pathMiddleware){
@@ -510,7 +557,7 @@ exports.initMiddlewares = () => {
             continue;
           }
 
-          middlewareObject.triggers = middleware.triggers.reduce((res, cur) => {
+          middlewareObject.triggers = middleware.triggers.reduce((res, cur)=>{
             res[cur] = middleware.run;
             return res;
           }, {});
@@ -571,8 +618,8 @@ exports.initMiddlewares = () => {
   }
 };
 
-exports.initI18n = () => {
-  exports.paths.i18n.forEach(path => {
+exports.initI18n = ()=>{
+  exports.paths.i18n.forEach(path=>{
     let pathI18n = fs.readdirSync(path);
 
     for(let file of pathI18n){
@@ -599,6 +646,6 @@ exports.initI18n = () => {
   });
 };
 
-exports.initEmailSenders = () => {
+exports.initEmailSenders = ()=>{
   emailSenders = Emails.init(exports.paths, exports.config);
 };
