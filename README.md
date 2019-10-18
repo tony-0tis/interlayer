@@ -304,7 +304,7 @@ request.mail.sparkpost.client -> https://www.npmjs.com/package/sparkpost
 
 
 ## Create dal
-Example of dals/nameofdal.js
+Example of `dals/nameofdal.js`
 Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = {nameofdal: {...config}};`)
 ```js
 // init is not required
@@ -320,7 +320,7 @@ exports.methods = {
 ```
 
 ## Create email sender
-Example of emailSenders/nameofsender.js
+Example of `emailSenders/nameofsender.js`
 Then you can add `nameofsender` to `config.useEmailSenders` array (ex: `config.useEmailSenders = {nameofsender: {...config}};`)
 ```js
 // init is required
@@ -336,7 +336,7 @@ exports.send = (email, cb)=>{
 
 
 ## Create middleware
-Example of middleware/session.js
+Example of `middleware/session.js`
 ```js
 
 exports.triggers = {
