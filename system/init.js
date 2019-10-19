@@ -171,12 +171,7 @@ exports.reconstructRequest = (request, response)=>{
         text = '';
       }
 
-      if(typeof text == 'undefined' || typeof text == 'object' && text === null){
-        headers['Content-Length'] = Buffer.from(String(text)).length;
-      }
-      else{
-        headers['Content-Length'] = Buffer.from(text).length;
-      }
+      headers['Content-Length'] = Buffer.from(text).length;
 
       if(requestObject.jsonpCallback){
         if(headers['Content-Type'] == 'application/json' || asObject){
