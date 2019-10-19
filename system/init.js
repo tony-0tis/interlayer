@@ -150,18 +150,33 @@ exports.reconstructRequest = (request, response)=>{
     }
 
     if(type == 'bin'){
-      headers['Content-Length'] = Buffer.from(text, 'binary').length;
+      text = Buffer.from(text, 'binary');
+      headers['Content-Length'] = text.length;
     }
     else{
-      if(requestObject.jsonpCallback){
-        if(headers['Content-Type'] == 'application/json' || typeof text == 'object' && res.data instanceof Buffer != true){
-          if(typeof text == 'object'){
-            try{
-              text = JSON.stringify(text);
-            }catch(e){}
-          }
+      let asObject = false;
+      if(typeof text == 'object' && res.data instanceof Buffer != true && text !== null){
+        try{
+          text = JSON.stringify(text);
+        }catch(e){}
+      }
+      if(typeof text == 'function' || typeof text == 'boolean'){
+        text = text.toString();
+        asObject = true;
+      }
+      if(typeof text == 'undefined' || typeof text == 'object' && text === null){
+        asObject = true;
+      }
+      if(typeof text == 'number'){
+        text = text.toString();
+      }
+      if(typeof text == 'symbol'){
+        text = '';
+      }
 
-          text = `${requestObject.jsonpCallback}('${text}');`;
+      if(requestObject.jsonpCallback){
+        if(headers['Content-Type'] == 'application/json' || asObject){
+          text = `${requestObject.jsonpCallback}(${text});`;
         }
         else{
           text = `${requestObject.jsonpCallback}("${text}");`;

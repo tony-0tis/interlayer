@@ -190,9 +190,6 @@ function requestFunc(request, response){
       if(moduleInf.meta.toJson || moduleInf.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
         helpers.toJson(res);
       }
-      else if(typeof res.data == 'object' && res.data instanceof Buffer != true){
-        helpers.toJson(res);
-      }
 
       cb();
     }]
