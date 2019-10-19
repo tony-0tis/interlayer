@@ -248,7 +248,7 @@ exports.middleware = (request, moduleMeta, cb)=>{
 
   let count = 0;
   async.whilst(
-    ()=>count < middlewares.length,
+    cb=>cb(null, count < middlewares.length),
     cb=>{
       let middleware = middlewares[count];
       count++;
@@ -303,7 +303,7 @@ exports.serve = (request, cb)=>{
   let paths = [...serve];
   let done = false;
   async.whilst(
-    ()=>!done,
+    cb=>cb(null, !done),
     cb=>{
       if(paths.length == 0){
         done = true;
