@@ -155,7 +155,7 @@ exports.reconstructRequest = (request, response)=>{
     }
     else{
       let asObject = false;
-      if(typeof text == 'object' && res.data instanceof Buffer != true && text !== null){
+      if(typeof text == 'object' && text instanceof Buffer != true && text !== null){
         try{
           text = JSON.stringify(text);
         }catch(e){}
