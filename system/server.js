@@ -148,14 +148,6 @@ function requestFunc(request, response){
           type = null;
         }
 
-        if(typeof data == 'object'){
-          try{
-            data = JSON.stringify(data);
-          }catch(e){
-            //
-          }
-        }
-
         res.data = data;
         res.code = code || 200;
         res.headers = headers || {};
@@ -191,7 +183,14 @@ function requestFunc(request, response){
       }
     }],
     json: ['module', (res, cb) =>{
+      if(res.type == 'bin'){
+        return cb();
+      }
+
       if(moduleInf.meta.toJson || moduleInf.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
+        helpers.toJson(res);
+      }
+      else if(typeof res.data == 'object' && res.data instanceof Buffer != true){
         helpers.toJson(res);
       }
 

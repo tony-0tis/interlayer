@@ -153,14 +153,18 @@ exports.reconstructRequest = (request, response)=>{
       headers['Content-Length'] = Buffer.from(text, 'binary').length;
     }
     else{
-      text = text.toString().replace(new RegExp('%\\$.*%', 'g'), '');
-
       if(requestObject.jsonpCallback){
-        if(headers['Content-Type'] == 'application/json'){
-          text = requestObject.jsonpCallback + '(\'' + text + '\');';
+        if(headers['Content-Type'] == 'application/json' || typeof text == 'object' && res.data instanceof Buffer != true){
+          if(typeof text == 'object'){
+            try{
+              text = JSON.stringify(text);
+            }catch(e){}
+          }
+
+          text = `${requestObject.jsonpCallback}('${text}');`;
         }
         else{
-          text = requestObject.jsonpCallback + '("' + text + '");';
+          text = `${requestObject.jsonpCallback}("${text}");`;
         }
       }
 
