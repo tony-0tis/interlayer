@@ -308,7 +308,8 @@ exports.mimeTypes  = {
   '.xslt': 'application/xslt+xml',
   '.yaml': 'text/yaml',
   '.yml': 'text/yaml',
-  '.zip': 'application/zip'
+  '.zip': 'application/zip',
+  '.webp': 'image/webp'
 };
 exports.processLocks = {};
 let defaultRequestFuncs = {

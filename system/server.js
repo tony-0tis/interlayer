@@ -81,13 +81,13 @@ function requestFunc(request, response){
   let log = requestObject.modifyLog(defLog);
   let reqStart = Date.now();
   
-  let module = init.getModule(requestObject.path);
+  let moduleInf = init.getModule(requestObject.path);
   
-  if(!module){
-    return init.serve(requestObject, (err, data)=>{
+  if(!moduleInf){
+    return init.serve(requestObject, (err, data, code, headers)=>{
       if(data){
         log.i(requestObject.ip, 'SERVE', requestObject.path);
-        return requestObject.end(data, 200, {'Content-Type': helpers.mime(requestObject.path)});
+        return requestObject.end(data, code, headers, 'bin');
       }
 
       log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'));
@@ -96,25 +96,25 @@ function requestFunc(request, response){
   }
 
   let disableNagleAlgoritm = false;
-  if(init.config.disableNagleAlgoritm == true || module.meta.disableNagleAlgoritm == true){
+  if(init.config.disableNagleAlgoritm == true || moduleInf.meta.disableNagleAlgoritm == true){
     disableNagleAlgoritm = true;
   }
-  if(module.meta.disableNagleAlgoritm == false){
+  if(moduleInf.meta.disableNagleAlgoritm == false){
     disableNagleAlgoritm = false;
   }
   if(disableNagleAlgoritm == true){
     request.socket.setNoDelay(); // Disable Nagle's algorytm
   }
 
-  /*if(!helpers.auth(module.meta, requestObject)){
+  /*if(!helpers.auth(moduleInf.meta, requestObject)){
     return requestObject.end('Access denied', 401, {'WWW-Authenticate': 'Basic realm="example"'});
   }*/ // not working yet
 
   async.auto({
     post: cb => helpers.parsePost(requestObject, request, cb),
     middleware: ['post', (res, cb)=>{
-      let middlewareTimeout = init.config.middlewareTimeout || module.meta.middlewareTimeout || 10;
-      init.middleware(requestObject, module.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
+      let middlewareTimeout = init.config.middlewareTimeout || moduleInf.meta.middlewareTimeout || 10;
+      init.middleware(requestObject, moduleInf.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
         if(e){
           res.data = {error: e};
           res.code = code || 200;
@@ -127,11 +127,11 @@ function requestFunc(request, response){
       }));
     }],
     prerun: ['middleware', (res, cb)=>{
-      if(!module.meta.prerun || res.middleware){
+      if(!moduleInf.meta.prerun || res.middleware){
         return cb();
       }
 
-      module.meta.prerun(requestObject, module.meta, cb);
+      moduleInf.meta.prerun(requestObject, moduleInf.meta, cb);
     }],
     module: ['post', 'prerun', (res, cb)=>{
       if(res.middleware){
@@ -140,7 +140,7 @@ function requestFunc(request, response){
 
       let poolId = requestObject.params.poolingId || requestObject.post.poolingId;
       let withPool = requestObject.params.withPooling || requestObject.post.withPooling;
-      let next = helpers.timeout(init.config, module.meta, (e, data, code, headers, type)=>{
+      let next = helpers.timeout(init.config, moduleInf.meta, (e, data, code, headers, type)=>{
         if(e){
           data = {error: e};
           code = code || 200;
@@ -183,7 +183,7 @@ function requestFunc(request, response){
       }
 
       try{
-        return module.func(requestObject, next);
+        return moduleInf.func(requestObject, next);
       }
       catch(e){
         log.e(e);
@@ -191,7 +191,7 @@ function requestFunc(request, response){
       }
     }],
     json: ['module', (res, cb) =>{
-      if(module.meta.toJson || module.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
+      if(moduleInf.meta.toJson || moduleInf.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
         helpers.toJson(res);
       }
 
@@ -199,7 +199,7 @@ function requestFunc(request, response){
     }]
   },
   (err, res)=>{
-    if(module.meta && module.meta.skipRequestLog !== true){
+    if(moduleInf.meta && moduleInf.meta.skipRequestLog !== true){
       log.i(
         requestObject.ip,
         'REQ: ' + requestObject.path,
