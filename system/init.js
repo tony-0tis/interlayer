@@ -145,10 +145,6 @@ exports.reconstructRequest = (request, response)=>{
 
     requestObject.ended = true;
 
-    if(!text){
-      code = 204;
-    }
-
     if(type == 'bin'){
       text = Buffer.from(text, 'binary');
       headers['Content-Length'] = text.length;
@@ -160,18 +156,26 @@ exports.reconstructRequest = (request, response)=>{
           text = JSON.stringify(text);
         }catch(e){}
       }
-      if(typeof text == 'function' || typeof text == 'boolean'){
+      else if(typeof text == 'function' || typeof text == 'boolean'){
         text = text.toString();
         asObject = true;
       }
-      if(typeof text == 'undefined' || typeof text == 'object' && text === null){
+      else if(typeof text == 'undefined' || typeof text == 'object' && text === null){
+        text = String(text);
         asObject = true;
       }
-      if(typeof text == 'number'){
+      else if(typeof text == 'number'){
         text = text.toString();
       }
-      if(typeof text == 'symbol'){
+      else if(typeof text == 'symbol'){
         text = '';
+      }
+
+      if(typeof text == 'undefined' || typeof text == 'object' && text === null){
+        headers['Content-Length'] = Buffer.from(String(text)).length;
+      }
+      else{
+        headers['Content-Length'] = Buffer.from(text).length;
       }
 
       if(requestObject.jsonpCallback){
@@ -182,8 +186,6 @@ exports.reconstructRequest = (request, response)=>{
           text = `${requestObject.jsonpCallback}("${text}");`;
         }
       }
-
-      headers['Content-Length'] = Buffer.from(text).length;
     }
 
     if(exports.config.defaultHeaders){
@@ -210,6 +212,10 @@ exports.reconstructRequest = (request, response)=>{
       }
       
       headers['Set-Cookie'] = cookies;
+    }
+
+    if(!text){
+      code = 204;
     }
 
     response.writeHead(code, headers);

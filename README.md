@@ -12,7 +12,7 @@ Stable version of this server will be released after all tests and features woul
 ##### !!! UPDATE 0.3.0: I broke old initialization, please rewrite it's in your projects.
 ##### !!! UPDATE 0.3.17: request.getMethodsInfo function now return methods info with a division into modules. Watch the new structure of return.
 ##### !!! UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
-##### !!! UPDATE 0.5.0 && 0.5.1: Fix returning of JSON objects, buffers, numbers, booleans, nulls, functions, undefined, symbols. This version could broke your code.
+##### !!! UPDATE 0.5.0 - 0.6.0: Fix returning of JSON objects, buffers, numbers, booleans, nulls, functions, undefined, symbols. This version could broke your code.
 
 ## Features
 - serve your files
