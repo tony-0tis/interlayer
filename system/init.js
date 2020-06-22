@@ -123,7 +123,7 @@ exports.reconstructRequest = (request, response)=>{
       requestObject.ended = true;
       response.end = originalResposeEnd;
       originalResposeEnd = undefined;
-      response.end(args);
+      response.end(...args);
       delete response.end;
 
       clearRequest();
