@@ -6,12 +6,13 @@ let server = require('./server.js');
 
 module.exports = function(config = {}){
   let paths = {};
-  let serverPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^(]*\(([^)]+)\)/)[1]);
+  let initPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^(]*\(([^)]+)\)/)[1]);
+  console.log('initPath', initPath);
 
   if(typeof config == 'string'){
     try{
       if(!path.isAbsolute(config)){
-        config = path.join(serverPath, config);
+        config = path.join(initPath, config);
       }
 
       config = JSON.parse(fs.readFileSync(config));
@@ -31,33 +32,33 @@ module.exports = function(config = {}){
         throw 'config.path must be directory';
       }
 
-      serverPath = config.path;
+      initPath = config.path;
     }
     catch(e){
       throw config.path + 'is not created: ' + e;
     }
   }
 
-  paths.serverPath = serverPath;
+  paths.initPath = initPath;
 
   if(!config.logPath){
-    config.logPath = serverPath;
+    config.logPath = initPath;
   }
   else if(!path.isAbsolute(config.logPath)){
-    config.logPath = path.join(serverPath, config.logPath);
+    config.logPath = path.join(initPath, config.logPath);
   }
 
   // Modules
-  checkPath(paths, serverPath, config, 'modules', 'modules');
+  checkPath(paths, initPath, config, 'modules', 'modules');
   
   // Views
-  checkPath(paths, serverPath, config, 'views', 'files');
+  checkPath(paths, initPath, config, 'views', 'files');
 
   // I18n
-  checkPath(paths, serverPath, config, 'i18n', 'i18n');
+  checkPath(paths, initPath, config, 'i18n', 'i18n');
 
   // Dals
-  checkPath(paths, serverPath, config, 'dals');
+  checkPath(paths, initPath, config, 'dals');
   if(!config.useDals || !Object.keys(config.useDals).length){
     if(!config.skipDbWarning){
       console.log('config.useDals not defined, no one database will be included');
@@ -65,15 +66,15 @@ module.exports = function(config = {}){
   }
 
   // Middleware
-  checkPath(paths, serverPath, config, 'middleware');
+  checkPath(paths, initPath, config, 'middleware');
 
   // Email
-  checkPath(paths, serverPath, config, 'emailSenders');
+  checkPath(paths, initPath, config, 'emailSenders');
 
   // Serve
-  checkPath(paths, serverPath, config, 'serve');
+  checkPath(paths, initPath, config, 'serve');
   
-  process.chdir(serverPath);
+  process.chdir(initPath);
 
   setTimeout(()=>{
     clusters.start(paths, config);
@@ -404,3 +405,194 @@ let clusters = {
     }, 50);
   }
 };
+
+module.exports.server = ()=>{
+  let initPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^(]*\(([^)]+)\)/)[1]);
+  let config = {
+    path: initPath,
+    logPath: initPath,
+    port: 8080,
+    workers: 1,
+    secure: null,
+    timeout: 60,
+    middlewareTimeout: 10,
+    useDals: {},
+    useEmailSenders: {},
+    defaultHeaders: {},
+    restartOnChange: false,
+    skipDbWarning: false,
+    debug: false,
+    disableNagleAlgoritm: false,
+    instantShutdownDelay: 1500,
+    retryAter: 10,
+    dals: [],
+    middleware: [],
+    middlewareOrder: [],
+    modules: [],
+    i18n: [],
+    views: []
+  };
+  let settings = {
+    start(conf){
+      if(conf){
+        Object.assign(config, conf);
+      }
+      module.exports(config);
+    },
+
+    loadConfigFile(path){
+      try{
+        let conf = JSON.parse(fs.readFileSync(path));
+        Object.assign(config, conf);
+      }catch(e){console.log(e);}
+      return settings;
+    },
+    setConfig(conf){
+      Object.assign(config, conf);
+      return settings;
+    },
+    setRootPath(path){
+      config.path = path || initPath;
+      return settings;
+    },
+    setLogPath(path){
+      config.logPath = path || initPath;
+      return settings;
+    },
+    setPort(port){
+      config.port = port || 8080;
+      return settings;
+    },
+    setSecure(secure){
+      config.secure = secure || null;
+      return settings;
+    },
+    setWorkersCount(workers){
+      config.workers = workers || 1;
+      return settings;
+    },
+    setTimeout(timeout){
+      config.timeout = timeout || 60;
+      return settings;
+    },
+    setDefaultHeaders(headers){
+      config.defaultHeaders = headers || {};
+      return settings;
+    },
+    setRestartOnChange(bool){
+      config.restartOnChange = bool || false
+      return settings;
+    },
+    setSkipDbWarning(bool){
+      config.skipDbWarning = bool || false
+      return settings;
+    },
+    setDebugMode(bool){
+      config.debug = bool || false
+      return settings;
+    },
+    setDisableNagleAlgoritm(bool){
+      config.disableNagleAlgoritm = bool || false
+      return settings;
+    },
+    setInstantShutdownDelay(time){
+      config.instantShutdownDelay = time || 1500;
+      return settings;
+    },
+    setRetryAter(){
+      config.retryAter = time || 10;
+      return settings;
+    },
+
+    addDal(dalName, dalConfig){
+      config.useDals[dalName] = (dalConfig || {});
+      return settings;
+    },
+
+    addEmailSender(emailName, emailConfig){
+      config.useEmailSenders[emailName] = (emailConfig || {});
+      return settings;
+    },
+
+    addDalPath(...paths){
+      config.dals = config.dals.concat(paths);
+      return settings;
+    },
+    addMiddlewarePath(...paths){
+      config.middleware = config.middleware.concat(paths);
+      return settings;
+    },
+    setMiddlewareOrder(...order){
+      if(order.length == 1 && Array.isArray(order[0])){
+        order = order[0];
+      }
+      config.middlewareOrder = config.middlewareOrder.concat(order);
+      return settings;
+    },
+    setMiddlewareTimeout(timeout){
+      config.middlewareTimeout = timeout || 10;
+      return settings;
+    },
+    addModulesPath(...paths){
+      config.modules = config.modules.concat(paths);
+      return settings;
+    },
+    addI18nPath(...paths){
+      config.i18n = config.i18n.concat(paths);
+      return settings;
+    },
+    addServePath(...paths){
+      config.serve = config.serve.concat(paths);
+      return settings;
+    },
+    addViewPath(...paths){
+      config.views = config.views.concat(paths);
+      return settings;
+    }
+  };
+  return settings;
+};
+
+module.exports.module = ()=>{
+  let logs = {};
+  let moduleInfo = {
+    __meta: {},
+    __init: {}
+  };
+  let Module = {
+    getLog(name){
+      if(logs[name]) return logs[name];
+
+      logs[name] = logger.create('CHECKS');
+      return logs[name];
+    },
+    setMeta(meta){
+      moduleInfo.__meta = meta;
+      return Module;
+    },
+    setInit(init){
+      moduleInfo.__init = init;
+      return Module;
+    },
+    addMethod(name, info, methodFunc){
+      if(!methodFunc) {
+        methodFunc = info;
+        info = {};
+      }
+      moduleInfo['_'+ name] = info || {};
+      moduleInfo[name] = methodFunc;
+      return Module;
+    },
+    setMethodMeta(name, info){
+      moduleInfo['_'+ name] = info || {};
+      return Module;
+    },
+    getMethod(name){
+      return moduleInfo[name];
+    },
+    getMethodMeta(name){
+      return moduleInfo['_'+ name];
+    }
+  };
+  return Module;
+}

@@ -250,6 +250,7 @@ global.intervals = {
       t: t,
       runafter: t ? Date.now() + t * 1000 : null
     });
+    return key;
   },
   del: function(key){
     let ind = this._funcs.reduce((r,f,ind)=>{

@@ -436,6 +436,12 @@ exports.initModules = ()=>{
         }
 
         if(module.__meta){
+          if(module.__meta.default){
+            modules[moduleName] = {
+              func: module.__meta.default,
+              meta: module.__meta
+            };
+          }
           if(module.__meta.html){
             modules[moduleName] = {
               func: module.__meta.html,

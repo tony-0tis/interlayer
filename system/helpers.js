@@ -5,7 +5,7 @@ let crypto = require('crypto');
 let fs = require('fs');
 let qs = require('querystring');
 
-exports.pathCheck = /[\w./]*/;
+exports.pathCheck = /[\w\d.\/]*/;
 exports.infoApi = [];
 exports.i18n = {};
 
@@ -438,25 +438,27 @@ let defaultRequestFuncs = {
       }
     }, '').toString() || null;
   },
-  modifyLog: function(logToFodify){
-    if(!logToFodify){
+  modifyLog: function(originalLog){
+    if(!originalLog){
       throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
     }
-    return Object.keys(logToFodify).reduce((res, color)=>{
+    return Object.keys(originalLog).reduce((res, color)=>{
       color = color.toLowerCase();
       if(color == 'add'){
-        return res;
+        res[color] = originalLog[color];
+        return;
       }
 
-      if(logToFodify[color].modifed){
+      if(originalLog[color].modifed){
         throw 'Do not call modifyLog twice at one log';
       }
 
-      let original = logToFodify[color];
-      res[color] = (...args)=>{
-        args.unshift('[rID:' + this.id + ']');
-        original.apply({logModifed: true}, args);
-      };
+      res[color] = ((original)=>{
+        return (...args)=>{
+          args.unshift('[rID:' + this.id + ']');
+          original.apply({logModifed: true}, args);
+        };
+      })(originalLog[color]);
       res[color].modifed = true;
       return res;
     }, {});
