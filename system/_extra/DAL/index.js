@@ -40,7 +40,12 @@ exports.init = (paths, config)=>{
     }
   }
 
-  log.d('DALs included', Object.keys(DALs));
+  if(Object.keys(DALs).length){
+    log.d('DALs included', Object.keys(DALs));
+  }
+  else{
+    log.d('DALs not included');
+  }
 
   Object.freeze(DALs);
 

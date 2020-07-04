@@ -3,25 +3,25 @@ let https = require('https');
 let async = require('async');
 let fs = require('fs');
 //let WebSocket = require('ws');
-let logger = require('./logger.js');
+let helper = require('./index.js');;
 let init = null;
-let helpers = null;
 
-let defLog = null;
+let log = null;
 let instantShutdownDelay;
 let serverStat = {
   started: null,
   pings: []
 };
 
-process.on('uncaughtException', err => (defLog && defLog.c || console.error)(Date.now(), 'Caught exception:', err));
+process.on('uncaughtException', err => (log && log.c || console.error)(Date.now(), 'Caught exception:', err));
 
 exports.start = (paths, conf)=>{
-  global.logger = logger.logger(conf.logPath, conf.debug, conf.pingponglog);
-  defLog = global.logger.create('SRV');
+  global.logger = helper.logger(conf.logPath, conf.debug, conf.pingponglog);
+  log = global.logger.create('__SRV');
 
-  helpers = require('./helpers');
-  init = require('./init.js')(paths, conf);
+  helper.initHelper();
+  init = helper.init.init(paths, conf);
+
   if(conf.instantShutdownDelay){
     instantShutdownDelay = conf.instantShutdownDelay;
   }
@@ -53,11 +53,11 @@ exports.start = (paths, conf)=>{
     graceful_shutdown();
   });
   process.on('SIGINT', ()=>{
-    defLog.i('SIGINT event', process.exitCode);
+    log.i('SIGINT event', process.exitCode);
     graceful_shutdown(1);
   });
   process.on('SIGTERM', ()=>{
-    defLog.ilog('SIGTERM event', process.exitCode);
+    log.ilog('SIGTERM event', process.exitCode);
     graceful_shutdown(1);
   });
   // let websocket;//https://github.com/websockets/ws#server-example
@@ -65,7 +65,7 @@ exports.start = (paths, conf)=>{
   //  websocket = new WebSocket.Server({server});
   // }
 
-  defLog.i('server started on port: ' + (conf.port || 8080), conf.secure && 'https');
+  log.i('server started on port: ' + (conf.port || 8080), conf.secure && 'https');
 };
 
 function requestFunc(request, response){
@@ -78,7 +78,7 @@ function requestFunc(request, response){
   }
 
   let requestObject = init.reconstructRequest(request, response);
-  let log = requestObject.modifyLog(defLog);
+  let curReqLog = requestObject.modifyLog(log);
   let reqStart = Date.now();
   
   let moduleInf = init.getModule(requestObject.path);
@@ -86,12 +86,12 @@ function requestFunc(request, response){
   if(!moduleInf){
     return init.serve(requestObject, (err, data, code, headers)=>{
       if(data){
-        log.i(requestObject.ip, 'SERVE', requestObject.path);
+        curReqLog.i(requestObject.ip, 'SERVE', requestObject.path);
         return requestObject.end(data, code, headers, 'bin');
       }
 
-      log.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'));
-      return requestObject.end('<title>' + requestObject.i18n('title_error_404', 'Not found') + '</title>Error 404, Not found', 404);
+      curReqLog.i('BAD', requestObject.ip, 'REQ: ' + requestObject.path, 'FROM: ' + (requestObject.headers.referer || '---'));
+      return requestObject.end(`<title>${requestObject.i18n('Not found')}</title>${requestObject.i18n('<center>Error 404<br>Not found</center>')}`, 404);
     });
   }
 
@@ -106,15 +106,15 @@ function requestFunc(request, response){
     request.socket.setNoDelay(); // Disable Nagle's algorytm
   }
 
-  /*if(!helpers.auth(moduleInf.meta, requestObject)){
+  /*if(!helper.auth(moduleInf.meta, requestObject)){
     return requestObject.end('Access denied', 401, {'WWW-Authenticate': 'Basic realm="example"'});
   }*/ // not working yet
 
   async.auto({
-    post: cb => helpers.parsePost(requestObject, request, cb),
+    post: cb => helper.parsePost(requestObject, request, cb),
     middleware: ['post', (res, cb)=>{
       let middlewareTimeout = init.config.middlewareTimeout || moduleInf.meta.middlewareTimeout || 10;
-      init.middleware(requestObject, moduleInf.meta, helpers.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
+      init.middleware(requestObject, moduleInf.meta, helper.timeout({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
         if(e){
           res.data = {error: e};
           res.code = code || 200;
@@ -140,7 +140,7 @@ function requestFunc(request, response){
 
       let poolId = requestObject.params.poolingId || requestObject.post.poolingId;
       let withPool = requestObject.params.withPooling || requestObject.post.withPooling;
-      let next = helpers.timeout(init.config, moduleInf.meta, (e, data, code, headers, type)=>{
+      let next = helper.timeout(init.config, moduleInf.meta, (e, data, code, headers, type)=>{
         if(e){
           data = {error: e};
           code = code || 200;
@@ -163,7 +163,7 @@ function requestFunc(request, response){
         return next(null, init.pools[poolId]);
       }
       else if(withPool){
-        let id = helpers.generateId();
+        let id = helper.generateId();
         init.pools[id] = {
           poolingId: id
         };
@@ -178,7 +178,7 @@ function requestFunc(request, response){
         return moduleInf.func(requestObject, next);
       }
       catch(e){
-        log.e(e);
+        curReqLog.e(e);
         return next(e);
       }
     }],
@@ -188,7 +188,7 @@ function requestFunc(request, response){
       }
 
       if(moduleInf.meta.toJson || moduleInf.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
-        helpers.toJson(res);
+        helper.toJson(res);
       }
 
       cb();
@@ -196,12 +196,12 @@ function requestFunc(request, response){
   },
   (err, res)=>{
     if(moduleInf.meta && moduleInf.meta.skipRequestLog !== true){
-      log.i(
+      curReqLog.i(
         requestObject.ip,
         'REQ: ' + requestObject.path,
         'FROM: ' + (requestObject.headers.referer || '---'),
-        'GET: ' + helpers.clearObj(requestObject.params, ['token']),
-        'POST: ' + helpers.clearObj(requestObject.post, ['token']),
+        'GET: ' + helper.clearObj(requestObject.params, ['token']),
+        'POST: ' + helper.clearObj(requestObject.post, ['token']),
         'len: ' + (res.data && res.data.length),
         'time: ' + ((Date.now() - reqStart) / 1000) + 's'
       );
@@ -217,65 +217,6 @@ function requestFunc(request, response){
   });
 }
 
-global.intervals = {
-  _si: setInterval(()=>{
-    for(let i in global.intervals._funcs){
-      if(!global.intervals._funcs.hasOwnProperty(i)){
-        continue;
-      }
-
-      if(global.intervals._funcs[i].runafter && Date.now() < global.intervals._funcs[i].runafter){
-        continue;
-      }
-
-      if(global.intervals._funcs[i].runafter){
-        global.intervals._funcs[i].runafter = Date.now() + global.intervals._funcs[i].t * 1000;
-      }
-
-      if(global.intervals._funcs[i].disabled){
-        continue;
-      }
-
-      global.intervals._funcs[i].f(()=>{
-        global.intervals.del(global.intervals._funcs[i].key);
-      });
-    }
-  }, 1000),
-  _funcs: [],
-  add: function(f, t){
-    let key = Math.random() * Date.now();
-    this._funcs.push({
-      key: key,
-      f: f,
-      t: t,
-      runafter: t ? Date.now() + t * 1000 : null
-    });
-    return key;
-  },
-  del: function(key){
-    let ind = this._funcs.reduce((r,f,ind)=>{
-      if(f.key == key){
-        r = ind;
-      }
-      return r;
-    }, -1);
-    this._funcs.splice(ind, 1);
-    return key;
-  },
-  disable: function(key, val){
-    this._funcs.map(f=>{
-      if(f.key == key){
-        if(val == false){
-          f.disabled = false;
-        }
-        else{
-          f.disabled = true;
-        }
-      }
-    });
-  }
-};
-
 process.on('message', obj=> {
   switch(obj.type){
   case 'start': 
@@ -287,8 +228,8 @@ process.on('message', obj=> {
         type: 'pong',
         id: obj.id
       });
-      defLog.pp('server obtain ping');
-      defLog.pp('server send pong');
+      log.pp('server obtain ping');
+      log.pp('server send pong');
       startPing();
     }
     break;
@@ -297,20 +238,20 @@ process.on('message', obj=> {
     if(ind > -1){
       serverStat.pings.splice(ind, 1);
     }
-    defLog.pp('server obtain pong');
+    log.pp('server obtain pong');
     break;
   case 'reload':
-    defLog.i('reload command');
+    log.i('reload command');
     graceful_shutdown(0);
     break;
   case 'exit':
-    defLog.i('exit command');
+    log.i('exit command');
     graceful_shutdown(1);
     break;
   }
 
   if(obj == 'shutdown') {
-    defLog.i('process message shutdown');
+    log.i('process message shutdown');
     graceful_shutdown(1);
   }
 });
@@ -322,12 +263,12 @@ function startPing(){
   }
 
   startPing.started = true;
-  defLog.d('start ping-pong with cluster');
+  log.d('start ping-pong with cluster');
 
   global.intervals.add((deleteInterval)=>{
     if(serverStat.pings.length > 2){
       deleteInterval();
-      defLog.c('cluster not answered');
+      log.c('cluster not answered');
       graceful_shutdown(0);
       return;
     }
@@ -339,7 +280,7 @@ function startPing(){
     serverStat.pings.push(ping.id);
 
     process.send(ping);
-    defLog.pp('server send ping');
+    log.pp('server send ping');
   }, 1);
 }
 let gracefulShutdownInited;
@@ -347,15 +288,15 @@ function graceful_shutdown(code){
   if(gracefulShutdownInited){
     return;
   }
-
-  if(!helpers || !Object.keys(helpers.processLocks).length){
+  let processLocks = helper.defReqFuncs && helper.defReqFuncs.getProcessLocks() || {};
+  if(!helper || !Object.keys(processLocks).length){
     process.exit(code);
     return;
   }
 
   gracefulShutdownInited = Date.now();
   let si = setInterval(()=>{
-    if(!Object.keys(helpers.processLocks).length || Date.now() - gracefulShutdownInited >= instantShutdownDelay || 1500){
+    if(!Object.keys(processLocks).length || Date.now() - gracefulShutdownInited >= instantShutdownDelay || 1500){
       process.exit(code);
       clearInterval(si);
     }

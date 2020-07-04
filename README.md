@@ -217,12 +217,14 @@ const app = require('interlayer').module();
 | `addCookies(key, value)` | String, String | Set coockie for response | 
 | `rmCookies(key)` | String | Remove coockie from responce | 
 | `i18n(key[, defaultValue])` | String[, String] | Return translate for `key` or return `defaultValue`| 
+| `obtainI18n()` | --- | Return object with languages |
 | `getMethodsInfo(showHidden)` | Boolean | Returns all methods (except hidden methods if showHidden is not specified) | 
 | `lockShutdown()` | --- | Blocks the termination of the process until the request is completed |
 | `unlockShutdown()` | --- | Unlock the termination of the process |
 | `getResponse()` | --- | Returns the original responce,  |
 | `error(text)` | String | Returns 503 http code |
-| `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`| 
+| `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`|
+
 
 | Property | Type | Description |
 | --- | --- | --- |
