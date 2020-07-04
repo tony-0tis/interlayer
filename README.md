@@ -115,32 +115,32 @@ let serverInstance = require('interlayer').server();
 
 | Property | Default | Type | Description |
 | ------ | ------ | ------ | ------ |
-| `serverInstance.start(configObject || null)` | --- | Object | Starting the server with/without the configuration object |
-| `serverInstance.loadConfigFile(path)` | --- | String | Initializing configuration from file |
-| `serverInstance.setConfig(configObject)` | --- | Object | Setting a configuration from an object |
-| `serverInstance.setRootPath(path)` | ./ | String | Set root directory |
-| `serverInstance.setLogPath(path)` | ./ | String | Set a directory of the log file |
-| `serverInstance.setPort(port)` | 8080 | Number | Set the server port |
-| `serverInstance.setSecure(secureObject)` | --- | Object | SSL configuration object with paths to files: `{key:'',cert:''}` |
-| `serverInstance.setWorkersCount(workerNumber)` | 1 | Number | Number of instances for load balancing. If number more than 1, uses node.js cluster | 
-| `serverInstance.setTimeout(timeout)` | 60(sec) | Number | Timeout in seconds, then user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
-| `serverInstance.setDefaultHeaders(headersObject)` | --- | Object | An object with default headers, which have to be added to the every response | 
-| `serverInstance.setRestartOnChange([true || false])` | false | Boolean | Boolean value determine is server will restart automatically when files in the folder with `modules` was changed |
-| `serverInstance.setSkipDbWarning([true || false])` | false | Boolean | Skip warning in console if useDals not defined in config |
-| `serverInstance.setDebugMode([true || false])` | false | Boolean | Allow to display `log.d` in console |
-| `serverInstance.setDisableNagleAlgoritm([true || false])` | false | Boolean | Flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
-| `serverInstance.setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown | 
-| `serverInstance.setRetryAter(timeout)` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `config.instantShutdownDelay` |
-| `serverInstance.addEmailSender(emailSenderName, emailSenderConfig)` | --- |  String, Object | Add an email sender. Priority over the last folder. [How to create](#create-email-sender) |
-| `serverInstance.addDalPath(path, [path, [path]])` | --- |  String | Add path to DAL's(Data Access Layer) modules. Priority over the last added path | 
-| `serverInstance.addDal(dalName, dalConfig)` | --- | String, Object | The configuration(dalConfig) for dal module(dalName) to be used. Out of the box is available redis(for use specify `redis, {}`), mysql(for use specify `mysql, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`). For configure redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
-| `serverInstance.addMiddlewarePath(path, [path, [path]])` | --- |  String, ... | Add path to middleware modules. Priority over the last added path. [How to create](#create-middleware) |
-| `serverInstance.setMiddlewareOrder(middlwareName, middlwareName)` | --- |  String or Array[Strings] |  An array(or arguments) with ordered names of middlewares |
-| `serverInstance.setMiddlewareTimeout(timeout)` | 10(sec) |  Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
-| `serverInstance.addModulesPath(path, [path, [path]])` | ./modules |String, ... | Add path to modules. Priority over the last added path. (Default directory is './modules' unless otherwise specified.) [How to create](#module-creation) |
-| `serverInstance.addI18nPath(path, [path, [path]])` | ./i18n | String, ... | Add path to localization files. Priority over the last added path. (Default directory is './i18n' unless otherwise specified.) [How to create](#localization) |
-| `serverInstance.addServePath(path, [path, [path]])` | --- | String, ... | Add path to Serving Static Content. Priority over the last added path | 
-| `serverInstance.addViewPath(path, [path, [path]])` | ./files |  String, ... | Folders with files, which you can be uses as templates, or returned through the api(by using `request.getView`). Priority over the last folder. (Default directory is './files' unless otherwise specified.) | 
+| `start(configObject / null)` | --- | Object | Starting the server with/without the configuration object |
+| `loadConfigFile(path)` | --- | String | Initializing configuration from file |
+| `setConfig(configObject)` | --- | Object | Setting a configuration from an object |
+| `setRootPath(path)` | ./ | String | Set root directory |
+| `setLogPath(path)` | ./ | String | Set a directory of the log file |
+| `setPort(port)` | 8080 | Number | Set the server port |
+| `setSecure(secureObject)` | --- | Object | SSL configuration object with paths to files: `{key:'',cert:''}` |
+| `setWorkersCount(workerNumber)` | 1 | Number | Number of instances for load balancing. If number more than 1, uses node.js cluster | 
+| `setTimeout(timeout)` | 60(sec) | Number | Timeout in seconds, then user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
+| `setDefaultHeaders(headersObject)` | --- | Object | An object with default headers, which have to be added to the every response | 
+| `setRestartOnChange([true / false])` | false | Boolean | Boolean value determine is server will restart automatically when files in the folder with `modules` was changed |
+| `setSkipDbWarning([true / false])` | false | Boolean | Skip warning in console if useDals not defined in config |
+| `setDebugMode([true / false])` | false | Boolean | Allow to display `log.d` in console |
+| `setDisableNagleAlgoritm([true / false])` | false | Boolean | Flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
+| `setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown | 
+| `setRetryAter(timeout)` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `config.instantShutdownDelay` |
+| `addEmailSender(emailSenderName, emailSenderConfig)` | --- |  String, Object | Add an email sender. Priority over the last folder. [How to create](#create-email-sender) |
+| `addDalPath(path, [path, [path]])` | --- |  String | Add path to DAL's(Data Access Layer) modules. Priority over the last added path | 
+| `addDal(dalName, dalConfig)` | --- | String, Object | The configuration(dalConfig) for dal module(dalName) to be used. Out of the box is available redis(for use specify `redis, {}`), mysql(for use specify `mysql, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`). For configure redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
+| `addMiddlewarePath(path, [path, [path]])` | --- |  String, ... | Add path to middleware modules. Priority over the last added path. [How to create](#create-middleware) |
+| `setMiddlewareOrder(middlwareName, middlwareName)` | --- |  String or Array[Strings] |  An array(or arguments) with ordered names of middlewares |
+| `setMiddlewareTimeout(timeout)` | 10(sec) |  Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
+| `addModulesPath(path, [path, [path]])` | ./modules |String, ... | Add path to modules. Priority over the last added path. (Default directory is './modules' unless otherwise specified.) [How to create](#module-creation) |
+| `addI18nPath(path, [path, [path]])` | ./i18n | String, ... | Add path to localization files. Priority over the last added path. (Default directory is './i18n' unless otherwise specified.) [How to create](#localization) |
+| `addServePath(path, [path, [path]])` | --- | String, ... | Add path to Serving Static Content. Priority over the last added path | 
+| `addViewPath(path, [path, [path]])` | ./files |  String, ... | Folders with files, which you can be uses as templates, or returned through the api(by using `request.getView`). Priority over the last folder. (Default directory is './files' unless otherwise specified.) | 
 
 ### How to use
 ```js
@@ -178,13 +178,13 @@ const app = require('interlayer').module();
 ```
 | Method | Property types | Description |
 | --- | --- | --- |
-| `app.getLog(name)` | String | Get the object to output messages to the console. Object of `{i:funcion, e:function, d: function, w: function, c: function}` type |
-| `app.setMeta(metaObject)` | Object | Set the default parameters for all methods of this module. `metaObject` see below |
-| `app.setInit(initFunction)`| Function | Set the function to initialize the module at server start. `initFunction` see below |
-| `app.addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without parameters. `methodMeta` and `methodFunction` see below |
-| `app.setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets parameters for method. `methodMeta` see below |
-| `app.getMethod(methodUrl)`| String | Returns the method function |
-| `app.getMethodInfo(methodUrl)`| String | Returns method parameters |
+| `getLog(name)` | String | Get the object to output messages to the console. Object of `{i:funcion, e:function, d: function, w: function, c: function}` type |
+| `setMeta(metaObject)` | Object | Set the default parameters for all methods of this module. `metaObject` see below |
+| `setInit(initFunction)`| Function | Set the function to initialize the module at server start. `initFunction` see below |
+| `addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without parameters. `methodMeta` and `methodFunction` see below |
+| `setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets parameters for method. `methodMeta` see below |
+| `getMethod(methodUrl)`| String | Returns the method function |
+| `getMethodInfo(methodUrl)`| String | Returns method parameters |
 
 #### metaObject and methodMeta default paramerets
 | Key | Type | Description |
@@ -208,47 +208,47 @@ const app = require('interlayer').module();
 `request`:
 | Methods | Property types | Description |
 | --- | --- | --- |
-| `request.modifyLog(log)` | Object | Add to log object requestId |
-| `request.getView(file, callback)` | String, Function | Return `file` in `callback` from paths specified in `config.views` or in `server.setViewPath()`. `callback = (error, data)` |
-| `request.getViewSync(file)` | String | Synchronous `request.getView` | 
-| `request.getFile(file, callback)` | String, Function | Return file ***as is***. `callback = (error, data, {'Content-type':''})` | 
-| `request.addCookies(key, value)` | String, String | Set coockie for response | 
-| `request.rmCookies(key)` | String | Remove coockie from responce | 
-| `request.i18n(key[, defaultValue])` | String[, String] | Return translate for `key` or return `defaultValue`| 
-| `request.getMethodsInfo(showHidden)` | Boolean | Returns all methods (except hidden methods if showHidden is not specified) | 
-| `request.lockShutdown()` | --- | Blocks the termination of the process until the request is completed |
-| `request.unlockShutdown()` | --- | Unlock the termination of the process |
-| `request.getResponse()` | --- | Returns the original responce,  |
-| `request.error(text)` | String | Returns 503 http code |
-| `request.end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`| 
+| `modifyLog(log)` | Object | Add to log object requestId |
+| `getView(file, callback)` | String, Function | Return `file` in `callback` from paths specified in `config.views` or in `server.setViewPath()`. `callback = (error, data)` |
+| `getViewSync(file)` | String | Synchronous `request.getView` | 
+| `getFile(file, callback)` | String, Function | Return file ***as is***. `callback = (error, data, {'Content-type':''})` | 
+| `addCookies(key, value)` | String, String | Set coockie for response | 
+| `rmCookies(key)` | String | Remove coockie from responce | 
+| `i18n(key[, defaultValue])` | String[, String] | Return translate for `key` or return `defaultValue`| 
+| `getMethodsInfo(showHidden)` | Boolean | Returns all methods (except hidden methods if showHidden is not specified) | 
+| `lockShutdown()` | --- | Blocks the termination of the process until the request is completed |
+| `unlockShutdown()` | --- | Unlock the termination of the process |
+| `getResponse()` | --- | Returns the original responce,  |
+| `error(text)` | String | Returns 503 http code |
+| `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`| 
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `request.config` | Object | An object of configuration specified at start of server |
-| `request.ip` | String | Client ip adress |
-| `request.url` | String | Request url |
-| `request.path` | String | Request path(module/method) |
-| `request.method` | String | Uppercased type of request - POST|GET|... |
-| `request.isPost` | Boolean | true|false |
-| `request.params` | Object | An object of parsed GET params |
-| `request.post` | Object | An object of parsed POST params |
-| `request.cookies` | Object | An object of parsed cookies |
-| `request.headers` | Object | An object of request headers |
-| `request.DAL` | Object | An object with DALs, which was initialized by `config.useDals` or `server.addDal()` |
-| `request.mail` | Object | An object with mail senders, which was initialized by `config.useEmails` or `server.addEmailSender()` |
-| `request.id` | String | requestId |
-| `request.log` | Object | The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID) |
-| `request.helpers` | Object | See below |
+| `config` | Object | An object of configuration specified at start of server |
+| `ip` | String | Client ip adress |
+| `url` | String | Request url |
+| `path` | String | Request path(module/method) |
+| `method` | String | Uppercased type of request - POST|GET|... |
+| `isPost` | Boolean | true|false |
+| `params` | Object | An object of parsed GET params |
+| `post` | Object | An object of parsed POST params |
+| `cookies` | Object | An object of parsed cookies |
+| `headers` | Object | An object of request headers |
+| `DAL` | Object | An object with DALs, which was initialized by `config.useDals` or `server.addDal()` |
+| `mail` | Object | An object with mail senders, which was initialized by `config.useEmails` or `server.addEmailSender()` |
+| `id` | String | requestId |
+| `log` | Object | The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID) |
+| `helpers` | Object | See below |
 
 #### request.helpers
 | Methods | Property types | Description |
 | --- | --- | --- |
-| `request.helpers.generateId()` | --- | Geneate 8-character identifier(a-zA-Z0-9) |
-| `request.helpers.toJson(obj)` | * | Convert `obj` to JSON string |
-| `request.helpers.clearObj(obj, toRemove)` | Object, Array | Delete parameters of `obj` from `toRemove` array of strings |
-| `request.helpers.isBoolean(val)` | * | Check is `val` string is Boolean(true|false) |
-| `request.helpers.JSV(json, schema, envId)` | Object, Object, String | [See here] https://www.npmjs.com/package/JSV. Create environment with `envId` and call `validate` with `json` and `schema`
-| `request.helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
+| `helpers.generateId()` | --- | Geneate 8-character identifier(a-zA-Z0-9) |
+| `helpers.toJson(obj)` | * | Convert `obj` to JSON string |
+| `helpers.clearObj(obj, toRemove)` | Object, Array | Delete parameters of `obj` from `toRemove` array of strings |
+| `helpers.isBoolean(val)` | * | Check is `val` string is Boolean(true|false) |
+| `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here] https://www.npmjs.com/package/JSV. Create environment with `envId` and call `validate` with `json` and `schema`
+| `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
 
 #### prerunFunction(request, moduleMeta, requestCallback)
 `request` same as in 

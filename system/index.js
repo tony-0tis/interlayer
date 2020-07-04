@@ -7,7 +7,6 @@ let server = require('./server.js');
 module.exports = function(config = {}){
   let paths = {};
   let initPath = path.dirname(new Error().stack.split('\n').splice(2, 1)[0].match(/at[^(]*\(([^)]+)\)/)[1]);
-  console.log('initPath', initPath);
 
   if(typeof config == 'string'){
     try{
@@ -430,7 +429,8 @@ module.exports.server = ()=>{
     middlewareOrder: [],
     modules: [],
     i18n: [],
-    views: []
+    views: [],
+    serve: []
   };
   let settings = {
     start(conf){
@@ -560,6 +560,7 @@ module.exports.module = ()=>{
     __init: {}
   };
   let Module = {
+    __moduleInfo: moduleInfo,
     getLog(name){
       if(logs[name]) return logs[name];
 
@@ -583,10 +584,12 @@ module.exports.module = ()=>{
       moduleInfo[name] = methodFunc;
       return Module;
     },
+    add(...args){this.addMethod(...args)},
     setMethodMeta(name, info){
       moduleInfo['_'+ name] = info || {};
       return Module;
     },
+    meta(...args){this.setMethodMeta(...args)},
     getMethod(name){
       return moduleInfo[name];
     },

@@ -430,6 +430,9 @@ exports.initModules = ()=>{
 
         let moduleName = file.replace('.js', '');
         let module = require(pathMod.resolve(path) + '/' + file + (isDir ? '/index.js' : ''));//eslint-disable-line global-require
+        if(module.__moduleInfo){
+          module = module.__moduleInfo;
+        }
 
         if(module.__init){
           inits[file] = module.__init;
