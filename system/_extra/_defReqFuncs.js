@@ -51,7 +51,7 @@ let defaultRequestFuncs = {
       }
     }
 
-    return def;
+    return def || key;
   },
   obtainI18n: function(){
     return helpers.i18n;
@@ -64,7 +64,7 @@ let defaultRequestFuncs = {
   },
   error: function(text){
     this.end(
-      this.i18n('service.503', 'Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
+      this.i18n('Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
       503,
       {
         'Content-Type': 'text/plain; charset=utf-8'
