@@ -556,8 +556,8 @@ module.exports.server = ()=>{
 module.exports.module = ()=>{
   let logs = {};
   let moduleInfo = {
-    __meta: {},
-    __init: {}
+    __meta: null,
+    __init: null
   };
   let Module = {
     __moduleInfo: moduleInfo,
