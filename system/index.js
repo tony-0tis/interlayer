@@ -585,16 +585,21 @@ module.exports.module = ()=>{
       return Module;
     },
     add(...args){this.addMethod(...args)},
-    setMethodMeta(name, info){
+    setMethodInfo(name, info){
       moduleInfo['_'+ name] = info || {};
       return Module;
     },
-    meta(...args){this.setMethodMeta(...args)},
+    info(...args){this.setMethodInfo(...args)},
     getMethod(name){
       return moduleInfo[name];
     },
-    getMethodMeta(name){
-      return moduleInfo['_'+ name];
+    getMethodInfo(nam, withGlobal){
+      if(!withGlobal){
+        return moduleInfo['_'+ name];
+      }
+      else{
+        return Object.assign({}, moduleInfo.__meta, moduleInfo['_'+ name]);
+      }
     }
   };
   return Module;

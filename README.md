@@ -181,10 +181,12 @@ const app = require('interlayer').module();
 | `getLog(name)` | String | Get the object to output messages to the console. Object of `{i:funcion, e:function, d: function, w: function, c: function}` type |
 | `setMeta(metaObject)` | Object | Set the default parameters for all methods of this module. `metaObject` see below |
 | `setInit(initFunction)`| Function | Set the function to initialize the module at server start. `initFunction` see below |
-| `addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without parameters. `methodMeta` and `methodFunction` see below |
-| `setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets parameters for method. `methodMeta` see below |
+| `addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without info(meta). `methodMeta` and `methodFunction` see below |
+| `add(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Alias for `addMethod` |
+| `setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets info(meta) for method. `methodMeta` see below |
+| `info(methodUrl, methodMeta)`| String, Object | Alias for `setMethodInfo` |
 | `getMethod(methodUrl)`| String | Returns the method function |
-| `getMethodInfo(methodUrl)`| String | Returns method parameters |
+| `getMethodInfo(methodUrl, [withGlobalMeta])`| String[, Boolean] | Returns method info(meta) |
 
 #### metaObject and methodMeta default paramerets
 | Key | Type | Description |
