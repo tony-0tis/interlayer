@@ -1,6 +1,6 @@
 let redis = require('redis');
 let log = global.logger.create('REDIS');
-let helpers = require('../helpers');
+let helpers = require('../index.js');
 let soother = ()=>{};
 
 let retry_strategy = function(options){
