@@ -1,4 +1,5 @@
 let cluster = require('cluster');
+let path = require('path');
 let helper = require('./index.js');
 
 module.exports = clusterObject = {
