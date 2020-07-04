@@ -9,10 +9,7 @@ exports.cluster = require('./_cluster.js');
 exports.server = require('./_server.js');
 
 let log;
-exports.initHelper = (paths, conf)=>{
-  exports.paths = paths;
-  exports.config = cong;
-  
+exports.initHelper = ()=>{
   log = global.logger.create('__HELPERS');
   exports.init = require('./_init.js');
   exports.defReqFuncs = require('./_defReqFuncs.js');
