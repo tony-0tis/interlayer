@@ -1,11 +1,13 @@
 let fs = require('fs');
+let path = require('path');
 let log = global.logger.create('_DEF-FUNCS');
 let helpers = require('./index.js');
 
 let processLocks = {};
 let defaultRequestFuncs = {
   lockShutdown: function(time){
-    log.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
+    let nLog = this.modifyLog(log);
+    nLog.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
     
     processLocks[this.id] = true;
     
@@ -21,7 +23,8 @@ let defaultRequestFuncs = {
       return;
     }
 
-    log.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
+    let nLog = this.modifyLog(log);
+    nLog.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
     delete processLocks[this.id];
   },
   getProcessLocks(){
@@ -63,54 +66,79 @@ let defaultRequestFuncs = {
     this.responseCookies[key] = '';
   },
   error: function(text){
+    if(!this.end) return;
+    let nLog = this.modifyLog(log);
+    nLog.e(text);
+    if(this.config.useHttpErrorFiles){
+      return this.getView('502.html', (err, data, headers)=>{
+        if(err){
+          this.end(
+            this.i18n('Service Unavailable. Try again another time.'),
+            503,
+            {'Content-Type': 'text/plain; charset=utf-8'}
+          );
+        }
+        else{
+          this.end(data, 503, headers);
+        }
+      });
+    }
     this.end(
-      this.i18n('Service Unavailable. Try again another time.') + (this.config.debug ? ' (' + text + ')' : ''),
+      this.i18n('Service Unavailable. Try again another time.'),
       503,
-      {
-        'Content-Type': 'text/plain; charset=utf-8'
-      }
+      {'Content-Type': 'text/plain; charset=utf-8'}
     );
   },
   getView: function(view, file, cb){
     if(!cb && !file){
       throw 'minimum 2 arguments with last callback';
     }
+
+    let nLog = this.modifyLog(log);
+
     if(!cb){
       cb = file;
       file = view;
       view = null;
     }
+
+    if(!this.config.views || !this.config.views.length) return cb('NO config.views');
+
+    let contentType = helpers.mime(file);
+
     let tries = [];
-    for(let i in this.config.view){
-      if(!this.config.view.hasOwnProperty(i)){
+    for(let i in this.config.views){
+      if(!this.config.views.hasOwnProperty(i)){
         continue;
       }
+
       tries.push(
         new Promise((ok,fail)=>{
           try{
-            if(!fs.statSync(path.join(this.config.view[i], file)).isFile()){
-              log.d('Not file', path.join(this.config.view[i], file));
+            if(!fs.statSync(path.join(this.config.views[i], file)).isFile()){
+              nLog.d('Not file', path.join(this.config.views[i], file));
               return fail();
             }
           }catch(e){
-            log.d('bad stat', path.join(this.config.view[i], file), e);
+            nLog.d('bad stat', path.join(this.config.views[i], file), e);
             return fail(e);
           }
 
-          fs.readFile(path.join(this.config.view[i], file), (err, res)=>{
+          fs.readFile(path.join(this.config.views[i], file), (err, res)=>{
             if(err){
-              log.d('read err', path.join(this.config.view[i], file), err);
+              nLog.d('read err', path.join(this.config.views[i], file), err);
               return fail(err);
             }
+
             return ok(res);
           });
         })
       );
     }
     Promise.race(tries)
-      .then(result => cb(null, (result||'').toString()))
+      .then(result => cb(null, (result||'').toString(), {'Content-Type': contentType}))
       .catch(err=>{
-        log.e(err);
+        nLog.e(err);
         cb('Not found');
       });
   },
@@ -118,7 +146,10 @@ let defaultRequestFuncs = {
     if(!file){
       file = view;
     }
-    return this.config.view.requce((res, view)=>{
+
+    if(!this.config.views || !this.config.views.length) return cb('NO config.views');
+
+    return this.config.views.requce((res, view)=>{
       if(res){
         return res;
       }
@@ -141,6 +172,7 @@ let defaultRequestFuncs = {
     if(!originalLog){
       throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
     }
+
     return Object.keys(originalLog).reduce((res, color)=>{
       color = color.toLowerCase();
       if(color == 'add'){
@@ -152,12 +184,9 @@ let defaultRequestFuncs = {
         throw 'Do not call modifyLog twice at one log';
       }
 
-      res[color] = ((original)=>{
-        return (...args)=>{
-          args.unshift('[rID:' + this.id + ']');
-          original.apply({logModifed: true}, args);
-        };
-      })(originalLog[color]);
+      res[color] = (...args)=>{
+        originalLog[color].call({extra: '[rID:' + this.id + ']'}, ...args);
+      };
       res[color].modifed = true;
       return res;
     }, {});
@@ -166,10 +195,10 @@ let defaultRequestFuncs = {
     let contentType = helpers.mime(file);
     try{
       if(!fs.statSync(file).isFile()){
-        return cb('NOt FILE');
+        return cb('NOT FILE');
       }
     }catch(e){
-      return cb('NO FILE', null, {err: e});
+      return cb('NO FILE', null);
     }
 
     fs.readFile(file, (err, res)=>{

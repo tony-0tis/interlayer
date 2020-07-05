@@ -11,7 +11,7 @@ let colors = {
 
 let breaker = /^win/.test(process.platform) ? '' : '\n';
 let streams = {};
-module.exports = (dir, debug, pingponglog)=>{
+module.exports = (dir, debug)=>{
   let logFile;
   if(process.send){
     logFile = {
@@ -106,7 +106,6 @@ module.exports = (dir, debug, pingponglog)=>{
       let createPath = !name ? new Error().stack.split('\n')[2].match(/.*\((.*):\d+:\d+\)/)[1] : '';
       let log = {
         add: str => write(str),
-        pp: (...args)=> pingponglog && log.d(...args)
       };
 
       for(let i in colors){
@@ -124,7 +123,12 @@ module.exports = (dir, debug, pingponglog)=>{
           }
 
           args = split(args);
-          let str = date() + '[' + i + '][' + process.pid + '][' + name + '] ' + args;
+          let str = date() + '[' + i + '][' + process.pid + '][' + name + ']';
+          if(this.extra){
+            if(typeof this.extra == 'string') str += this.extra;
+            if(typeof this.extra == 'array') str += this.extra.join('');
+          }
+          str += ' ' + args;
           str = '\x1b[37;' + colors[i] + ';1m' + str + '\x1b[0m' + breaker;
           write(str);
         };

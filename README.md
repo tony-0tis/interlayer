@@ -14,14 +14,18 @@ The stable version of the server will be implemented after writing all the neces
 ##### !!! UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
 ##### !!! UPDATE 0.5.0 - 0.6.0: Fix returning of JSON objects, buffers, numbers, booleans, nulls, functions, undefined, symbols. This version could broke your code.
 ##### !!! UPDATE 0.7.0: Changed the way server and modules are initialized.
+##### !!! UPDATE 0.8.0: Refactor, might broke init.
+##### !!! UPDATE 0.9.0: Rafactor, removed `disableNagleAlgoritm` and `setDisableNagleAlgoritm` because is disabled in node.js by default as of version v0.1.92, use `noDelay` and `setNoDelay` instead. For POST requests start using formidable node.js library, return html files when errors(404.html,503.html)
 
 ## Features
 - Serving Static Content
+- Upload files
 - Auto-reload server on file change (reload on new files not supported)
 - Clusterization
 - Postgres\mysql\redis built-in DAL's for data storage
 - Mailgun\sparkpost build-in mail sender packages
 - Localization
+- WebScoket
 
 ---
 
@@ -88,7 +92,9 @@ Avaliable properties in `config` object or `config.json` file
 | `debug` | false | Boolean | Allow to display `log.d` in console and add to the `logs.log` file |
 | `instantShutdownDelay` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown |
 | `retryAter` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `instantShutdownDelay` |
-| `disableNagleAlgoritm` | false | Boolean | Flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
+| `noDelay` | true | Boolean | Flag to enable/disable Nagle algoritm for all connections. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
+| `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
+| `useHttpErrorFiles` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 
 
 ### How to use
@@ -128,7 +134,7 @@ let serverInstance = require('interlayer').server();
 | `setRestartOnChange([true / false])` | false | Boolean | Boolean value determine is server will restart automatically when files in the folder with `modules` was changed |
 | `setSkipDbWarning([true / false])` | false | Boolean | Skip warning in console if useDals not defined in config |
 | `setDebugMode([true / false])` | false | Boolean | Allow to display `log.d` in console |
-| `setDisableNagleAlgoritm([true / false])` | false | Boolean | Flag to disable Nagle algoritm for all connections. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
+| `setNoDelay([true / false])` | true | Boolean | Flag to disable/enable Nagle algoritm for all connections. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown | 
 | `setRetryAter(timeout)` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `config.instantShutdownDelay` |
 | `addEmailSender(emailSenderName, emailSenderConfig)` | --- |  String, Object | Add an email sender. Priority over the last folder. [How to create](#create-email-sender) |
@@ -141,6 +147,8 @@ let serverInstance = require('interlayer').server();
 | `addI18nPath(path, [path, [path]])` | ./i18n | String, ... | Add path to localization files. Priority over the last added path. (Default directory is './i18n' unless otherwise specified.) [How to create](#localization) |
 | `addServePath(path, [path, [path]])` | --- | String, ... | Add path to Serving Static Content. Priority over the last added path | 
 | `addViewPath(path, [path, [path]])` | ./files |  String, ... | Folders with files, which you can be uses as templates, or returned through the api(by using `request.getView`). Priority over the last folder. (Default directory is './files' unless otherwise specified.) | 
+| `setWebsocketConfig(websocket)` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket` |
+| `setUseFilesAsHTTPErrors([true / false])` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 
 ### How to use
 ```js
@@ -168,7 +176,7 @@ app.addMethod('myMethod', {toJson: true}, (request, requestCallback)=>{
     log.i('I am log without requestId but with myModuleId');
     request.log.i('I am log with requestId but without myModuleId');
     fullLog.i('I am log with requestId and with myModuleId');
-    requestCallback(null, {ok: true});
+    requestCallback(null, {ok: true}, 200, {}, false);
 });//Could be called in the path of /myModule/myMethod
 ```
 
@@ -198,7 +206,7 @@ const app = require('interlayer').module();
 | `addToRoot` | Boolean | Skip `moduleUrl` and use `methodUrl` or `path` as url to method |
 | `alias` | String | Alias path to method |
 | `timeout` | Number | Seconds until HTTP 408(Request timeout) | 
-| `disableNagleAlgoritm` | Boolean | Disable the use of Nagle's algorithm. [Read more](https://en.wikipedia.org/wiki/Nagle%27s_algorithm) |
+| `noDelay` | Boolean | Disable/enable the use of Nagle's algorithm. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `middlewareTimeout` | Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
 | `prerun = prerunFunction` | Function | Function or link to function which will be runned before method. May be usefull for preparing request. See `prerunFunction` below |
 | `toJson` | Boolean | Convert response to JSON string |
@@ -221,11 +229,12 @@ const app = require('interlayer').module();
 | `getMethodsInfo(showHidden)` | Boolean | Returns all methods (except hidden methods if showHidden is not specified) | 
 | `lockShutdown()` | --- | Blocks the termination of the process until the request is completed |
 | `unlockShutdown()` | --- | Unlock the termination of the process |
-| `getResponse()` | --- | Returns the original responce,  |
+| `getResponse()` | --- | Returns the original responce  |
+| `getRequest()` | --- | Returns the original request |
 | `error(text)` | String | Returns 503 http code |
 | `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`|
 
-
+`request`:
 | Property | Type | Description |
 | --- | --- | --- |
 | `config` | Object | An object of configuration specified at start of server |
@@ -235,7 +244,8 @@ const app = require('interlayer').module();
 | `method` | String | Uppercased type of request - POST|GET|... |
 | `isPost` | Boolean | true|false |
 | `params` | Object | An object of parsed GET params |
-| `post` | Object | An object of parsed POST params |
+| `post` | Object | An object of parsed POST params(with [formidable](https://github.com/node-formidable/formidable)) |
+| `files` | Object | An object of uploaded files(with [formidable](https://github.com/node-formidable/formidable)) |
 | `cookies` | Object | An object of parsed cookies |
 | `headers` | Object | An object of request headers |
 | `DAL` | Object | An object with DALs, which was initialized by `config.useDals` or `server.addDal()` |
@@ -255,10 +265,22 @@ const app = require('interlayer').module();
 | `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
 
 #### prerunFunction(request, moduleMeta, requestCallback)
-`request` same as in 
+`request` same as in `methodFunction`
 
 #### initFunction(simpleRequest)
-Defenition of `simpleRequest` [see here](https://github.com/aidevio/interlayer/blob/c350c45f21f5c02678e3314d23eed31e0cab0586/system/init.js#L440)
+`simpleRequest.url` - Empty string
+`simpleRequest.headers` - Empty object
+`simpleRequest.DAL` - DAL objects if initialised
+`simpleRequest.config` - Configuration object
+`simpleRequest.websocket` - websocket server instanse if initialised
+... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here](https://nodejs.org/api/http.html#http_class_http_clientrequest)
+
+#### requestCallback(error, data, httpCode, responseHeaders, isBinary)
+`error` - null or undefined or String or Object
+`data` - null or String or Object or Binary(if `isBinary` = true)
+`httpCode` - null or Number [See here](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+`responseHeaders` - null or Object [See here](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
+`type` - null or 'bin'. If 'bin' then `data` will be returned as Buffer
 
 #### added global property
 `global.logger` - Object to creat log with `global.logger.create(logName)` were `logName` is String. See Features below
@@ -387,8 +409,11 @@ exports.test = (request, moduleMeta, cb) => {
 ## Localization
 Example of `i18n/en.js`
 **Note! You have to use double quotes, instead single quotes, because it's json file**
+**These are the actual keys used for error output.**
 ```json
 {
-    "title_error_404": "Nothing found, 404, Bill Gates site"
+    "Not found": "Nothing found, 404, Bill Gates site",
+    "<center>Error 404<br>Not found</center>": "<h1>404 HTTP error.<h1>Not found</center>",
+    "Service Unavailable. Try again another time.": "503 HTTP error."
 }
 ```

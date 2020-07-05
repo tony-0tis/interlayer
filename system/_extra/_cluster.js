@@ -3,77 +3,78 @@ let path = require('path');
 let fs = require('fs');
 let helper = require('./index.js');
 
-module.exports = clusterObject = {
-  servers: [],
-  log: {},
-  inited: false,
-  paths: [],
+let log;
+module.exports = {
+  _servers: [],
+  _inited: false,
   config: {},
-  start: (paths, config)=>{
-    clusterObject.log = helper.logger(config.logPath, config.debug, config.pingponglog).create('CLUSTER');
+
+  start(config){
+    log = helper.logger(config.logPath, config.debug, config.pingponglog).create('CLUSTER');
   
     let toStart = config.workers || 1;
     if(toStart == 1 && !config.restartOnChange){
-      helper.server.start(paths, config);
+      helper.server.start(config);
       return;
     }
 
     if(cluster.isMaster){
-      clusterObject._init(paths, config);
+      this._init(config);
+
       for(let i = toStart; i > 0; i--){
-        clusterObject.add(i);
+        this._addServer(i);
       }
 
-      clusterObject.log.i('Start cluster with', clusterObject.size(), 'servers');
+      log.i('Start cluster with', this.size(), '_servers');
       
       if(config.restartOnChange){
         let st;
-        clusterObject.startWatch(paths, config, ()=>{
+        this._startWatch(config, ()=>{
           clearTimeout(st);
           st = setTimeout(()=>{
-            clusterObject.log.i('Many files changed, restart');
-            clusterObject.restart();
+            log.i('Many files changed, restart');
+            this._restartServers();
           }, 1500);
         });
       }
     }
   },
-  _init: (paths, config)=>{
-    clusterObject.inited = true;
-    clusterObject.paths = paths || [];
-    clusterObject.config = config || {};
+  size(){
+    return this._servers.length;
+  },
+  _init(config){
+    this._inited = true;
+    this.config = config || {};
 
     process.on('exit', ()=>{
-      if(clusterObject.exitProcess){
-        process.exit();
+      if(this.exitProcess){
+        process._stopCusterAndExit();
         return;
       }
 
-      clusterObject.log.i('exit event', process.exitCode);
-      clusterObject.exit();
+      log.i('exit event', process.exitCode);
+      this._stopCusterAndExit();
     });
     process.on('SIGINT', ()=>{
-      clusterObject.log.i('SIGINT event', process.exitCode);
-      clusterObject.exit();
+      log.i('SIGINT event', process.exitCode);
+      this._stopCusterAndExit();
     });
     process.on('SIGTERM', ()=>{
-      clusterObject.log.i('SIGTERM event', process.exitCode);
-      clusterObject.exit();
+      log.i('SIGTERM event', process.exitCode);
+      this._stopCusterAndExit();
     });
     process.on('message', msg=>{
       if(msg == 'shutdown'){
-        clusterObject.log.i('process message shutdown');
-        clusterObject.exit();
+        log.i('process message shutdown');
+        this._stopCusterAndExit();
       }
     });
   },
-  add: (i)=>{
-    if(!clusterObject.inited){
-      throw 'Not inited';
-    }
+  _addServer(i){
+    if(!this._inited) throw 'Not inited';
 
     cluster.setupMaster({
-      exec: path.join(__dirname, '/_server.js'),
+      exec: path.join(__dirname, '/../index.js'),
       silent: true
     });
 
@@ -83,8 +84,7 @@ module.exports = clusterObject = {
     server.on('online', ()=>{
       server.send({
         type: 'start',
-        paths: clusterObject.paths,
-        config: clusterObject.config
+        config: this.config
       });
     });
     server.on('error', error=>{
@@ -93,65 +93,66 @@ module.exports = clusterObject = {
       }
 
       let pid = ((server||{}).process||{}).pid;
-      clusterObject.log.e('server', pid, 'error', error);
+      log.e('server', pid, 'error', error);
     });
     server.on('exit', (code, sig)=>{
       if(server.exitFlag || code == 1){
-        clusterObject.log.i('worker', (server && server.process || {}).pid, 'killed at end');
+        log.i('worker', (server && server.process || {}).pid, 'killed at end');
         server = null;
-        clusterObject.rem(i);
+        this._removeServer(i);
         return;
       }
 
-      clusterObject.log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig, 'respawn!');
+      log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig, 'respawn!');
 
       server = null;
-      clusterObject.rem(i);
-      clusterObject.add(i);
+      this._removeServer(i);
+      this._addServer(i);
     });
     server.on('message', obj=>{
       switch(obj.type){
       case 'log':
-        clusterObject.log.add(obj.log);
+        log.add(obj.log);
         break;
       case 'ping':
         server.send({
           type: 'pong',
           id: obj.id
         });
-        clusterObject.log.pp('cluster obtain ping');
-        clusterObject.log.pp('cluster send pong');
+        log.pp('cluster obtain ping');
+        log.pp('cluster send pong');
         break;
       case 'pong':
         let ind = pings.indexOf(obj.id);
         if(ind > -1){
           pings.splice(ind, 1);
         }
-        clusterObject.log.pp('cluster obtain pong');
+        log.pp('cluster obtain pong');
         break;
       default: 
-        clusterObject.log.e('wrong message type', obj);
+        log.e('wrong message type', obj);
       }
       obj = null;
     });
 
-    clusterObject.intervals.add((deleteInterval)=>{
-      if(pings.length > 10){
-        clusterObject.log.w('Pings length more that 10', server.process.pid);
-        pings = [];
-        deleteInterval();
-        server.kill();
-        
-        setInterval(()=>{
-          if(server){
-            server.kill('SIGKILL');
-          }
-        }, clusterObject.config.instantShutdownDelay || 2000);
+    global.intervals.add(stopInterval=>{
+      if(!server){
+        stopInterval();
         return;
       }
 
-      if(!server){
-        deleteInterval();
+      if(pings.length > 10){
+        log.w('Pings length more that 10', server.process.pid);
+        pings = [];
+        stopInterval();
+        server.kill();
+        
+        global.intervals.add(stopInt=>{
+          if(server) server.kill('SIGKILL');
+          else{
+            stopInt();
+          }
+        }, this.config.instantShutdownDelay || 2000);
         return;
       }
 
@@ -161,135 +162,94 @@ module.exports = clusterObject = {
       };
       pings.push(ping.id);
       server.send(ping);
-      clusterObject.log.pp('cluster send ping');
-    });
+      log.pp('cluster send ping');
+    }, 1000);
 
-    clusterObject.log.i('start worker process', server.process.pid);
-    clusterObject.servers.push({n: i, srv: server});
+    log.i('start worker process', server.process.pid);
+    this._servers.push({n: i, srv: server});
   },
-  rem: n=>{
-    if(!clusterObject.inited){
-      throw 'Not inited';
-    }
+  _removeServer(n){
+    if(!this._inited) throw 'Not inited';
 
     let toDel;
-    for(let i = clusterObject.servers.length - 1; i >= 0; i--){
-      if(clusterObject.servers[i].n == n){
+    for(let i = this._servers.length - 1; i >= 0; i--){
+      if(this._servers[i].n == n){
         toDel = i;
         break;
       }
     }
 
     if(toDel != undefined){
-      clusterObject.servers.splice(toDel, 1);
+      this._servers.splice(toDel, 1);
     }
   },
-  size: () => clusterObject.servers.length,
-  startWatch: (paths, config, cbRestart)=>{
-    let pathsToWatch = [].concat(paths.modules, paths.dals, paths.middleware, paths.i18n);
-    pathsToWatch.forEach(function watchDir(pth){
-      clusterObject.log.i('start watch - ', pth);
-      fs.watch(pth, (type, chFile)=>{
-        if(!chFile || chFile.indexOf('.log') != -1){
-          return;
-        }
+  _restartServers(){
+    if(!this._inited) throw 'Not inited';
 
-        if(chFile.indexOf('.') == -1 ||
-          chFile.indexOf('.swx') != -1 || chFile.indexOf('.swp') != -1 ||
-          chFile.indexOf('.js~') != -1 || chFile.indexOf('.git') != -1){
-          return;
-        }
-
-        clusterObject.log.i('File', chFile, 'was changed');
-        cbRestart();
-      });
-
-      fs.readdir(pth, (e, f)=>{
-        if(e){
-          clusterObject.log.e(e);
-          return;
-        }
-
-        f.forEach(f=>{
-          if(f == 'node_modules' || f == '.git' || f == 'logs'){
-            return;
-          }
-
-          fs.stat(path.join(pth, f), (e, s)=>{
-            if(e){
-              clusterObject.log.e(e);
-              return;
-            }
-
-            if(s.isDirectory()){
-              watchDir(path.join(pth, f));
-            }
-          });
-        });
-      });
-    });
-  },
-  intervals: {
-    si: setInterval(()=>{
-      if(!clusterObject)
-      for(let i in clusterObject.intervals.funcs){
-        if(!clusterObject.intervals.funcs.hasOwnProperty(i)){
-          continue;
-        }
-
-        clusterObject.intervals.funcs[i].f(()=>{
-          clusterObject.intervals.del(clusterObject.intervals.funcs[i].key);
-        });
-      }
-    }, 1000),
-    funcs: [],
-    add: function(f){
-      let key = Math.random() * Date.now();
-      this.funcs.push({key: key, f: f});
-      return key;
-    },
-    del: function(key){
-      let ind = this.funcs.reduce((r,f,ind)=>{
-        if(f.key == key){
-          r = ind;
-        }
-        return r;
-      }, -1);
-      this.funcs.splice(ind, 1);
+    log.d('Command restart _servers');
+    for(let i = this._servers.length - 1; i >= 0; i--){
+      this._servers[i].srv.send({type: 'reload'});
     }
   },
-  restart: ()=>{
-    if(!clusterObject.inited){
-      throw 'Not inited';
-    }
+  _stopCusterAndExit(){
+    if(!this._inited) throw 'Not inited';
 
-    clusterObject.log.d('Command restart servers');
-    for(let i = clusterObject.servers.length - 1; i >= 0; i--){
-      clusterObject.servers[i].srv.send({type: 'reload'});
-    }
-  },
-  exit: ()=>{
-    if(!clusterObject.inited){
-      throw 'Not inited';
-    }
+    if(this.exitProcess) return;
 
-    if(clusterObject.exitProcess){
-      return;
-    }
+    this.exitProcess = true;
 
-    clusterObject.exitProcess = true;
-
-    clusterObject.log.d('Command exit servers');
-    for(let i = clusterObject.servers.length - 1; i >= 0; i--){
-      clusterObject.servers[i].srv.exitFlag = true;
-      clusterObject.servers[i].srv.send({type: 'exit'});
+    log.d('Stop cluster and process exit');
+    for(let i = this._servers.length - 1; i >= 0; i--){
+      this._servers[i].srv.exitFlag = true;
+      this._servers[i].srv.send({type: 'exit'});
     }
 
     let si = setInterval(()=>{
-      if(!clusterObject.servers.length){
+      if(!this._servers.length){
         process.exit();
         clearInterval(si);
       }
     }, 50);
+  },
+  _startWatch(config, onChange){
+    let pathsToWatch = [].concat(config.modules, config.dals, config.middleware, config.i18n, config.emailSenders);
+    pathsToWatch.forEach(this._watchDir.bind(this, onChange));
+  },
+  _watchDir(onChange, pth){
+    log.i('start watch - ', pth);
+    fs.watch(pth, (type, chFile)=>{
+      if(!chFile || chFile.indexOf('.log') != -1) return;
+
+      if(chFile.indexOf('.') == -1 ||
+        chFile.indexOf('.swx') != -1 || chFile.indexOf('.swp') != -1 ||
+        chFile.indexOf('.js~') != -1 || chFile.indexOf('.git') != -1){
+        return;
+      }
+
+      log.i('File', chFile, 'was changed');
+      onChange();
+    });
+
+    fs.readdir(pth, (e, f)=>{
+      if(e){
+        log.e(e);
+        return;
+      }
+
+      f.forEach(f=>{
+        if(f == 'node_modules' || f == '.git' || f == 'logs') return;
+
+        fs.stat(path.join(pth, f), (e, s)=>{
+          if(e){
+            log.e(e);
+            return;
+          }
+
+          if(s.isDirectory()){
+            this._watchDir(path.join(pth, f));
+          }
+        });
+      });
+    });
   }
 };
