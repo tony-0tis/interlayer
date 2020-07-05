@@ -607,7 +607,7 @@ exports.timeout = (config, meta, cb)=>{
 
   return (...args)=>{
     if(called){
-      log.e('request ended', args);
+      log.e('request already ended by timeout', args);
       return;
     }
 
