@@ -63,5 +63,6 @@
       "type": "yandex",
       "url": "https://money.yandex.ru/to/410012660007540"
     }
-  ]
+  ],
+  "publishConfig": { "registry": "https://npm.pkg.github.com/" }
 }
