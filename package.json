@@ -65,6 +65,6 @@
     }
   ],
   "_publishConfig": {
-    "registry": "https://npm.pkg.github.com/8ai/interlayer"
+    "registry": "https://npm.pkg.github.com/@8ai"
   }
 }
