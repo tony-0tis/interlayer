@@ -176,7 +176,7 @@ exports.initModules = ()=>{
         curModule = null;
       }
       catch(err){
-        log.e('Error in curModule ' + path + '/' + file, err, err.stack);
+        log.e('Error in module ' + pathMod.join(path + '/' + file), err, err.stack);
       }
     }
   });

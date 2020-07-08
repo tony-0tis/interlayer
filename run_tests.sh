@@ -12,5 +12,5 @@ check() {
 }
 check
 echo "run tests"
-node_modules/.bin/nyc --reporter=text-summary --reporter=lcov node_modules/mocha/bin/mocha --exit
+node_modules/.bin/nyc --reporter=text-summary --reporter=lcov node_modules/.bin/mocha --recursive --exit
 exit $EXIT_CODE

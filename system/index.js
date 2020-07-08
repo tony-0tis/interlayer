@@ -61,7 +61,7 @@ module.exports = function(config = {}){
   helper.checkPath(initPath, config, 'dals');
   if(!config.useDals || !Object.keys(config.useDals).length){
     if(!config.skipDbWarning){
-      console.log('config.useDals not defined, no one database will be included');
+      console.log('config.useDals not defined, no one database will be included(to skip this log pass the skipDbWarning)');
     }
   }
 
@@ -131,118 +131,118 @@ module.exports.server = ()=>{
       return settingsObject;
     },
     setConfig(conf){
-      if(typeof conf != 'object') throw 'first param must be an object';
+      if(typeof conf != 'object') return new Error('setConfig - first param must be an object');
       Object.assign(config, conf);
       return settingsObject;
     },
     setRootPath(path){
-      if(typeof path != 'string') throw 'first param must be a string';
+      if(typeof path != 'string') return new Error('setRootPath - first param must be a string');
       config.path = path;
       return settingsObject;
     },
     setLogPath(path){
-      if(typeof path != 'string') throw 'first param must be a string';
+      if(typeof path != 'string') return new Error('setLogPath - first param must be a string');
       config.logPath = path;
       return settingsObject;
     },
     setPort(port){
-      if(typeof port != 'number') throw 'first param must be a number';
+      if(typeof port != 'number') return new Error('setPort - first param must be a number');
       config.port = port;
       return settingsObject;
     },
     setWorkersCount(workers){
-      if(typeof workers != 'number') throw 'first param must be a number';
-      if(workers < 1) throw 'first param must to be above zero';
+      if(typeof workers != 'number') return new Error('setWorkersCount - first param must be a number');
+      if(workers < 1) return new Error('setWorkersCount - first param must to be above zero');
       config.workers = workers;
       return settingsObject;
     },
     setSecure(secure){
-      if(typeof secure != 'object') throw 'first param must be an object';
-      if(typeof secure.key != 'string') throw 'first param.key must be a string';
-      if(typeof secure.cert != 'string') throw 'first param.cert must be a string';
+      if(typeof secure != 'object') return new Error('setSecure - first param must be an object');
+      if(typeof secure.key != 'string') return new Error('setSecure - first param.key must be a string');
+      if(typeof secure.cert != 'string') return new Error('setSecure - first param.cert must be a string');
       config.secure = secure;
       return settingsObject;
     },
     setWebsocketConfig(websocket){
-      if(typeof websocket != 'object') throw 'first param must be an object';
+      if(typeof websocket != 'object' && typeof websocket != 'boolean') return new Error('setWebsocketConfig - first param must be an object or boolean');
       config.websocket = websocket;
       return settingsObject;
     },
     setDefaultHeaders(headers){
-      if(typeof headers != 'object') throw 'first param must be an object';
+      if(typeof headers != 'object') return new Error('setDefaultHeaders - first param must be an object');
       config.defaultHeaders = headers;
       return settingsObject;
     },
     setTimeout(timeout){
-      if(typeof timeout != 'number') throw 'first param must be a number';
-      if(timeout < 1) throw 'first param must to be above zero';
+      if(typeof timeout != 'number') return new Error('setTimeout - first param must be a number');
+      if(timeout < 1) return new Error('setTimeout - first param must to be above zero');
       config.timeout = timeout;
       return settingsObject;
     },
     setInstantShutdownDelay(delay){
-      if(typeof delay != 'number') throw 'first param must be a number';
-      if(delay < 1) throw 'first param must to be above zero';
+      if(typeof delay != 'number') return new Error('setInstantShutdownDelay - first param must be a number');
+      if(delay < 1) return new Error('setInstantShutdownDelay - first param must to be above zero');
       config.instantShutdownDelay = delay;
       return settingsObject;
     },
     setRetryAter(time){
-      if(typeof time != 'number') throw 'first param must be a number';
-      if(time < 1) throw 'first param must to be above zero';
+      if(typeof time != 'number') return new Error('setRetryAter - first param must be a number');
+      if(time < 1) return new Error('setRetryAter - first param must to be above zero');
       config.retryAter = time;
       return settingsObject;
     },
     setRestartOnChange(bool){
-      if(typeof bool != 'boolean') throw 'first param must be a boolean';
+      if(typeof bool != 'boolean') return new Error('setRestartOnChange - first param must be a boolean');
       config.restartOnChange = bool;
       return settingsObject;
     },
     setSkipDbWarning(bool){
-      if(typeof bool != 'boolean') throw 'first param must be a boolean';
+      if(typeof bool != 'boolean') return new Error('setSkipDbWarning - first param must be a boolean');
       config.skipDbWarning = bool;
       return settingsObject;
     },
     setDebugMode(bool){
-      if(typeof bool != 'boolean') throw 'first param must be a boolean';
+      if(typeof bool != 'boolean') return new Error('setDebugMode - first param must be a boolean');
       config.debug = bool;
       return settingsObject;
     },
     setNoDelay(bool){
-      if(typeof bool != 'boolean') throw 'first param must be a boolean';
+      if(typeof bool != 'boolean') return new Error('setNoDelay - first param must be a boolean');
       config.noDelay = bool;
       return settingsObject;
     },
     setUseFilesAsHTTPErrors(bool){
-      if(typeof bool != 'boolean') throw 'first param must be a boolean';
+      if(typeof bool != 'boolean') return new Error('setUseFilesAsHTTPErrors - first param must be a boolean');
       config.useHttpErrorFiles = bool;
       return settingsObject;
     },
     setDisableNagleAlgoritm(){
-      console.warn('deprecated in v 0.9.0, use setNoDelay instead');
+      console.warn('setDisableNagleAlgoritm - deprecated in v 0.9.0, use setNoDelay instead');
       return settingsObject;
     },
 
     addDal(dalName, dalConfig={}){
-      if(typeof dalName != 'string') throw 'first param must be a string';
-      if(typeof dalConfig != 'object') throw 'second param must be an object';
+      if(typeof dalName != 'string') return new Error('addDal - first param must be a string');
+      if(typeof dalConfig != 'object') return new Error('addDal - second param must be an object');
       config.useDals[dalName] = dalConfig;
       return settingsObject;
     },
     addEmailSender(emailName, emailConfig={}){
-      if(typeof emailName != 'string') throw 'first param must be a string';
-      if(typeof emailConfig != 'object') throw 'second param must be an object';
+      if(typeof emailName != 'string') return new Error('addEmailSender - first param must be a string');
+      if(typeof emailConfig != 'object') return new Error('addEmailSender - second param must be an object');
       config.useEmailSenders[emailName] = emailConfig;
       return settingsObject;
     },
 
     addDalPath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addDalPath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addDalPath - first and other params must be a string');
       config.dals = config.dals.concat(paths);
       return settingsObject;
     },
     addMiddlewarePath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addMiddlewarePath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addMiddlewarePath - first and other params must be a string');
       config.middleware = config.middleware.concat(paths);
       return settingsObject;
     },
@@ -250,36 +250,36 @@ module.exports.server = ()=>{
       if(orders.length == 1 && Array.isArray(orders[0])){
         orders = orders[0];
       }
-      if(!orders.length || orders.filter(p=>typeof p != 'string').length) throw 'first param must be an array of strings or first and other params must be a string';
+      if(!orders.length || orders.filter(p=>typeof p != 'string').length) return new Error('setMiddlewareOrder - first param must be an array of strings or first and other params must be a string');
       config.middlewareOrder = config.middlewareOrder.concat(orders);
       return settingsObject;
     },
     setMiddlewareTimeout(timeout){
-      if(typeof timeout != 'number') throw 'first param must be a number';
+      if(typeof timeout != 'number') return new Error('setMiddlewareTimeout - first param must be a number');
       config.middlewareTimeout = timeout;
       return settingsObject;
     },
     addModulesPath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addModulesPath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addModulesPath - first and other params must be a string');
       config.modules = config.modules.concat(paths);
       return settingsObject;
     },
     addI18nPath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addI18nPath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addI18nPath - first and other params must be a string');
       config.i18n = config.i18n.concat(paths);
       return settingsObject;
     },
     addServePath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addServePath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addServePath - first and other params must be a string');
       config.serve = config.serve.concat(paths);
       return settingsObject;
     },
     addViewPath(...paths){
-      if(!paths.length) throw 'first and other params must be a string';
-      if(paths.filter(p=>typeof p != 'string').length) throw 'first and other params must be a string';
+      if(!paths.length) return new Error('addViewPath - first and other params must be a string');
+      if(paths.filter(p=>typeof p != 'string').length) return new Error('addViewPath - first and other params must be a string');
       config.views = config.views.concat(paths);
       return settingsObject;
     }
@@ -293,10 +293,33 @@ module.exports.module = ()=>{
     __meta: null,
     __init: null
   };
+
+  let addMethod = (name, info, methodFunc, method)=>{
+    if(!methodFunc) {
+      methodFunc = info;
+      info = {};
+    }
+
+    if(typeof name != 'string') return new Error(method + ' - first param must be a string');
+    if(typeof info != 'object') return new Error(method + ' - second param must be an object');
+    if(typeof methodFunc != 'function') return new Error(method + ' - third param must be a function');
+    
+    moduleInfo['_'+ name] = info || {};
+    moduleInfo[name] = methodFunc;
+    return Module;
+  };
+  let setMethodInfo = (name, info={}, method)=>{
+    if(typeof name != 'string') return new Error(method + ' - first param must be a string');
+    if(typeof info != 'object') return new Error(method + ' - second param must be an object');
+
+    moduleInfo['_'+ name] = info;
+    return Module;
+  };
+
   let Module = {
     __moduleInfo: moduleInfo,
     getLog(name){
-      if(typeof name != 'string') throw 'first param must be a string'
+      if(typeof name != 'string') return new Error('getLog - first param must be a string');
 
       if(logs[name]) return logs[name];
 
@@ -304,39 +327,33 @@ module.exports.module = ()=>{
       return logs[name];
     },
     setMeta(meta){
-      if(typeof meta != 'object') throw 'first param must be an object';
+      if(typeof meta != 'object') return new Error('setMeta - first param must be an object');
       moduleInfo.__meta = meta;
       return Module;
     },
     setInit(init){
-      if(typeof init != 'object') throw 'first param must be an object';
+      if(typeof init != 'object') return new Error('setInit - first param must be an object');
       moduleInfo.__init = init;
       return Module;
     },
     addMethod(name, info, methodFunc){
-      if(!methodFunc) {
-        methodFunc = info;
-        info = {};
-      }
-
-      if(typeof methodFunc != 'function') throw 'third param must be a function'
-      if(typeof info != 'object') throw 'second param must be an object';
-      
-      moduleInfo['_'+ name] = info || {};
-      moduleInfo[name] = methodFunc;
-      return Module;
+      return addMethod(name, info, methodFunc, 'addMethod');
     },
-    add(...args){return this.addMethod(...args)},
+    add(name, info, methodFunc){
+      return addMethod(name, info, methodFunc, 'add');
+    },
     setMethodInfo(name, info={}){
-      if(typeof info != 'object') throw 'second param must be an object';
-      moduleInfo['_'+ name] = info;
-      return Module;
+      return setMethodInfo(name, info, 'setMethodInfo');
     },
-    info(...args){return this.setMethodInfo(...args)},
+    info(name, info){
+      return setMethodInfo(name, info, 'info');
+    },
     getMethod(name){
+      if(typeof name != 'string') return new Error('getMethod - first param must be a string');
       return moduleInfo[name];
     },
     getMethodInfo(name, withGlobal){
+      if(typeof name != 'string') return new Error('getMethodInfo - first param must be a string');
       if(!withGlobal){
         return moduleInfo['_'+ name];
       }
