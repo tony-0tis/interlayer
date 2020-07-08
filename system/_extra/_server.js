@@ -9,7 +9,11 @@ let log = null;
 exports.addLog = (...args)=>{
   if(log) log.i(...args);
   else console.log(...args);
-}
+};
+exports.addPPLog = (...args)=>{
+  if(log) log.pp(...args);
+  else console.debug(...args);
+};
 
 process.on('uncaughtException', err => (log && log.c || console.error)(Date.now(), 'Caught exception:', err));
 

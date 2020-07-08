@@ -74,7 +74,7 @@ module.exports = function(config = {}){
   // Serve
   helper.checkPath(initPath, config, 'serve');
 
-  if(config.disableNagleAlgoritm) log.w('deprecated in v 0.9.0, use setNoDelay instead')
+  if(config.disableNagleAlgoritm) console.warn('deprecated in v 0.9.0, use setNoDelay instead')
   
   process.chdir(initPath);
 
@@ -371,13 +371,13 @@ process.on('message', obj=> {
       helper.server.start(obj.config);
       break;
     case 'ping':
-      log.pp('server obtain ping');
+      helper.server.addPPLog('server obtain ping');
       if(process.send){
         process.send({
           type: 'pong',
           id: obj.id
         });
-        log.pp('server send pong');
+        helper.server.addPPLog('server send pong');
         helper.startPing();
       }
       break;
@@ -386,20 +386,20 @@ process.on('message', obj=> {
       if(ind > -1){
         helper.serverStat.pings.splice(ind, 1);
       }
-      log.pp('server obtain pong');
+      helper.server.addPPLog('server obtain pong');
       break;
     case 'reload':
-      log.i('reload command');
+      helper.server.addLog('reload command');
       helper.graceful_shutdown(0);
       break;
     case 'exit':
-      log.i('exit command');
+      helper.server.addLog('exit command');
       helper.graceful_shutdown(1);
       break;
   }
 
   if(obj == 'shutdown') {
-    log.i('process message shutdown');
+    helper.server.addLog('process message shutdown');
     helper.graceful_shutdown(1);
   }
 });

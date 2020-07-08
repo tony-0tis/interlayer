@@ -242,8 +242,8 @@ exports.reconstructRequest = function(request, response){
 
   requestObject.params = qs.parse(url.parse(requestObject.url).query);
   for(let i in requestObject.params){
-    if(exports.isBoolean(requestObject[i])){
-      requestObject[i] = Boolean(requestObject[i]);
+    if(exports.isBoolean(requestObject.params[i])){
+      requestObject[i] = Boolean(requestObject.params[i]);
     }
   }
 
