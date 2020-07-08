@@ -1,6 +1,6 @@
 {
   "name": "interlayer",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "system/index.js",
   "dependencies": {
@@ -50,7 +50,7 @@
     "url": "https://github.com/8ai/interlayer/issues"
   },
   "homepage": "https://github.com/8ai/interlayer#readme",
-  "funding":[
+  "funding": [
     {
       "type": "ko-fi",
       "url": "https://ko-fi.com/Outis"
