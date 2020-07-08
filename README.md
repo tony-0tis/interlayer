@@ -16,6 +16,7 @@ The stable version of the server will be implemented after writing all the neces
 ##### !!! UPDATE 0.7.0: Changed the way server and modules are initialized.
 ##### !!! UPDATE 0.8.0: Refactor, might broke init.
 ##### !!! UPDATE 0.9.0: Rafactor, removed `disableNagleAlgoritm` and `setDisableNagleAlgoritm` because is disabled in node.js by default as of version v0.1.92, use `noDelay` and `setNoDelay` instead. For POST requests start using formidable node.js library, return html files when errors(404.html,503.html)
+##### !!! UPPATE 0.10.0 I start writing tests, so I make changes (checks) in the initialization code, which may cause errors at the start of your servers. Please check if the start is correct.
 
 ## Features
 - Serving Static Content
@@ -124,6 +125,7 @@ let serverInstance = require('interlayer').server();
 | `start(configObject / null)` | --- | Object | Starting the server with/without the configuration object |
 | `loadConfigFile(path)` | --- | String | Initializing configuration from file |
 | `setConfig(configObject)` | --- | Object | Setting a configuration from an object |
+| `getConfig(configObject)` | --- | Object | Get the resulting configuration |
 | `setRootPath(path)` | ./ | String | Set root directory |
 | `setLogPath(path)` | ./ | String | Set a directory of the log file |
 | `setPort(port)` | 8080 | Number | Set the server port |
@@ -265,22 +267,23 @@ const app = require('interlayer').module();
 | `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
 
 #### prerunFunction(request, moduleMeta, requestCallback)
-`request` same as in `methodFunction`
+- `request` - same as in `methodFunction`
 
 #### initFunction(simpleRequest)
-`simpleRequest.url` - Empty string
-`simpleRequest.headers` - Empty object
-`simpleRequest.DAL` - DAL objects if initialised
-`simpleRequest.config` - Configuration object
-`simpleRequest.websocket` - websocket server instanse if initialised
+- `simpleRequest.url` - Empty string
+- `simpleRequest.headers` - Empty object
+- `simpleRequest.DAL` - DAL objects if initialised
+- `simpleRequest.config` - Configuration object
+- `simpleRequest.websocket` - websocket server instanse if initialised
+
 ... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here](https://nodejs.org/api/http.html#http_class_http_clientrequest)
 
 #### requestCallback(error, data, httpCode, responseHeaders, isBinary)
-`error` - null or undefined or String or Object
-`data` - null or String or Object or Binary(if `isBinary` = true)
-`httpCode` - null or Number [See here](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-`responseHeaders` - null or Object [See here](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
-`type` - null or 'bin'. If 'bin' then `data` will be returned as Buffer
+- `error` - null or undefined or String or Object
+- `data` - null or String or Object or Binary(if `isBinary` = true)
+- `httpCode` - null or Number [See here](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `responseHeaders` - null or Object [See here](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
+- `type` - null or 'bin'. If 'bin' then `data` will be returned as Buffer
 
 #### added global property
 `global.logger` - Object to creat log with `global.logger.create(logName)` were `logName` is String. See Features below
@@ -319,7 +322,7 @@ exports.myMethod = (request, cb)=>{
     let log = request.log;
 }
 ```
-#### Use dals:**
+#### Use dals:
 ```js
 request.DAL.redis.get('somekey', (err, data) => {
     if(err){
@@ -408,6 +411,7 @@ exports.test = (request, moduleMeta, cb) => {
 
 ## Localization
 Example of `i18n/en.js`
+
 **Note! You have to use double quotes, instead single quotes, because it's json file**
 **These are the actual keys used for error output.**
 ```json

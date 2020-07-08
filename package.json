@@ -5,27 +5,28 @@
   "main": "system/index.js",
   "dependencies": {
     "JSV": "^4.0.2",
-    "async": "^3.1.0",
+    "async": "^3.2.0",
     "formidable": "^1.2.2",
     "mailgun-js": "^0.22.0",
-    "mysql": "^2.12.0",
-    "pg": "^7.4.3",
-    "redis": "^2.6.3",
+    "mysql": "^2.18.1",
+    "pg": "^8.2.1",
+    "redis": "^3.0.2",
     "sparkpost": "^2.0.1",
-    "ws": "^7.1.2"
+    "ws": "^7.3.1"
   },
   "devDependencies": {
     "chai": "^4.1.2",
-    "eslint": "^6.5.1",
+    "eslint": "^7.4.0",
     "eslint-config-google": "^0.14.0",
-    "istanbul": "^0.4.5",
-    "mocha": "^6.2.2",
-    "rewire": "^4.0.1",
-    "sinon": "^7.5.0"
+    "mocha": "^8.0.1",
+    "nyc": "^15.1.0",
+    "rewire": "^5.0.0",
+    "sinon": "^9.0.2"
   },
   "scripts": {
     "test": "./run_tests.sh",
-    "_postinstall": "node postinstall.js"
+    "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks -c",
+    "postinstall": "node postinstall.js"
   },
   "author": "A.I. Developer <npmdev@8ai.pw> (https://8ai.pw)",
   "license": "Apache-2.0",
@@ -48,5 +49,19 @@
     "mail": "npmdev@8ai.pw",
     "url": "https://github.com/8ai/interlayer/issues"
   },
-  "homepage": "https://github.com/8ai/interlayer#readme"
+  "homepage": "https://github.com/8ai/interlayer#readme",
+  "funding":[
+    {
+      "type": "ko-fi",
+      "url": "https://ko-fi.com/Outis"
+    },
+    {
+      "type": "liberapay",
+      "url": "https://liberapay.com/Outis"
+    },
+    {
+      "type": "yandex",
+      "url": "https://money.yandex.ru/to/410012660007540"
+    }
+  ]
 }
