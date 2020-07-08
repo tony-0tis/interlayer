@@ -2,7 +2,7 @@
 [![npm version](https://img.shields.io/npm/v/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![npm downloads](https://img.shields.io/npm/dm/interlayer.svg?style=flat-square)](https://www.npmjs.com/package/interlayer)
 [![github license](https://img.shields.io/github/license/8ai/interlayer.svg)](https://github.com/8ai/interlayer/blob/master/LICENSE)
-[![Build Status](https://travis-ci.org/aidevio/interlayer.svg?branch=master)](https://travis-ci.org/aidevio/interlayer)
+[![Build Status](https://travis-ci.org/8ai/interlayer.svg?branch=master)](https://travis-ci.org/8ai/interlayer)
 [![Code Climate](https://codeclimate.com/github/aidevio/interlayer/badges/gpa.svg)](https://codeclimate.com/github/aidevio/interlayer)
 
 At this point, the server version is still in alpha. You can suggest an idea or report an error here: [New issue](https://github.com/8ai/interlayer/issues/new)
