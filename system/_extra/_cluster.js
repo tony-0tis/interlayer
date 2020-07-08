@@ -216,7 +216,7 @@ module.exports = {
     pathsToWatch.forEach(this._watchDir.bind(this, onChange));
   },
   _watchDir(onChange, pth){
-    log.i('start watch - ', pth);
+    log.i('start watch catalog - ', pth);
     fs.watch(pth, (type, chFile)=>{
       if(!chFile || chFile.indexOf('.log') != -1) return;
 
@@ -246,7 +246,7 @@ module.exports = {
           }
 
           if(s.isDirectory()){
-            this._watchDir(path.join(pth, f));
+            this._watchDir.call(this, onChange, path.join(pth, f));
           }
         });
       });
