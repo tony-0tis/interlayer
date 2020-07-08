@@ -1,5 +1,5 @@
 {
-  "name": "interlayer",
+  "name": "@8ai/interlayer",
   "version": "0.10.2",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "system/index.js",
@@ -65,6 +65,6 @@
     }
   ],
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com/8ai"
+    "registry": "https://npm.pkg.github.com/"
   }
 }
