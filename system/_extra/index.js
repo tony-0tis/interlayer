@@ -48,11 +48,16 @@ global.intervals = {
   _si: setInterval(()=>global.intervals._check(), 1000),
   start(){
     this.stop();
-    log.d('start global intervals');
+
+    if(log) log.d('start global intervals');
+    else console.debug('start global intervals');
+
     this._si = setInterval(this._check, 1000);
   },
   stop(){
-    log.d('stop global intervals');
+    if(log) log.d('stop global intervals');
+    else console.debug('stop global intervals');
+
     clearInterval(this._si);
   },
   _check(){
