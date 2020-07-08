@@ -1,6 +1,6 @@
 {
   "name": "@8ai/interlayer",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "system/index.js",
   "dependencies": {
