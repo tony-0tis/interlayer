@@ -26,7 +26,8 @@
   "scripts": {
     "test": "./run_tests.sh",
     "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks --recursive --recursive",
-    "postinstall": "node postinstall.js"
+    "postinstall": "node postinstall.js",
+    "p": "npm publish"
   },
   "author": "A.I. Developer <npmdev@8ai.pw> (https://8ai.pw)",
   "license": "Apache-2.0",
