@@ -10,7 +10,7 @@ module.exports = {
   config: {},
 
   start(config){
-    log = helper.logger(config.logPath, config.debug, config.pingponglog).create('CLUSTER');
+    log = helper.logger(config.logPath, config.debug).create('CLUSTER');
   
     let toStart = config.workers || 1;
     if(toStart == 1 && !config.restartOnChange){
@@ -119,15 +119,19 @@ module.exports = {
           type: 'pong',
           id: obj.id
         });
-        log.pp('cluster obtain ping');
-        log.pp('cluster send pong');
+        if(helper.config.pingponglog){
+          log.d('cluster obtain ping');
+          log.d('cluster send pong');
+        }
         break;
       case 'pong':
         let ind = pings.indexOf(obj.id);
         if(ind > -1){
           pings.splice(ind, 1);
         }
-        log.pp('cluster obtain pong');
+        if(helper.config.pingponglog){
+          log.d('cluster obtain pong');
+        }
         break;
       default: 
         log.e('wrong message type', obj);
@@ -162,7 +166,9 @@ module.exports = {
       };
       pings.push(ping.id);
       server.send(ping);
-      log.pp('cluster send ping');
+      if(helper.config.pingponglog){
+        log.d('cluster send ping');
+      }
     }, 1000);
 
     log.i('start worker process', server.process.pid);

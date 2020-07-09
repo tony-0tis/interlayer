@@ -11,7 +11,8 @@ exports.addLog = (...args)=>{
   else console.log(...args);
 };
 exports.addPPLog = (...args)=>{
-  if(log) log.pp(...args);
+  if(!helper.config.pingponglog) return;
+  if(log) log.d(...args);
   else console.debug(...args);
 };
 

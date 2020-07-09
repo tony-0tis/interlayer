@@ -25,7 +25,7 @@
   },
   "scripts": {
     "test": "./run_tests.sh",
-    "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks --recursive --recursive",
+    "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks --recursive",
     "postinstall": "node postinstall.js",
     "p": "npm publish"
   },
