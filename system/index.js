@@ -332,7 +332,7 @@ module.exports.module = ()=>{
       return Module;
     },
     setInit(init){
-      if(typeof init != 'object') return new Error('setInit - first param must be an object');
+      if(typeof init != 'function') return new Error('setInit - first param must be a function');
       moduleInfo.__init = init;
       return Module;
     },

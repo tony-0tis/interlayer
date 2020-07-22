@@ -229,7 +229,7 @@ describe('init', () => {
     })
 
     it('setInit', ()=>{
-      chai.assert.deepInclude(mod.setInit(), {name: 'Error', message: 'setInit - first param must be an object'});
+      chai.assert.deepInclude(mod.setInit(), {name: 'Error', message: 'setInit - first param must be a function'});
       chai.assert.deepEqual(mod.setInit({test: true}), mod);
       chai.assert.deepEqual(mod.__moduleInfo, Object.assign({}, obj, {__init: {test: true}}));
       mod.setInit(null);
