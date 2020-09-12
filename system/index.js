@@ -216,6 +216,11 @@ module.exports.server = ()=>{
       config.useHttpErrorFiles = bool;
       return settingsObject;
     },
+    setSkipParsePost(bool){
+      if(typeof bool != 'boolean') return new Error('setSkipParsePost - first param must be a boolean');
+      config.skipParsePost = bool;
+      return settingsObject;
+    },
     setDisableNagleAlgoritm(){
       console.warn('setDisableNagleAlgoritm - deprecated in v 0.9.0, use setNoDelay instead');
       return settingsObject;

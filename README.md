@@ -96,6 +96,7 @@ Avaliable properties in `config` object or `config.json` file
 | `noDelay` | true | Boolean | Flag to enable/disable Nagle algoritm for all connections. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
 | `useHttpErrorFiles` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
+| `skipParsePost`| false | Boolean | Skip parse POST |
 
 
 ### How to use
@@ -151,6 +152,7 @@ let serverInstance = require('interlayer').server();
 | `addViewPath(path, [path, [path]])` | ./files |  String, ... | Folders with files, which you can be uses as templates, or returned through the api(by using `request.getView`). Priority over the last folder. (Default directory is './files' unless otherwise specified.) | 
 | `setWebsocketConfig(websocket)` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket` |
 | `setUseFilesAsHTTPErrors([true / false])` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
+| `setSkipParsePost([true / false])` | false | Boolean | Set skip parse POST |
 
 ### How to use
 ```js
@@ -215,6 +217,7 @@ const app = require('interlayer').module();
 | `contentType` | String | Same as `toJson` if `contentType==json` |
 | `skipRequestLog` | String | Skip request log output |
 | `hidden` | Boolean | Skip method from return information while calling `request.getMethodsInfo`|
+| `skipParsePost` | Boolean | Skip parse POST |
 
 #### methodFunction(request, requestCallback):
 `request`:
