@@ -230,7 +230,7 @@ exports.reconstructRequest = function(request, response){
 
     id: exports.generateId(),
     url: request.url,
-    path: url.parse(request.url).pathname.substring(1),
+    path: decodeURIComponent(url.parse(request.url).pathname.substring(1)),
     method: request.method,
     isPost: request.method == 'POST',
     headers: JSON.parse(JSON.stringify(request.headers)),

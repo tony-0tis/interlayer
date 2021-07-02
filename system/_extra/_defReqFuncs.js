@@ -102,6 +102,8 @@ let defaultRequestFuncs = {
       view = null;
     }
 
+    file = decodeURIComponent(file);
+
     if(!this.config.views || !this.config.views.length) return cb('NO config.views');
 
     let contentType = helpers.mime(file);
