@@ -25,7 +25,7 @@ exports.start = (config)=>{
   helper.initHelper(config);
 
   if(config.instantShutdownDelay){
-    helper.instantShutdownDelay = config.instantShutdownDelay;
+    helper.setInstantShutdownDelay(config.instantShutdownDelay);
   }
   
   let server;
@@ -65,7 +65,7 @@ exports.start = (config)=>{
 };
 
 function requestFunc(request, response){
-  if(helper.gracefulShutdownInited){
+  if(helper.isGracefulShutdownInited()){
     response.writeHead(503, {
       'Retry-After': helper.config.retryAter || 10
     });

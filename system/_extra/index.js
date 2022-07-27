@@ -180,10 +180,16 @@ exports.startPing = ()=>{
   }, 1);
 };
 
-exports.gracefulShutdownInited;
-exports.instantShutdownDelay;
+let gracefulShutdownInited = null;
+let instantShutdownDelay = null;
+exports.setInstantShutdownDelay = delay=>{
+  instantShutdownDelay = delay;
+};
+exports.isGracefulShutdownInited = ()=>{
+  return gracefulShutdownInited;
+}
 exports.graceful_shutdown = (code) => {
-  if(exports.gracefulShutdownInited){
+  if(gracefulShutdownInited){
     return;
   }
   let processLocks = exports.defReqFuncs && exports.defReqFuncs.getProcessLocks() || {};
@@ -192,9 +198,9 @@ exports.graceful_shutdown = (code) => {
     return;
   }
 
-  exports.gracefulShutdownInited = Date.now();
+  gracefulShutdownInited = Date.now();
   let si = setInterval(()=>{
-    if(!Object.keys(processLocks).length || Date.now() - exports.gracefulShutdownInited >= exports.instantShutdownDelay || 1500){
+    if(!Object.keys(processLocks).length || Date.now() - gracefulShutdownInited >= instantShutdownDelay || 1500){
       process.exit(code);
       clearInterval(si);
     }

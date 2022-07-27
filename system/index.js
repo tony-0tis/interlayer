@@ -410,7 +410,7 @@ process.on('message', obj=> {
 });
 
 process.on('exit', function(){
-  if(helper.gracefulShutdownInited){
+  if(helper.isGracefulShutdownInited()){
     if(global.intervals) global.intervals.stop();
     return process.exit();
   }
