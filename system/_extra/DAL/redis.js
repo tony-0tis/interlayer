@@ -79,7 +79,7 @@ let DAL = {
     
     connection.redis = redis.createClient(config);
     connection.redis.on('error', err=>{
-      log.e('Error in redis exports.connection:', connection.id, err);
+      log.e('Error in redis exports.connection:', (connection && connection.id), err);
       if(!connection){
         return;
       }

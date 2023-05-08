@@ -11,10 +11,11 @@ exports.init = (paths, config)=>{
   let pathsToCheck = [__dirname].concat(paths.useEmailSenders||[]).reverse();
   for(let sender in config.useEmailSenders){
     let senderName = sender + '.js';
-    for(let senderPath of pathsToCheck){
+    for(let senderPathToCheck of pathsToCheck){
+      let senderPath = path.join(senderPathToCheck, senderName);
       try{
-        if(fs.statSync(path.join(senderPath, senderName)).isFile()){
-          let senderFile = require(path.join(senderPath, senderName));// eslint-disable-line global-require
+        if(fs.statSync(senderPath).isFile()){
+          let senderFile = require(senderPath);// eslint-disable-line global-require
           if(!senderFile.send){
             throw 'exports.send no defined';
           }
@@ -29,7 +30,7 @@ exports.init = (paths, config)=>{
           break;
         }
       }catch(e){
-        log.e('Error in', path.join(senderPath, senderName), e);
+        log.e('Error in', senderPath, e);
       }
     }
   }
