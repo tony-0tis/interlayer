@@ -9,8 +9,8 @@ let DAL;
 let Emails;
 exports.init = ()=>{
   log = global.logger.create('__INIT');
-  DAL = require('./DAL')
-  Emails = require('./mail')
+  DAL = require('./DAL');
+  Emails = require('./mail');
 
   exports.initDALs();
   exports.initModules();
@@ -317,5 +317,5 @@ exports.initI18n = ()=>{
 };
 
 exports.initEmailSenders = ()=>{
-  helper.emailSenders = Emails.init(helper.config, helper.config);
+  helper.emailSenders = Emails.init(helper.config);
 };

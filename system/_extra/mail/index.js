@@ -2,13 +2,13 @@ let fs = require('fs');
 let path = require('path');
 let log = global.logger.create('EMAILS');
 
-exports.init = (paths, config)=>{
+exports.init = (config)=>{
   if(!config.useEmailSenders || Object.keys(config.useEmailSenders) == 0){
     return;
   }
 
   let EmailSenders = {};
-  let pathsToCheck = [__dirname].concat(paths.useEmailSenders||[]).reverse();
+  let pathsToCheck = [__dirname].concat(config.emailSenders||[]).reverse();
   for(let sender in config.useEmailSenders){
     let senderName = sender + '.js';
     for(let senderPathToCheck of pathsToCheck){

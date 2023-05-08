@@ -1,10 +1,11 @@
 const nodemailer = require("nodemailer");
-exports.client = null;
+exports.transporter = null;
+let log = global.logger.create('SMTP EMAIL');
 
 exports.init = function(sysconfig, config) {
-  exports.client = nodemailer.createTransport(config);
+  exports.transporter = nodemailer.createTransport(config);
 };
 exports.send = async function(email, cb) {
-  let info = await transporter.sendMail(email).catch(e=>console.error(e));
+  let info = await exports.transporter.sendMail(email).catch(e=>log.e('smtp send', e));
   cb(null, info);
 };
