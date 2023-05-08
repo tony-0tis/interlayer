@@ -16,7 +16,8 @@ The stable version of the server will be implemented after writing all the neces
 ##### !!! UPDATE 0.7.0: Changed the way server and modules are initialized.
 ##### !!! UPDATE 0.8.0: Refactor, might broke init.
 ##### !!! UPDATE 0.9.0: Rafactor, removed `disableNagleAlgoritm` and `setDisableNagleAlgoritm` because is disabled in node.js by default as of version v0.1.92, use `noDelay` and `setNoDelay` instead. For POST requests start using formidable node.js library, return html files when errors(404.html,503.html)
-##### !!! UPPATE 0.10.0 I start writing tests, so I make changes (checks) in the initialization code, which may cause errors at the start of your servers. Please check if the start is correct.
+##### !!! UPDATE 0.10.0 I start writing tests, so I make changes (checks) in the initialization code, which may cause errors at the start of your servers. Please check if the start is correct.
+##### !!! UPDATE 0.12.0 Added sending smtp via nodemailer
 
 ## Features
 - Serving Static Content
