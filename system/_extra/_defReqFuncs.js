@@ -126,7 +126,7 @@ let defaultRequestFuncs = {
             return fail(e);
           }
 
-          fs.readFile(path.join(this.config.views[i], file), (err, res)=>{
+          fs.readFile(path.join(this.config.views[i], file), {encoding: 'utf8'}, (err, res)=>{
             if(err){
               nLog.d('read err', path.join(this.config.views[i], file), err);
               return fail(err);
@@ -163,7 +163,7 @@ let defaultRequestFuncs = {
         return res;
       }
       try{
-        return fs.readFileSync(path.join(view, file));
+        return fs.readFileSync(path.join(view, file), {encoding: 'utf8'});
       }
       catch(e){
         return res;

@@ -45,37 +45,54 @@ exports.finishInit = (websocket)=>{
 };
 
 global.intervals = {
-  _si: setInterval(()=>global.intervals._check(), 1000),
+  _si: null,
   start(){
     this.stop();
 
     if(log) log.d('start global intervals');
     else console.debug('start global intervals');
 
-    this._si = setInterval(this._check, 1000);
+    this._si = setInterval(()=>this._check(), 1000);
   },
   stop(){
+    if(this._si == null) return;
+
     if(log) log.d('stop global intervals');
     else console.debug('stop global intervals');
 
     clearInterval(this._si);
   },
   _check(){
-    for(let i in this._funcs){
-      if(!this._funcs.hasOwnProperty(i)) continue;
+    for(let func of this._funcs){
+      if(func.disabled) continue;
 
-      if(this._funcs[i].runafter){
-        if(Date.now() < this._funcs[i].runafter){
-          continue;
+      if(func.timeout){
+        if(typeof func.timeout === 'number'){
+          if(func.triggered && Date.now() < func.triggered + func.timeout * 1000){
+            continue;
+          }
         }
+        else{
+          let d = new Date();
+          let [year, month, date, day, hour, minute, second] = [d.getFullYear(), d.getMonth(), d.getDate(), d.getDay(), d.getHours(), d.getMinutes(), d.getSeconds()];
 
-        this._funcs[i].runafter = Date.now() + this._funcs[i].timeout * 1000;
+          if(func.timeout.year != null && func.timeout.year != '*' && !String(func.timeout.year).split(',').includes(String(year))) continue;
+          if(func.timeout.month != null && func.timeout.month != '*' && !String(func.timeout.month).split(',').includes(String(month))) continue;
+          if(func.timeout.date != null && func.timeout.date != '*' && !String(func.timeout.date).split(',').includes(String(date))) continue;
+          if(func.timeout.day != null && func.timeout.day != '*' && !String(func.timeout.day).split(',').includes(String(day))) continue;
+          if(func.timeout.hour != null && func.timeout.hour != '*' && !String(func.timeout.hour).split(',').includes(String(hour))) continue;
+          if(func.timeout.minute != null && func.timeout.minute != '*' && !String(func.timeout.minute).split(',').includes(String(minute))) continue;
+          if(func.timeout.second != null && func.timeout.second != '*' && !String(func.timeout.second).split(',').includes(String(second))) continue;
+          if(func.timeout.second == null || func.timeout.second === '*'){
+            if(func.triggered && Date.now() < func.triggered + 60 * 1000){
+              continue;
+            }
+          }
+        }
       }
 
-
-      if(this._funcs[i].disabled) continue;
-
-      this._funcs[i].func(this.del.bind(this, this._funcs[i].key));//send cb with delete current interval
+      func.func(this.del.bind(this, func.key));//send cb with delete current interval
+      func.triggered = Date.now();
     }
   },
   _funcs: [],
@@ -85,7 +102,7 @@ global.intervals = {
       key: key,
       func: func,
       timeout: timeout,
-      runafter: timeout ? Date.now() + timeout * 1000 : null
+      triggered: null
     });
     return key;
   },
@@ -113,6 +130,7 @@ global.intervals = {
     });
   }
 };
+global.intervals.start();
 
 
 /* *********** SERVER FUNCTIONS ************/

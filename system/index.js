@@ -1,12 +1,14 @@
 let fs = require('fs');
 let path = require('path');
-let helper = require('./_extra/index.js');
 
 function getRootPath(error) {
   return path.dirname(error.stack.split('\n').splice(2, 1)[0].match(/at\s?[^(]*\(?([^)]+)\)?/)[1])
 }
 
 module.exports = function(config = {}){
+  let helper = require('./_extra/index.js');
+  startProcessEvents(helper);
+
   let initPath = getRootPath(new Error());
 
   if(typeof config == 'string'){
@@ -370,59 +372,61 @@ module.exports.module = ()=>{
   return Module;
 }
 
-process.on('message', obj=> {
-  switch(obj.type){
-    case 'start': 
-      helper.server.start(obj.config);
-      break;
-    case 'ping':
-      helper.server.addPPLog('server obtain ping');
-      if(process.send){
-        process.send({
-          type: 'pong',
-          id: obj.id
-        });
-        helper.server.addPPLog('server send pong');
-        helper.startPing();
-      }
-      break;
-    case 'pong':
-      let ind = helper.serverStat.pings.indexOf(obj.id);
-      if(ind > -1){
-        helper.serverStat.pings.splice(ind, 1);
-      }
-      helper.server.addPPLog('server obtain pong');
-      break;
-    case 'reload':
-      helper.server.addLog('reload command');
-      helper.graceful_shutdown(0);
-      break;
-    case 'exit':
-      helper.server.addLog('exit command');
+function startProcessEvents(helper){
+  process.on('message', obj=> {
+    switch(obj.type){
+      case 'start': 
+        helper.server.start(obj.config);
+        break;
+      case 'ping':
+        helper.server.addPPLog('server obtain ping');
+        if(process.send){
+          process.send({
+            type: 'pong',
+            id: obj.id
+          });
+          helper.server.addPPLog('server send pong');
+          helper.startPing();
+        }
+        break;
+      case 'pong':
+        let ind = helper.serverStat.pings.indexOf(obj.id);
+        if(ind > -1){
+          helper.serverStat.pings.splice(ind, 1);
+        }
+        helper.server.addPPLog('server obtain pong');
+        break;
+      case 'reload':
+        helper.server.addLog('reload command');
+        helper.graceful_shutdown(0);
+        break;
+      case 'exit':
+        helper.server.addLog('exit command');
+        helper.graceful_shutdown(1);
+        break;
+    }
+
+    if(obj == 'shutdown') {
+      helper.server.addLog('process message shutdown');
       helper.graceful_shutdown(1);
-      break;
-  }
+    }
+  });
 
-  if(obj == 'shutdown') {
-    helper.server.addLog('process message shutdown');
+  process.on('exit', function(){
+    if(helper.isGracefulShutdownInited()){
+      if(global.intervals) global.intervals.stop();
+      return process.exit();
+    }
+
+    helper.server.addLog('exit event', process.exitCode, exports.serverStat);
+    helper.graceful_shutdown();
+  });
+  process.on('SIGINT', ()=>{
+    helper.server.addLog('SIGINT event', process.exitCode);
     helper.graceful_shutdown(1);
-  }
-});
-
-process.on('exit', function(){
-  if(helper.isGracefulShutdownInited()){
-    if(global.intervals) global.intervals.stop();
-    return process.exit();
-  }
-
-  helper.server.addLog('exit event', process.exitCode, exports.serverStat);
-  helper.graceful_shutdown();
-});
-process.on('SIGINT', ()=>{
-  helper.server.addLog('SIGINT event', process.exitCode);
-  helper.graceful_shutdown(1);
-});
-process.on('SIGTERM', ()=>{
-  helper.server.addLog('SIGTERM event', process.exitCode);
-  helper.graceful_shutdown(1);
-});
+  });
+  process.on('SIGTERM', ()=>{
+    helper.server.addLog('SIGTERM event', process.exitCode);
+    helper.graceful_shutdown(1);
+  });
+}

@@ -170,8 +170,8 @@ Example of modules/myModule.js
 ```js
 const app = require('interlayer').module();
 let log = app.getLog('myModuleId');
-app.addMeta({asJson: true});
-app.addInit((request, requestCallback)=>{
+app.setMeta({asJson: true});
+app.setInit((request, requestCallback)=>{
     log.i('Module inited');
     requestCallback();
 });
@@ -295,8 +295,11 @@ const app = require('interlayer').module();
 | Methods | Property types | Description |
 | --- | --- | --- |
 | `add(function, timeout)` | Function, Number | Return `key` |
+| `add(function, timeout = {year: '*', month: '*', date: '*', day: '*', hour: '*', minute: '*', second: '*'})` | Function, Object | Any of the parameters can be `"*"` or `"2020,2040"` - the options are listed in commas. Return `key` |
 | `del(key)` | String | Remove by `key` |
-| `disable(key, flag)` | String, Boolean | Disable/Enable by `key` and `flag` |
+| `disable(key, flag)` | String, Boolean | Disable/Enable interval by `key` and `flag` |
+| `enable(key)` | String | Enable interval by `key`
+The startup interval is every second. If the start conditions (`timeout`) match, `function` is called with a parameter as a function to delete the interval - similar call to `global.intervals.del(key)`.
 
 ---
 
