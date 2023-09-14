@@ -46,13 +46,24 @@ module.exports = {
     this._inited = true;
     this.config = config || {};
 
-    process.on('exit', ()=>{
-      if(this.exitProcess){
-        process._stopCusterAndExit();
-        return;
-      }
+    if(cluster.setupPrimary){
+      cluster.setupPrimary({
+        exec: path.join(__dirname, '../index.js'),
+        silent: true
+      });
+    }
+    else{
+      cluster.setupMaster({
+        exec: path.join(__dirname, '../index.js'),
+        silent: true
+      });
+    }
 
-      log.i('exit event', process.exitCode);
+    process.on('exit', ()=>{
+      if(!this.exitProcess){
+        log.i('exit event', process.exitCode);
+      }
+      
       this._stopCusterAndExit();
     });
     process.on('SIGINT', ()=>{
@@ -72,11 +83,6 @@ module.exports = {
   },
   _addServer(i){
     if(!this._inited) throw 'Not inited';
-
-    cluster.setupPrimary({
-      exec: path.join(__dirname, '../index.js'),
-      silent: true
-    });
 
     let pings = [];
 
@@ -111,30 +117,30 @@ module.exports = {
     });
     server.on('message', obj=>{
       switch(obj.type){
-      case 'log':
-        log.add(obj.log);
+        case 'log':
+          log.add(obj.log);
         break;
-      case 'ping':
-        server.send({
-          type: 'pong',
-          id: obj.id
-        });
-        if(helper.config.pingponglog){
-          log.d('cluster obtain ping');
-          log.d('cluster send pong');
-        }
+        case 'ping':
+          server.send({
+            type: 'pong',
+            id: obj.id
+          });
+          if(helper.config.pingponglog){
+            log.d('cluster obtain ping');
+            log.d('cluster send pong');
+          }
         break;
-      case 'pong':
-        let ind = pings.indexOf(obj.id);
-        if(ind > -1){
-          pings.splice(ind, 1);
-        }
-        if(helper.config.pingponglog){
-          log.d('cluster obtain pong');
-        }
+        case 'pong':
+          let ind = pings.indexOf(obj.id);
+          if(ind > -1){
+            pings.splice(ind, 1);
+          }
+          if(helper.config.pingponglog){
+            log.d('cluster obtain pong');
+          }
         break;
-      default: 
-        log.e('wrong message type', obj);
+        default: 
+          log.e('wrong message type', obj);
       }
       obj = null;
     });

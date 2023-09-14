@@ -66,43 +66,52 @@ global.intervals = {
     for(let func of this._funcs){
       if(func.disabled) continue;
 
-      if(func.timeout){
+      if(func.timeout != null){
         if(typeof func.timeout === 'number'){
-          if(func.triggered && Date.now() < func.triggered + func.timeout * 1000){
+          if(Date.now() < func.datetime + func.timeout * 1000){
             continue;
           }
         }
         else{
           let d = new Date();
-          let [year, month, date, day, hour, minute, second] = [d.getFullYear(), d.getMonth(), d.getDate(), d.getDay(), d.getHours(), d.getMinutes(), d.getSeconds()];
+          let [dYear, dMonth, dDate, dDay, dHour, dMinute, dSecond] = [d.getFullYear(), d.getMonth(), d.getDate(), d.getDay(), d.getHours(), d.getMinutes(), d.getSeconds()];
+          let {year, month, date, day, hour, minute, second} = func.timeout;
 
-          if(func.timeout.year != null && func.timeout.year != '*' && !String(func.timeout.year).split(',').includes(String(year))) continue;
-          if(func.timeout.month != null && func.timeout.month != '*' && !String(func.timeout.month).split(',').includes(String(month))) continue;
-          if(func.timeout.date != null && func.timeout.date != '*' && !String(func.timeout.date).split(',').includes(String(date))) continue;
-          if(func.timeout.day != null && func.timeout.day != '*' && !String(func.timeout.day).split(',').includes(String(day))) continue;
-          if(func.timeout.hour != null && func.timeout.hour != '*' && !String(func.timeout.hour).split(',').includes(String(hour))) continue;
-          if(func.timeout.minute != null && func.timeout.minute != '*' && !String(func.timeout.minute).split(',').includes(String(minute))) continue;
-          if(func.timeout.second != null && func.timeout.second != '*' && !String(func.timeout.second).split(',').includes(String(second))) continue;
-          if(func.timeout.second == null || func.timeout.second === '*'){
-            if(func.triggered && Date.now() < func.triggered + 60 * 1000){
+          if(year != null && year != '*' && !String(year).split(',').includes(String(dYear))) continue;
+          if(month != null && month != '*' && !String(month).split(',').includes(String(dMonth))) continue;
+          if(date != null && date != '*' && !String(date).split(',').includes(String(dDate))) continue;
+          if(day != null && day != '*' && !String(day).split(',').includes(String(dDay))) continue;
+          if(hour != null && hour != '*' && !String(hour).split(',').includes(String(dHour))) continue;
+          if(minute != null && minute != '*' && !String(minute).split(',').includes(String(dMinute))) {
+            delete func.minuteRun;
+            continue;
+          }
+          if(second != null && second != '*' && !String(second).split(',').includes(String(dSecond))) continue;
+          if(minute != null && (second == null || second === '*')){
+            if(String(minute).split(',').includes(String(func.minuteRun))){
               continue;
             }
+            func.minuteRun = dMinute;
           }
         }
       }
 
       func.func(this.del.bind(this, func.key));//send cb with delete current interval
-      func.triggered = Date.now();
+      func.datetime = Date.now();
     }
   },
   _funcs: [],
   add(func, timeout){
+    if(timeout == null){
+      console.warn('function will be called every second', new Error());
+    }
+
     let key = Math.random() * Date.now();
     this._funcs.push({
       key: key,
       func: func,
       timeout: timeout,
-      triggered: null
+      datetime: Date.now(),
     });
     return key;
   },
@@ -184,7 +193,7 @@ exports.startPing = ()=>{
   global.intervals.add((deleteInterval)=>{
     if(exports.serverStat.pings.length > 2){
       deleteInterval();
-      
+
       log.c('cluster not answered');
       exports.graceful_shutdown(0);
       return;
@@ -642,7 +651,7 @@ exports.timeout = (config, meta, cb)=>{
 
   return (...args)=>{
     if(called){
-      log.e('request already ended by timeout', args);
+      log.e('request already ended by timeout', args, new Error());
       return;
     }
 
