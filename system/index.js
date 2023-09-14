@@ -1,5 +1,11 @@
 let fs = require('fs');
 let path = require('path');
+let cluster = require('cluster');
+
+if(cluster.isWorker){
+  let helper = require('./_extra/index.js');
+  startProcessEvents(helper);
+}
 
 function getRootPath(error) {
   return path.dirname(error.stack.split('\n').splice(2, 1)[0].match(/at\s?[^(]*\(?([^)]+)\)?/)[1])

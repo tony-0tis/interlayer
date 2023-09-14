@@ -73,8 +73,8 @@ module.exports = {
   _addServer(i){
     if(!this._inited) throw 'Not inited';
 
-    cluster.setupMaster({
-      exec: path.join(__dirname, '/../index.js'),
+    cluster.setupPrimary({
+      exec: path.join(__dirname, '../index.js'),
       silent: true
     });
 

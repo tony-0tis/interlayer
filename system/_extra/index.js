@@ -133,7 +133,9 @@ global.intervals = {
 global.intervals.start();
 
 
-/* *********** SERVER FUNCTIONS ************/
+/* 
+* * SERVER FUNCTIONS
+*/
 exports.checkPath = (serverPath, config, type, def)=>{
   if(config[type] && !Array.isArray(config[type])){
     throw 'config.' + type + ' must be Array';
@@ -177,11 +179,12 @@ exports.startPing = ()=>{
   }
 
   pingPongStarded = true;
-  log.d('start ping-pong with cluster');
+  console.debug('start ping-pong with cluster');
 
   global.intervals.add((deleteInterval)=>{
     if(exports.serverStat.pings.length > 2){
       deleteInterval();
+      
       log.c('cluster not answered');
       exports.graceful_shutdown(0);
       return;
@@ -191,10 +194,13 @@ exports.startPing = ()=>{
       type: 'ping',
       id: Date.now()
     };
-    exports.serverStat.pings.push(ping.id);
-
     process.send(ping);
-    if(exports.config.pingponglog) log.d('server send ping');
+
+    exports.serverStat.pings.push(ping.id);
+    
+    if(exports.config.pingponglog) {
+      console.debug('server send ping');
+    }
   }, 1);
 };
 
