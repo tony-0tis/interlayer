@@ -1,3 +1,4 @@
+const formidable = require('formidable');
 const { createServer: createHttpServer} = require('http');
 const { createServer: createHttpsServer} = require('https');
 const { parse: queryParse } = require('querystring');
@@ -9,7 +10,7 @@ const { whilst, auto, series } = require('async');
 
 const { init : initInits } = require('./inits.js');
 const { init: initProcessFunctions} = require('./_processFunctions.js');
-const { generateId, modifyRequest, getModule, parsePost, processInits } = require('./utils.js');
+const { generateId, modifyRequest, getModule, processInits } = require('./utils.js');
 
 exports.server = null;
 
@@ -115,7 +116,7 @@ class iServer{
 
     const moduleInf = getModule(this.#inits.modules, requestMod.path);
     if(!moduleInf){
-      return this.#serve(requestMod, (err, data, code, headers)=>{
+      return this.#serve(requestMod, (err, data, code, headers) => {
         if(data){
           modLog.i(requestMod.ip, 'SERVE', requestMod.path);
           return requestMod.end(data, code, headers, 'bin');
@@ -123,7 +124,7 @@ class iServer{
 
         modLog.i('BAD/404', requestMod.ip, 'REQ: ' + requestMod.path, 'FROM: ' + (requestMod.headers.referer || '---'));
         if(this.#config.useHttpErrorFiles){
-          return requestMod.getView('404.html', (err, data, headers)=>{
+          return requestMod.getView('404.html', (err, data, headers) => {
             if(err){
               requestMod.end(`<title>${requestMod.i18n('Not found')}</title>${requestMod.i18n('<center>Error 404<br>Not found</center>')}`, 404);
             }
@@ -144,13 +145,13 @@ class iServer{
     auto({
       post: cb => {
         if(this.#config.skipParsePost || moduleInf.meta.skipParsePost) return cb();
-        parsePost(requestMod, request, cb);
+        this.#parsePost(requestMod, request, cb);
       },
-      middleware: ['post', (res, cb)=>{
+      middleware: ['post', (res, cb) => {
         const middlewareTimeout = this.#config.middlewareTimeout || moduleInf.meta.middlewareTimeout || 10;
-        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, (e, data, code, headers)=>{
-          if(e){
-            res.data = {error: e};
+        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, (error, data, code, headers) => {
+          if(error){
+            res.data = {error};
             res.code = code || 200;
             res.headers = headers || {'Content-Type': 'application/json'};
             res.middlewareError = true;
@@ -160,23 +161,32 @@ class iServer{
           cb();
         }));
       }],
-      prerun: ['middleware', (res, cb)=>{
+      prerun: ['middleware', (res, cb) => {
         if(!moduleInf.meta.prerun || res.middleware){
           return cb();
         }
 
-        moduleInf.meta.prerun(requestMod, moduleInf.meta, cb);
+        moduleInf.meta.prerun(requestMod, moduleInf.meta, this.#timeoutRequest(this.#config, moduleInf.meta, (error, data, code, headers) => {
+          if(error){
+            res.data = {error};
+            res.code = code || 200;
+            res.headers = headers || {'Content-Type': 'application/json'};
+            return cb(null, true);
+          }
+
+          cb();
+        }));
       }],
-      module: ['post', 'prerun', (res, cb)=>{
+      module: ['post', 'prerun', (res, cb) => {
         if(res.middleware){
           return cb();
         }
 
         let poolId = requestMod.params.poolingId || requestMod.post.poolingId;
         let withPool = requestMod.params.withPooling || requestMod.post.withPooling;
-        let next = this.#timeoutRequest(this.#config, moduleInf.meta, (e, data, code, headers, type)=>{
-          if(e){
-            data = {error: e};
+        let next = this.#timeoutRequest(this.#config, moduleInf.meta, (error, data, code, headers, type) => {
+          if(error){
+            data = {error};
             code = code || 200;
             headers = headers || {'Content-Type': 'application/json'};
             type = null;
@@ -203,7 +213,7 @@ class iServer{
           };
 
           next(null, this.#requestPools[id]);//eslint-disable-line callback-return
-          next = (err, res)=>{
+          next = (err, res) => {
             this.#requestPools[id] = err || res;
           };
         }
@@ -216,7 +226,7 @@ class iServer{
           return next(e);
         }
       }],
-      json: ['module', (res, cb) =>{
+      json: ['module', (res, cb) => {
         if(res.type == 'bin'){
           return cb();
         }
@@ -227,7 +237,7 @@ class iServer{
 
         cb();
       }]
-    }, (err, res)=>{
+    }, (err, res) => {
       if(moduleInf.meta && moduleInf.meta.skipRequestLog !== true){
         modLog.i(
           requestMod.ip,
@@ -253,7 +263,7 @@ class iServer{
   #timeoutRequest(config, meta, cb){
     let called = false;
 
-    global.intervals.add((del)=>{
+    global.intervals.add(del => {
       del();
 
       if(!called){
@@ -262,7 +272,7 @@ class iServer{
       }
     }, meta.timeout || config.timeout || 60);
 
-    return (...args)=>{
+    return (...args) => {
       if(called){
         console.error('request already ended by timeout', args, new Error());
         return;
@@ -284,8 +294,8 @@ class iServer{
     let paths = [...this.#inits.serve];
     let done = false;
     whilst(
-      cb=>cb(null, !done),
-      cb=>{
+      cb => cb(null, !done),
+      cb => {
         if(paths.length == 0){
           done = true;
           return cb();
@@ -314,7 +324,7 @@ class iServer{
           request.path += 'index.html';
         }
         
-        request.getFile(join(path, request.path), (err, res, headers)=>{
+        request.getFile(join(path, request.path), (err, res, headers) => {
           if(err){
             modLog.d(join(path, request.path), err, res, headers);
             return cb();
@@ -324,7 +334,7 @@ class iServer{
           cb(null, [res, headers]);
         });
       },
-      (err, res)=>{
+      (err, res) => {
         if(err){
           return cb(err);
         }
@@ -336,6 +346,19 @@ class iServer{
         cb(null, res[0], 200, res[1]);
       }
     );
+  }
+
+  #parsePost(reqObj, request, cb){
+    if(!reqObj.isPost){
+      return cb();
+    }
+
+    formidable({multiples: true}).parse(request, (err, fields, files)=>{
+      if(err) return cb(err);
+      reqObj.post = fields;
+      reqObj.files = files;
+      cb();
+    });
   }
 
   #middleware(request, moduleMeta, cb){
@@ -355,7 +378,7 @@ class iServer{
           return;
         }
 
-        series(Object.keys(middleware.triggers).reduce((res, trigger)=>{
+        series(Object.keys(middleware.triggers).reduce((res, trigger) => {
           let run = false;
           let isMeta = trigger.match(/^meta\./);
           let isRequest = trigger.match(/^request\./);
@@ -392,7 +415,7 @@ exports.serverLog = (...args) => {
   else console.log(...args);
 };
 
-exports.isGracefulShutdownInited = ()=>{
+exports.isGracefulShutdownInited = () => {
   return iServer.gracefulShutdownInited;
 };
 exports.graceful_shutdown = code => {
@@ -406,7 +429,7 @@ exports.graceful_shutdown = code => {
   }
 
   iServer.gracefulShutdownInited = Date.now();
-  const si = setInterval(()=>{
+  const si = setInterval(() => {
     if(!Object.keys(iServer.processLocks).length || Date.now() - iServer.gracefulShutdownInited >= (iServer.instantShutdownDelay || 1500)){
       process.exit(code);
       clearInterval(si);

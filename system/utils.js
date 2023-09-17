@@ -1,5 +1,3 @@
-
-const formidable = require('formidable');
 const { join, isAbsolute, dirname, extname } = require('path');
 const { statSync, watch, readdirSync, stat } = require('fs');
 
@@ -91,19 +89,6 @@ exports.getModule = ({ modules }, moduleName) => {
   }
 
   return false;
-};
-
-exports.parsePost = (reqObj, request, cb) => {
-  if(!reqObj.isPost){
-    return cb();
-  }
-
-  formidable({multiples: true}).parse(request, (err, fields, files)=>{
-    if(err) return cb(err);
-    reqObj.post = fields;
-    reqObj.files = files;
-    cb();
-  });
 };
 
 exports.modifyRequest = (requestMod, request, response, processFunctions, log) => {
@@ -287,6 +272,9 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
 
 exports.processInits = (inits, config, websocket, processFunctions) => {
   const { inits: modulesInits } = inits.modules;
+  const { inits: middlewaresInits} = inits.middlewares;
+  const allInits = {...modulesInits, ...middlewaresInits};
+  
   let context = {
     url: '',
     headers: {},
@@ -300,9 +288,9 @@ exports.processInits = (inits, config, websocket, processFunctions) => {
     context[k] = processFunctions[k];
   });
 
-  for(let ii in modulesInits){
+  for(let ii in allInits){
     try{
-      modulesInits[ii](context, function(){});
+      allInits[ii](context, function(){});
     }catch(e){
       console.error('__init()', ii, e);
     }

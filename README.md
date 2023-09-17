@@ -28,7 +28,6 @@ The stable version of the server will be implemented after writing all the neces
 - Mailgun\sparkpost\smtp build-in mail sender packages
 - Localization
 - WebScoket
-- 
 
 ---
 
@@ -44,14 +43,6 @@ yarn add interlayer
 ---
 
 ## Project tree example
-`config.json` content:
-```js
-{
-    "port": 80,
-    "serve": ["files"]
-}
-```
-
 - /node_modules/
 - package.json
 - /files/ *`- this folder will be served by config.serve`*
@@ -61,11 +52,81 @@ yarn add interlayer
     - /images/
         - logo.jpeg
 - index.js
+- /i18n/
+    - en-US.json
+- /middleware/
+    - auth.js
+- /modules/
+    - weather.js
 - config.json
+
+#### Request processing steps
+1. request preparation - filling with functions and objects, [see here](#methodfunctionrequest-request-requestcallback)
+2. search for a module. if not found - search for a file in `config.serve` and give it to the client
+3. if the module is found, parse the data if the request method is POST
+4. for all matching triggers run middlewares, more [see here](#create-middleware)
+5. if the found module has a prerun in its meta, run it, more [see here](#module-creation)
+6. finally launch our module(that can use any data from [here](#methodfunctionrequest-request-requestcallback)), in response we wait for [see here](#requestcallbackerror-data-httpcode-responseheaders-isbinary)
+7. convert to json text if meta.toJson || meta.contentType == 'json' || headers['Content-Type'] == 'application/json'
+8. done
+
+
+### /modules/weather.js example
+```js
+exports._obtain = {
+    checkIp: true,
+    prerun(request, moduleMeta, cb){
+
+    }
+};
+exports.obtain = (request, cb){
+    cb(null, 'good weather');
+};
+```
+### /middleware/auth.js example
+```js
+exports.triggers = {
+    'meta.checkIp': (request, moduleMeta, cb) => {
+        if(request.ip === '127.0.0.1'){
+            return cb('bad ip');
+        }
+        cb();
+    },
+    'request.params.city': (request, moduleMeta, cb) => {
+        if(request.params.city === 'london'){
+            return cb('bad weather');
+        }
+        cb();
+    }
+}
+```
+
+### Variants to start server
+
+```js
+const config = {
+    port: 80,
+    serve: ['files']
+};
+require('interlayer')(config);
+```
+or
+```js
+require('interlayer')('config.json');
+```
+or
+```js
+const server = require('interlayer').server();
+server
+    .setRootPath(__dirname)
+    .loadConfigFile('config.json')
+    .start()
+```
 
 ---
 
 ## `config` object or `config.json` file configuration
+
 
 #### Avaliable params:
 Avaliable properties in `config` object or `config.json` file
@@ -101,26 +162,18 @@ Avaliable properties in `config` object or `config.json` file
 | `skipParsePost`| false | Boolean | Skip parse POST |
 | `startInits` | true | Boolean | Start functions that were added via Module `app.setInit` |
 
-
-### How to use
-
-```js
-let config = {
-    port: 80,
-    serve: ['files']
-};
-require('interlayer')(config);
-```
-or
-```js
-require('interlayer')('config.json');
-```
-
 ---
 
 ## Intrlayer instance configure
 ```js
 let serverInstance = require('interlayer').server();
+```
+### How to use
+```js
+let server = require('interlayer').server();
+server.setRootPath(__dirname);
+server.loadConfigFile('config.json');
+server.start();
 ```
 #### Avaliable methods:
 
@@ -157,14 +210,6 @@ let serverInstance = require('interlayer').server();
 | `setUseFilesAsHTTPErrors([true / false])` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 | `setSkipParsePost([true / false])` | false | Boolean | Set skip parse POST |
 | `disableInits([true / false])` | true | Start functions that were added via Module `app.setInit` |
-
-### How to use
-```js
-let server = require('interlayer').server();
-server.setRootPath(__dirname);
-server.loadConfigFile('config.json');
-server.start();
-```
 
 ---
 
@@ -444,6 +489,16 @@ exports.checkSession = (request, moduleMeta, cb) => {
 exports.test = (request, moduleMeta, cb) => {
 
 };
+```
+or
+```js
+exports.run = (request, moduleMeta, cb)=>{
+
+};
+// this creates
+// exports.triggers = {
+//     '*': exports.run
+// };
 ```
 
 ---
