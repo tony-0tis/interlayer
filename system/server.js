@@ -232,7 +232,7 @@ class iServer{
         }
 
         if(moduleInf.meta.toJson || moduleInf.meta.contentType == 'json' || res.headers['Content-Type'] == 'application/json'){
-          moduleInf.helpers.toJson(res);
+          requestMod.helpers.toJson(res);
         }
 
         cb();
@@ -353,7 +353,7 @@ class iServer{
       return cb();
     }
 
-    formidable(reqObj.options.formidableOptions || {}).parse(request, (err, fields, files)=>{
+    formidable(reqObj.config.formidableOptions || {}).parse(request, (err, fields, files)=>{
       if(err) {
         if(err.httpCode){
           return cb(err.message, null, err.httpCode);

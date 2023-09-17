@@ -67,7 +67,7 @@ class iCluster {
   }
 
   #addServer(i){
-    if(!this.#inited) throw 'Not inited';
+    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
 
     let server = fork(process.env);
     server.on('online', () => {
@@ -103,7 +103,7 @@ class iCluster {
   }
 
   #removeServer(n){
-    if(!this.#inited) throw 'Not inited';
+    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
 
     let toDel;
     for(let i = this.#servers.length - 1; i >= 0; i--){
@@ -119,7 +119,7 @@ class iCluster {
   }
 
   #restartServers(){
-    if(!this._inited) throw 'Not inited';
+    if(!this._inited) throw 'Cluster not inited ' + new Error().stack;
 
     this.#log.d('Command restart servers');
     for(let i = this.#servers.length - 1; i >= 0; i--){
@@ -128,7 +128,7 @@ class iCluster {
   }
 
   stopCusterAndExit(){
-    if(!this.#inited) throw 'Not inited';
+    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
 
     if(this.#clusterStopped) return;
 

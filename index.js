@@ -81,6 +81,7 @@ module.exports = function(config = {}){
   process.chdir(initPath);
 
   setTimeout(()=>{
+    global.intervals.start();
     initLogger(config);
 
     if(!config.workers || config.workers === 1){
@@ -92,7 +93,7 @@ module.exports = function(config = {}){
   }, 20);
 };
 
-exports.server = () => {
+module.exports.server = () => {
   const initPath = getRootPath(new Error());
   const config = {
     path: initPath,
@@ -314,7 +315,7 @@ exports.server = () => {
   return settingsObject;
 };
 
-exports.module = () => {
+module.exports.module = () => {
   const logs = {};
   const moduleInfo = {
     __meta: null,
@@ -398,7 +399,7 @@ global.intervals = {
   start(){
     this.stop();
 
-    console.debug('start global intervals');
+    console.debug('start global intervals, pid', process.pid);
     this._si = setInterval(()=>this._check(), 1000);
   },
   stop(){
@@ -486,7 +487,6 @@ global.intervals = {
     });
   }
 };
-global.intervals.start();
 
 process.on('exit', function(){
   if(isGracefulShutdownInited()){
@@ -529,6 +529,7 @@ process.on('message', obj=> {
     graceful_shutdown(1);
   }
   if(obj.type === 'startServerInWorker'){
+    global.intervals.start();
     initLogger(obj.config);
     initServer(obj.config);
   }
