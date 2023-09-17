@@ -1,14 +1,16 @@
-let redis = require('redis');
-let log = global.logger.create('REDIS');
-let helpers = require('../index.js');
-let soother = ()=>{};
+const { createClient, RedisClient } = require('redis');
 
-let retry_strategy = function(options){
+const { generateId } = require('../utils.js');
+
+const log = global.logger('_REDIS');
+
+const retry_strategy = function(options){
   if(options.error && options.error.code === 'ECONNREFUSED'){
     // End reconnecting on a specific error and flush all commands with a individual error
     if(this.emit_error){
       this.emit_error('No connection');
     }
+
     return new Error('The server refused the connection');
   }
 
@@ -17,6 +19,7 @@ let retry_strategy = function(options){
     if(this.emit_error){
       this.emit_error('No connection');
     }
+
     return new Error('Retry time exhausted');
   }
 
@@ -25,6 +28,7 @@ let retry_strategy = function(options){
     if(this.emit_error){
       this.emit_error('No connection');
     }
+
     return undefined;
   }
 
@@ -32,15 +36,15 @@ let retry_strategy = function(options){
   return Math.max(options.attempt * 100, 3000);
 };
 
-let DAL = {
+const DAL = {
   connections: [],
   opened: [],
-  getOrCreate: (mainCb)=>{
-    let lazy = lazyDefine.get();
-    let cb = (...args)=>{
+  getOrCreate: (mainCb) => {
+    const lazy = lazyDefine.get();
+    let cb = (...args) => {
       args.push(lazy);
       mainCb(...args);
-      cb = soother;
+      cb = ()=>{};
     };
 
     if(DAL.connections.length){
@@ -58,28 +62,25 @@ let DAL = {
     }
 
     let connection = {
-      id: helpers.generateId(),
+      id: generateId(),
       redis: {}
     };
 
     let config = {
-      retry_strategy: retry_strategy,
+      retry_strategy,
       emit_error: err => connection && connection.redis.emit('error', err)
     };
 
     if(DAL.config && DAL.config){
       for(let i in DAL.config){
-        if(!DAL.config.hasOwnProperty(i)){
-          continue;
-        }
-
         config[i] = DAL.config[i];
       }
     }
     
-    connection.redis = redis.createClient(config);
-    connection.redis.on('error', err=>{
+    connection.redis = createClient(config);
+    connection.redis.on('error', err => {
       log.e('Error in redis exports.connection:', (connection && connection.id), err);
+      
       if(!connection){
         return;
       }
@@ -96,21 +97,23 @@ let DAL = {
 
       return cb(err);
     });
-    connection.redis.on('ready', () =>{
+    connection.redis.on('ready', () => {
       if(!connection){
         return cb('NO CONNECTION READY');
       }
+
       connection.lastOpened = Date.now();
       DAL.opened.push(connection);
       log.d('connection', connection.id, 'created and added to opened');
+
       return cb(null, connection.redis);
     });
-    connection.redis.on('requestEnded', ()=>{
+    connection.redis.on('requestEnded', () => {
       if(!connection){
         return;
       }
 
-      let conn = DAL._closeConnection(connection.id);
+      const conn = DAL._closeConnection(connection.id);
       if(!conn){
         return log.e('No opened id', connection.id);
       }
@@ -119,7 +122,7 @@ let DAL = {
 
       log.d('connection', connection.id, 'moved to waited');
     });
-    connection.redis.on('end', ()=>{
+    connection.redis.on('end', () => {
       if(!connection){
         return;
       }
@@ -138,8 +141,8 @@ let DAL = {
     DAL._checkConnections();
     return lazy;
   },
-  _checkConnections: ()=>{
-    let actualizeConnections = (res, conn)=>{
+  _checkConnections: () => {
+    const actualizeConnections = (res, conn)=>{
       if(Date.now() - conn.lastOpened > 14400000){
         conn.redis.quit();
         delete conn.redis;
@@ -151,6 +154,7 @@ let DAL = {
 
       return res;
     };
+
     DAL.opened = DAL.opened.reduce(actualizeConnections, []);
     DAL.connections = DAL.connections.reduce(actualizeConnections, []);
   },
@@ -163,40 +167,39 @@ let DAL = {
         break;
       }
     }
+
     if(sid){
       return DAL.opened.splice(sid, 1);
     }
+
     for(let i in DAL.connections){
       if(DAL.connections[i].id == id){
         sid = i;
         break;
       }
     }
+
     if(sid){
       return DAL.connections.splice(sid, 1);
     }
   }
 };
 
-exports.init = (config, dalConfig) =>{
-  DAL.config = dalConfig;
-};
-
-let lazyDefine = {
+const lazyDefine = {
   methods: {},
   get: ()=>Object.assign({}, lazyDefine.methods, {list: []})
 };
 
 exports.methods = {};
-for(let name in redis.RedisClient.prototype){// eslint-disable-line guard-for-in
+for(const name in RedisClient.prototype){// eslint-disable-line guard-for-in
   wrapMethod(name);
 }
 
 function wrapMethod(name){
   exports.methods[name] = (...args)=>{
     let conn;
-    let originalCb = soother;
-    let cb = (...resargs)=>{
+    let originalCb = ()=>{};
+    const cb = (...resargs)=>{
       if(conn){
         conn.emit('requestEnded');
       }
@@ -240,3 +243,7 @@ function wrapMethod(name){
     return this;
   };
 }
+
+exports.init = (config, dalConfig) =>{
+  DAL.config = dalConfig;
+};

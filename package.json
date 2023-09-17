@@ -2,7 +2,7 @@
   "name": "interlayer",
   "version": "0.12.5",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
-  "main": "system/index.js",
+  "main": "index.js",
   "dependencies": {
     "JSV": "^4.0.2",
     "async": "^3.2.0",
@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "chai": "^4.1.2",
-    "eslint": "^7.4.0",
+    "eslint": "^8.49.0",
     "eslint-config-google": "^0.14.0",
     "mocha": "^8.0.1",
     "nyc": "^15.1.0",
@@ -29,11 +29,11 @@
     "postinstall": "node postinstall.js",
     "p": "npm publish"
   },
-  "author": "A.I. Developer <npmdev@8ai.pw> (https://8ai.pw)",
+  "author": "A.I. Developer <npmdev@0t.is> (https://0t.is)",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/8ai/interlayer.git"
+    "url": "git+https://github.com/tony-0tis/interlayer.git"
   },
   "keywords": [
     "webserver",
@@ -47,10 +47,10 @@
     "JSV"
   ],
   "bugs": {
-    "mail": "npmdev@8ai.pw",
-    "url": "https://github.com/8ai/interlayer/issues"
+    "mail": "npmdev@0t.is",
+    "url": "https://github.com/tony-0tis/interlayer/issues"
   },
-  "homepage": "https://github.com/8ai/interlayer#readme",
+  "homepage": "https://github.com/tony-0tis/interlayer#readme",
   "funding": [
     {
       "type": "ko-fi",

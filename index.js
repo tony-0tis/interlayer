@@ -1,29 +1,21 @@
-let fs = require('fs');
-let path = require('path');
-let cluster = require('cluster');
+debugger;
+const { readFileSync, statSync, } = require('fs');
+const { join, isAbsolute } = require('path');
 
-if(cluster.isWorker){
-  let helper = require('./_extra/index.js');
-  startProcessEvents(helper);
-}
-
-function getRootPath(error) {
-  return path.dirname(error.stack.split('\n').splice(2, 1)[0].match(/at\s?[^(]*\(?([^)]+)\)?/)[1])
-}
+const { getRootPath, checkPath, initLogger } = require('./system/utils.js');
+const { initCluster, stopCluster, isWorker } = require('./system/cluster.js');
+const { initServer, serverLog, graceful_shutdown, isGracefulShutdownInited } = require('./system/server.js');
 
 module.exports = function(config = {}){
-  let helper = require('./_extra/index.js');
-  startProcessEvents(helper);
-
   let initPath = getRootPath(new Error());
 
   if(typeof config == 'string'){
     try{
-      if(!path.isAbsolute(config)){
-        config = path.join(initPath, config);
+      if(!isAbsolute(config)){
+        config = join(initPath, config);
       }
 
-      config = JSON.parse(fs.readFileSync(config));
+      config = JSON.parse(readFileSync(config));
     }catch(e){
       config = {};
       throw 'wrong config file' + e;
@@ -31,12 +23,12 @@ module.exports = function(config = {}){
   }
   
   if(config.path){
-    if(!path.isAbsolute(config.path)){
+    if(!isAbsolute(config.path)){
       throw 'config.path must be absolute path';
     }
 
     try{
-      if(!fs.statSync(config.path).isDirectory()){
+      if(!statSync(config.path).isDirectory()){
         throw 'config.path must be a directory';
       }
 
@@ -52,21 +44,21 @@ module.exports = function(config = {}){
   if(!config.logPath){
     config.logPath = initPath;
   }
-  else if(!path.isAbsolute(config.logPath)){
-    config.logPath = path.join(initPath, config.logPath);
+  else if(!isAbsolute(config.logPath)){
+    config.logPath = join(initPath, config.logPath);
   }
 
   // Modules
-  helper.checkPath(initPath, config, 'modules', 'modules');
+  checkPath(initPath, config, 'modules', 'modules');
   
   // Views
-  helper.checkPath(initPath, config, 'views', 'files');
+  checkPath(initPath, config, 'views', 'files');
 
   // I18n
-  helper.checkPath(initPath, config, 'i18n', 'i18n');
+  checkPath(initPath, config, 'i18n', 'i18n');
 
   // Dals
-  helper.checkPath(initPath, config, 'dals');
+  checkPath(initPath, config, 'dals');
   if(!config.useDals || !Object.keys(config.useDals).length){
     if(!config.skipDbWarning){
       console.log('config.useDals not defined, no one database will be included(to skip this log pass the skipDbWarning)');
@@ -74,26 +66,35 @@ module.exports = function(config = {}){
   }
 
   // Middleware
-  helper.checkPath(initPath, config, 'middleware');
+  checkPath(initPath, config, 'middleware');
 
   // Email
-  helper.checkPath(initPath, config, 'emailSenders');
+  checkPath(initPath, config, 'emailSenders');
 
   // Serve
-  helper.checkPath(initPath, config, 'serve');
+  checkPath(initPath, config, 'serve');
 
-  if(config.disableNagleAlgoritm) console.warn('deprecated in v 0.9.0, use setNoDelay instead')
+  if(config.disableNagleAlgoritm) {
+    console.warn('deprecated in v 0.9.0, use setNoDelay instead');
+  }
   
   process.chdir(initPath);
 
   setTimeout(()=>{
-    helper.cluster.start(config);
+    initLogger(config);
+
+    if(!config.workers || config.workers === 1){
+      initServer(config);
+    }
+    else{
+      initCluster(config);
+    }
   }, 20);
 };
 
-module.exports.server = ()=>{
-  let initPath = getRootPath(new Error());
-  let config = {
+module.exports.server = () => {
+  const initPath = getRootPath(new Error());
+  const config = {
     path: initPath,
     logPath: initPath,
     port: 8080,
@@ -118,9 +119,10 @@ module.exports.server = ()=>{
     i18n: [],
     views: [],
     serve: [],
-    websocket: null
+    websocket: null,
+    startInits: true
   };
-  let settingsObject = {
+  const settingsObject = {
     __config: config,
     start(conf){
       if(conf){
@@ -133,9 +135,10 @@ module.exports.server = ()=>{
     },
     loadConfigFile(path){
       try{
-        let conf = JSON.parse(fs.readFileSync(path));
-        Object.assign(config, conf);
-      }catch(e){console.log(e);}
+        Object.assign(config, JSON.parse(readFileSync(path).toString()));
+      }catch(e){
+        console.log(e);
+      }
       return settingsObject;
     },
     setConfig(conf){
@@ -295,19 +298,24 @@ module.exports.server = ()=>{
       if(paths.filter(p=>typeof p != 'string').length) return new Error('addViewPath - first and other params must be a string');
       config.views = config.views.concat(paths);
       return settingsObject;
+    },
+    setStartInits(bool){
+      if(typeof bool != 'boolean') return new Error('setStartInits - first param must be a boolean');
+      config.startInits = bool;
+      return settingsObject;
     }
   };
   return settingsObject;
 };
 
-module.exports.module = ()=>{
-  let logs = {};
-  let moduleInfo = {
+module.exports.module = () => {
+  const logs = {};
+  const moduleInfo = {
     __meta: null,
     __init: null
   };
 
-  let addMethod = (name, info, methodFunc, method)=>{
+  const addMethod = (name, info, methodFunc, method)=>{
     if(!methodFunc) {
       methodFunc = info;
       info = {};
@@ -321,7 +329,7 @@ module.exports.module = ()=>{
     moduleInfo[name] = methodFunc;
     return Module;
   };
-  let setMethodInfo = (name, info={}, method)=>{
+  const setMethodInfo = (name, info={}, method)=>{
     if(typeof name != 'string') return new Error(method + ' - first param must be a string');
     if(typeof info != 'object') return new Error(method + ' - second param must be an object');
 
@@ -336,7 +344,7 @@ module.exports.module = ()=>{
 
       if(logs[name]) return logs[name];
 
-      logs[name] = global.logger.create(name);
+      logs[name] = global.logger(name);
       return logs[name];
     },
     setMeta(meta){
@@ -376,63 +384,158 @@ module.exports.module = ()=>{
     }
   };
   return Module;
-}
+};
 
-function startProcessEvents(helper){
-  process.on('message', obj=> {
-    switch(obj.type){
-      case 'start': 
-        helper.server.start(obj.config);
-        break;
-      case 'ping':
-        helper.server.addPPLog('server obtain ping');
-        if(process.send){
-          process.send({
-            type: 'pong',
-            id: obj.id
-          });
-          helper.server.addPPLog('server send pong');
-          helper.startPing();
+
+global.intervals = {
+  _si: null,
+  start(){
+    this.stop();
+
+    console.debug('start global intervals');
+    this._si = setInterval(()=>this._check(), 1000);
+  },
+  stop(){
+    if(this._si == null) return;
+
+    console.debug('stop global intervals');
+    clearInterval(this._si);
+  },
+  _check(){
+    for(const func of this._funcs){
+      if(func.disabled) continue;
+
+      if(func.timeout != null){
+        if(typeof func.timeout === 'number'){
+          if(Date.now() < func.datetime + func.timeout * 1000){
+            continue;
+          }
         }
-        break;
-      case 'pong':
-        let ind = helper.serverStat.pings.indexOf(obj.id);
-        if(ind > -1){
-          helper.serverStat.pings.splice(ind, 1);
+        else{
+          const d = new Date();
+          const [dYear, dMonth, dDate, dDay, dHour, dMinute, dSecond] = [d.getFullYear(), d.getMonth(), d.getDate(), d.getDay(), d.getHours(), d.getMinutes(), d.getSeconds()];
+          const {year, month, date, day, hour, minute, second} = func.timeout;
+
+          if(year != null && year != '*' && !String(year).split(',').includes(String(dYear))) continue;
+          if(month != null && month != '*' && !String(month).split(',').includes(String(dMonth))) continue;
+          if(date != null && date != '*' && !String(date).split(',').includes(String(dDate))) continue;
+          if(day != null && day != '*' && !String(day).split(',').includes(String(dDay))) continue;
+          if(hour != null && hour != '*' && !String(hour).split(',').includes(String(dHour))) continue;
+          if(minute != null && minute != '*' && !String(minute).split(',').includes(String(dMinute))) {
+            delete func.minuteRun;
+            continue;
+          }
+          if(second != null && second != '*' && !String(second).split(',').includes(String(dSecond))) continue;
+          if(minute != null && (second == null || second === '*')){
+            if(String(minute).split(',').includes(String(func.minuteRun))){
+              continue;
+            }
+            func.minuteRun = dMinute;
+          }
         }
-        helper.server.addPPLog('server obtain pong');
-        break;
-      case 'reload':
-        helper.server.addLog('reload command');
-        helper.graceful_shutdown(0);
-        break;
-      case 'exit':
-        helper.server.addLog('exit command');
-        helper.graceful_shutdown(1);
-        break;
+      }
+
+      func.func(this.del.bind(this, func.key));//send cb with delete current interval
+      func.datetime = Date.now();
+    }
+  },
+  _funcs: [],
+  add(func, timeout){
+    if(timeout == null){
+      console.warn('function will be called every second', new Error());
     }
 
-    if(obj == 'shutdown') {
-      helper.server.addLog('process message shutdown');
-      helper.graceful_shutdown(1);
-    }
-  });
+    const key = Math.random() * Date.now();
+    this._funcs.push({
+      key,
+      func: func,
+      timeout: timeout,
+      datetime: Date.now(),
+    });
+    return key;
+  },
+  del(key){
+    const ind = this._funcs.reduce((index,obj,ind)=>{
+      if(obj.key == key){
+        index = ind;
+      }
+      return index;
+    }, -1);
+    this._funcs.splice(ind, 1);
+    return key;
+  },
+  enable(key){
+    this.disable(key, false);
+  },
+  disable(key, val){
+    this._funcs.forEach(obj=>{
+      if(obj.key == key){
+        if(val == false) {
+          obj.disabled = false;
+        }
+        else {
+          obj.disabled = true;
+        }
+      }
+    });
+  }
+};
+global.intervals.start();
 
-  process.on('exit', function(){
-    if(helper.isGracefulShutdownInited()){
-      if(global.intervals) global.intervals.stop();
-      return process.exit();
+process.on('exit', function(){
+  if(isGracefulShutdownInited()){
+    if(global.intervals) {
+      global.intervals.stop();
     }
 
-    helper.server.addLog('exit event', process.exitCode, exports.serverStat);
-    helper.graceful_shutdown();
-  });
-  process.on('SIGINT', ()=>{
-    helper.server.addLog('SIGINT event', process.exitCode);
-    helper.graceful_shutdown(1);
-  });
-  process.on('SIGTERM', ()=>{
-    helper.server.addLog('SIGTERM event', process.exitCode);
-    helper.graceful_shutdown(1);
-  });
-}
+    return process.exit();
+  }
+
+  serverLog('exit event', process.exitCode);
+  stopCluster();
+  graceful_shutdown();
+});
+process.on('SIGINT', ()=>{
+  serverLog('SIGINT event', process.exitCode);
+  stopCluster();
+  graceful_shutdown(1);
+});
+process.on('SIGTERM', ()=>{
+  serverLog('SIGTERM event', process.exitCode);
+  stopCluster();
+  graceful_shutdown();
+});
+process.on('SIGUSR1', ()=>{
+  serverLog('SIGTERM event', process.exitCode);
+  stopCluster();
+  graceful_shutdown();
+});
+process.on('SIGUSR2', ()=>{
+  serverLog('SIGTERM event', process.exitCode);
+  stopCluster();
+  graceful_shutdown();
+});
+
+process.on('message', obj=> {
+  if(obj === 'shutdown') {
+    serverLog('process message shutdown');
+    stopCluster();
+    graceful_shutdown(1);
+  }
+  if(obj.type === 'startServerInWorker'){
+    initLogger(obj.config);
+    initServer(obj.config);
+  }
+  if(obj.type === 'reloadWorker'){
+    serverLog('reload command');
+    graceful_shutdown(0);
+  }
+  if(obj.type === 'clusterStopped'){
+    serverLog('exit command');
+    graceful_shutdown(1);
+  }
+});
+
+process.on('uncaughtException', err => {
+  console.error(Date.now(), '!!! Caught exception !!!', err);
+});

@@ -25,9 +25,10 @@ The stable version of the server will be implemented after writing all the neces
 - Auto-reload server on file change (reload on new files not supported)
 - Clusterization
 - Postgres\mysql\redis built-in DAL's for data storage
-- Mailgun\sparkpost build-in mail sender packages
+- Mailgun\sparkpost\smtp build-in mail sender packages
 - Localization
 - WebScoket
+- 
 
 ---
 
@@ -98,6 +99,7 @@ Avaliable properties in `config` object or `config.json` file
 | `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
 | `useHttpErrorFiles` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 | `skipParsePost`| false | Boolean | Skip parse POST |
+| `startInits` | true | Boolean | Start functions that were added via Module `app.setInit` |
 
 
 ### How to use
@@ -154,6 +156,7 @@ let serverInstance = require('interlayer').server();
 | `setWebsocketConfig(websocket)` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket` |
 | `setUseFilesAsHTTPErrors([true / false])` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 | `setSkipParsePost([true / false])` | false | Boolean | Set skip parse POST |
+| `disableInits([true / false])` | true | Start functions that were added via Module `app.setInit` |
 
 ### How to use
 ```js
@@ -192,39 +195,51 @@ const app = require('interlayer').module();
 | Method | Property types | Description |
 | --- | --- | --- |
 | `getLog(name)` | String | Get the object to output messages to the console. Object of `{i:funcion, e:function, d: function, w: function, c: function}` type |
-| `setMeta(metaObject)` | Object | Set the default parameters for all methods of this module. `metaObject` see below |
-| `setInit(initFunction)`| Function | Set the function to initialize the module at server start. `initFunction` see below |
-| `addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without info(meta). `methodMeta` and `methodFunction` see below |
+| `setMeta(metaObject)` | Object | Set the default parameters for all methods of this module. [metaObject](#metaobject-and-methodmeta-default-paramerets) |
+| `setInit(initFunction)`| Function | Set the function to initialize the module at server start. [initFunction](#initfunctionsimplerequest) |
+| `addMethod(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Adds a new method with/without info(meta). [methodMeta ](#metaobject-and-methodmeta-default-paramerets) and [methodFunction](#methodfunctionrequest-requestcallback)|
 | `add(methodUrl, [methodMeta,] methodFunction)`| String, [Object,] Function | Alias for `addMethod` |
-| `setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets info(meta) for method. `methodMeta` see below |
+| `setMethodInfo(methodUrl, methodMeta)`| String, Object | Sets info(meta) for method. [methodMeta ](#metaobject-and-methodmeta-default-paramerets) |
 | `info(methodUrl, methodMeta)`| String, Object | Alias for `setMethodInfo` |
 | `getMethod(methodUrl)`| String | Returns the method function |
 | `getMethodInfo(methodUrl, [withGlobalMeta])`| String[, Boolean] | Returns method info(meta) |
 
+#### initFunction(simpleRequest)
+- `simpleRequest.url` - Empty string
+- `simpleRequest.headers` - Empty object
+- `simpleRequest.DAL` - DAL objects if initialised
+- `simpleRequest.config` - Configuration object
+- `simpleRequest.websocket` - websocket server instanse if initialised
+
+... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here](https://nodejs.org/api/http.html#http_class_http_clientrequest)
+
 #### metaObject and methodMeta default paramerets
 | Key | Type | Description |
 | --- | --- | --- |
-| `default = methodFunction` | Function | Module(not method) function, can be used to output HTML, Available at `/moduleUrl`. **Only for metaObject.** See `methodFunction` below |
+| `default = methodFunction` | Function | Module(not method) function, can be used to output HTML, Available at `/moduleUrl`. **Only for metaObject.** [methodFunction](#methodfunctionrequest-requestcallback) |
 | `html = methodFunction` | Function | Same as `default`. **Only for metaObject** |
-| `find = methodFunction` | Function | The method search function is only triggered if no other methods have been processed. **Only for metaObject.** See `methodFunction` below |
+| `find = methodFunction` | Function | The method search function is only triggered if no other methods have been processed. **Only for metaObject.** See [methodFunction](#methodfunctionrequest-requestcallback) |
 | `path` | String | Changes `methodUrl` to `path` |
 | `addToRoot` | Boolean | Skip `moduleUrl` and use `methodUrl` or `path` as url to method |
 | `alias` | String | Alias path to method |
 | `timeout` | Number | Seconds until HTTP 408(Request timeout) | 
 | `noDelay` | Boolean | Disable/enable the use of Nagle's algorithm. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `middlewareTimeout` | Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
-| `prerun = prerunFunction` | Function | Function or link to function which will be runned before method. May be usefull for preparing request. See `prerunFunction` below |
+| `prerun = prerunFunction` | Function | Function or link to function which will be runned before method. May be usefull for preparing request. [prerunFunction](#prerunfunctionrequest-modulemeta-requestcallback) |
 | `toJson` | Boolean | Convert response to JSON string |
 | `contentType` | String | Same as `toJson` if `contentType==json` |
 | `skipRequestLog` | String | Skip request log output |
 | `hidden` | Boolean | Skip method from return information while calling `request.getMethodsInfo`|
 | `skipParsePost` | Boolean | Skip parse POST |
 
+#### prerunFunction(request, moduleMeta, requestCallback)
+- `request` - same as in [methodFunction](#methodfunctionrequest-requestcallback)
+
 #### methodFunction(request, requestCallback):
 `request`:
 | Methods | Property types | Description |
 | --- | --- | --- |
-| `modifyLog(log)` | Object | Add to log object requestId |
+| `modifyLog(log)` | Object | Add to log object requestId for log created with [global.logger](#globallogger) |
 | `getView(file, callback)` | String, Function | Return `file` in `callback` from paths specified in `config.views` or in `server.setViewPath()`. `callback = (error, data)` |
 | `getViewSync(file)` | String | Synchronous `request.getView` | 
 | `getFile(file, callback)` | String, Function | Return file ***as is***. `callback = (error, data, {'Content-type':''})` | 
@@ -258,7 +273,7 @@ const app = require('interlayer').module();
 | `mail` | Object | An object with mail senders, which was initialized by `config.useEmails` or `server.addEmailSender()` |
 | `id` | String | requestId |
 | `log` | Object | The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID) |
-| `helpers` | Object | See below |
+| `helpers` | Object | [requiest.helpers](#requesthelpers) |
 
 #### request.helpers
 | Methods | Property types | Description |
@@ -267,20 +282,8 @@ const app = require('interlayer').module();
 | `helpers.toJson(obj)` | * | Convert `obj` to JSON string |
 | `helpers.clearObj(obj, toRemove)` | Object, Array | Delete parameters of `obj` from `toRemove` array of strings |
 | `helpers.isBoolean(val)` | * | Check is `val` string is Boolean(true|false) |
-| `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here] https://www.npmjs.com/package/JSV. Create environment with `envId` and call `validate` with `json` and `schema`
+| `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here](https://www.npmjs.com/package/JSV). Create environment with `envId` and call `validate` with `json` and `schema`
 | `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
-
-#### prerunFunction(request, moduleMeta, requestCallback)
-- `request` - same as in `methodFunction`
-
-#### initFunction(simpleRequest)
-- `simpleRequest.url` - Empty string
-- `simpleRequest.headers` - Empty object
-- `simpleRequest.DAL` - DAL objects if initialised
-- `simpleRequest.config` - Configuration object
-- `simpleRequest.websocket` - websocket server instanse if initialised
-
-... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here](https://nodejs.org/api/http.html#http_class_http_clientrequest)
 
 #### requestCallback(error, data, httpCode, responseHeaders, isBinary)
 - `error` - null or undefined or String or Object
@@ -289,22 +292,48 @@ const app = require('interlayer').module();
 - `responseHeaders` - null or Object [See here](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
 - `type` - null or 'bin'. If 'bin' then `data` will be returned as Buffer
 
-#### added global property
-`global.logger` - Object to creat log with `global.logger.create(logName)` were `logName` is String. See Features below
-`global.intervals` Object with methods:
+---
+
+## Global objects added
+#### global.logger
+Object to create log with `global.logger.create(logName) or global.logger(logName)` were `logName` is String.
+Avaliable methods:
+| Methods | Description |
+| --- | --- |
+| `i` | Parameters same as for `console.log`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
+| `w` | Parameters same as for `console.warn`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/warn) |
+| `e` | Parameters same as for `console.error`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/error) |
+| `d` | Parameters same as for `console.debug`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/debug) |
+| `c` | Parameters same as for `console.log`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
+Note that this type of logging don't allow to track the request id.
+
+To have ability track the request id use the `request.modifyLog` method:
+```js
+let log = global.logger.create('moduleID');
+exports.myMethod = (request, cb)=>{
+    let log = request.modifyLog(log);
+}
+```
+
+#### global.intervals 
+Object with methods:
 | Methods | Property types | Description |
 | --- | --- | --- |
 | `add(function, timeout)` | Function, Number | Return `key` |
 | `add(function, timeout = {year: '*', month: '*', date: '*', day: '*', hour: '*', minute: '*', second: '*'})` | Function, Object | Any of the parameters can be `"*"` or `"2020,2040"` - the options are listed in commas. Return `key` |
 | `del(key)` | String | Remove by `key` |
 | `disable(key, flag)` | String, Boolean | Disable/Enable interval by `key` and `flag` |
-| `enable(key)` | String | Enable interval by `key`
+| `enable(key)` | String | Enable interval by `key` |
 The startup interval is every second. If the start conditions (`timeout`) match, `function` is called with a parameter as a function to delete the interval - similar call to `global.intervals.del(key)`.
+
+Often used inside the function [initFunction](#initfunctionsimplerequest)
+
+Remember, if at server startup `config.startInits = false` or `disableInits(false)` then functions added via `setInit(initFunction)` will not be added to `global.intervals`
 
 ---
 
-#### Features
-**Logging:**
+## Features
+#### Logging:
 ```js
 let log = global.logger.create('moduleID');
 log.i(); // Usual log - displayed in green
@@ -328,6 +357,9 @@ let log = global.logger.create('moduleID');
 exports.myMethod = (request, cb)=>{
     let log = request.log;
 }
+
+---
+
 ```
 #### Use dals:
 ```js

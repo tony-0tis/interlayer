@@ -1,21 +1,18 @@
-let log = global.logger.create('POSTGRES');
-let pg = require('pg');
+const pg = require('pg');
+
+const log = global.logger('_POSTGRESQL');
 
 let DAL = {
   connect: cb => cb('NO_CONNECTION')
 };
 
-exports.init = (config, dalConfig)=>{
-  let conf = {
+exports.init = (config, dalConfig) => {
+  const conf = {
     host: '127.0.0.1',
     user: 'root'
   };
 
   for(let i in dalConfig){
-    if(!dalConfig.hasOwnProperty(i)){
-      continue;
-    }
-
     conf[i] = dalConfig[i];
   }
 
@@ -39,13 +36,13 @@ for(let name in pg.prototype){
 }
 
 function wrapMethod(name){
-  exports.methods[name] = (...args)=>{
+  exports.methods[name] = (...args) => {
     let doneConn;
     let originalCb = ()=>{};
-    let cb = (...resargs)=>{
-      doneConn();
+    const cb = (...callbackArgs) => {
+      doneConn && doneConn();
 
-      originalCb(...resargs);
+      originalCb(...callbackArgs);
     };
 
     if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
@@ -53,7 +50,7 @@ function wrapMethod(name){
       args[args.length -1] = cb;
     }
 
-    DAL.connect((err, connection, done)=>{
+    DAL.connect((err, connection, done) => {
       doneConn = done;
       
       if(err){

@@ -1,4 +1,4 @@
-let mailgun = require('mailgun-js');
+const mailgun = require('mailgun-js');
 exports.client = null;
 
 exports.init = (sysConfig, config)=>{

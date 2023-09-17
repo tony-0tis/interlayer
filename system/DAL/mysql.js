@@ -1,32 +1,35 @@
-let log = global.logger.create('MYSQL');
-let mysql = require('mysql');
-let connectionMethods = require('mysql/lib/Connection');
+const { createPool } = require('mysql');
+const connectionMethods = require('mysql/lib/Connection');
+
+const log = global.logger('_MYSQL');
 
 let DAL = {
   getConnection: cb => cb('NO_CONNECTION')
 };
+
 exports.init = (config, dalConfig)=>{
-  let conf = {
+  const conf = {
     host: '127.0.0.1',
     user: 'root'
   };
-  for(let i in dalConfig){
-    if(!dalConfig.hasOwnProperty(i)){
-      continue;
-    }
+
+  for(const i in dalConfig){
     conf[i] = dalConfig[i];
   }
+
   if(!conf.database){
     throw 'wrong mysql config, check database set';
   }
-  DAL = mysql.createPool(conf);
+
+  DAL = createPool(conf);
 };
 
 exports.methods = {};
-for(let name in connectionMethods.prototype){
+for(const name in connectionMethods.prototype){
   if(name.indexOf('_') == 0){
     continue;
   }
+
   if(['format', 'escapeId', 'escape'].indexOf(name) > -1){
     exports.methods[name] = (...args) => connectionMethods.prototype[name].call(DAL, ...args);
     continue;
@@ -38,12 +41,12 @@ function wrapMethod(name){
   exports.methods[name] = function(...args){
     let conn;
     let originalCb = ()=>{};
-    let cb = (...resargs)=>{
+    const cb = (...callbackArgs)=>{
       if(conn){
         conn.release();
       }
 
-      originalCb(...resargs);
+      originalCb(...callbackArgs);
       conn = undefined;
     };
 
@@ -58,7 +61,8 @@ function wrapMethod(name){
       }
 
       conn = connection;
-      let sql = connection[name](...args);
+      
+      const sql = connection[name](...args);
       if(this.showSql){
         log.w(sql.sql);
       }

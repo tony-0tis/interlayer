@@ -1,4 +1,5 @@
-var SparkPost = require('sparkpost');
+const SparkPost = require('sparkpost');
+
 exports.client = null;
 
 exports.init = (sysConfig, config)=>{

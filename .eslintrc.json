@@ -1,11 +1,10 @@
 {
     "env": {
-        "es6": true,
+        "es2024": true,
         "node": true
     },
     "extends": "eslint:recommended",
     "parserOptions": {
-        "ecmaVersion": 2018,
         "sourceType": "module"
     },
     "rules": {
@@ -24,10 +23,6 @@
         "semi": [
             "error",
             "always"
-        ],
-        "no-console": [
-            "error",
-            { "allow": ["warn", "error", "log"] }
         ],
         "no-case-declarations": 0
     }

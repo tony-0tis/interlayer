@@ -1,26 +1,27 @@
-let fs = require('fs');
-let path = require('path');
-let log = global.logger.create('DAL');
+const { statSync } = require('fs');
+const { join } = require('path');
+
+const log = global.logger('_DAL');
 
 exports.init = (paths, config)=>{
   if(!config.useDals){
     return;
   }
   
-  let DALs = {};
+  const DALs = {};
 
   let useDals = config.useDals;
   if(typeof config.useDals && !Array.isArray(config.useDals)){
     useDals = Object.keys(config.useDals);
   }
   
-  let pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
-  for(let dal of useDals){
-    let dalName = dal + '.js';
+  const pathsToCheck = [__dirname].concat(paths.dals||[]).reverse();
+  for(const dal of useDals){
+    const dalName = dal + '.js';
     for(let dalsPath of pathsToCheck){
       try{
-        if(fs.statSync(path.join(dalsPath, dalName)).isFile()){
-          let dalFile = require(path.join(dalsPath, dalName));// eslint-disable-line global-require
+        if(statSync(join(dalsPath, dalName)).isFile()){
+          const dalFile = require(join(dalsPath, dalName));// eslint-disable-line global-require
           if(!dalFile.methods){
             throw 'exports.methods no defined';
           }
@@ -30,12 +31,11 @@ exports.init = (paths, config)=>{
           }
   
           DALs[dal] = dalFile.methods;
-          dalFile = undefined;
           Object.freeze(DALs[dal]);
           break;
         }
       }catch(e){
-        log.e('Error in', path.join(dalsPath, dalName), e);
+        log.e('Error in', join(dalsPath, dalName), e);
       }
     }
   }
