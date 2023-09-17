@@ -1,6 +1,6 @@
 {
   "name": "interlayer",
-  "version": "0.12.5",
+  "version": "0.13.0",
   "description": "Minimalistic and fast ES6 Node.js web server with file monitor",
   "main": "index.js",
   "dependencies": {
