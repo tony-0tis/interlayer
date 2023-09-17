@@ -13,13 +13,15 @@ const breaker = /^win/.test(process.platform) ? '' : '\n';
 const streams = {};
 let logFile;
 
-module.exports = (dir, debug)=>{
-  if(streams[dir]){
-    logFile = streams[dir];
-  }
-  else{
-    logFile = createWriteStream(dir + '/logs.log');
-    streams[dir] = logFile;
+module.exports = (dir, debug, disableLogFile)=>{
+  if(!disableLogFile){
+    if(streams[dir]){
+      logFile = streams[dir];
+    }
+    else{
+      logFile = createWriteStream(dir + '/logs.log');
+      streams[dir] = logFile;
+    }
   }
 
   return {
@@ -30,7 +32,9 @@ module.exports = (dir, debug)=>{
       const log = {
         add(str){
           try{
-            logFile.write(str);
+            if(logFile){
+              logFile.write(str);
+            }
             console.log(str);
           }catch(e){
             console.error(e);

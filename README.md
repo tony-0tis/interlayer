@@ -155,6 +155,7 @@ Avaliable properties in `config` object or `config.json` file
 | `skipParsePost`| false | Boolean | Skip parse POST |
 | `formidableOptions`| {} | Object | Set formidable options on parse data when headers['content-type'] not null, list of options [see here🌍](https://github.com/node-formidable/formidable#options) |
 | `startInits` | true | Boolean | Start functions that were added via Module `app.setInit` |
+| `disableLogFile` | false | boolean | Disable to write log file, the console.log and others continues to be written by the console |
 
 ---
 
@@ -205,6 +206,7 @@ server.start();
 | `setSkipParsePost([true / false])` | false | Boolean | Set skip parse POST |
 | `setFormidableOptions({})` | {} | Object | Set formidable options on parse data when headers['content-type'] not null, list of options [see here🌍](https://github.com/node-formidable/formidable#options) |
 | `disableInits([true / false])` | true | Start functions that were added via Module `app.setInit` |
+| `disableLogFile([true / false])` | false | boolean | Disable to write log file, the console.log and others continues to be written by the console |
 
 ---
 

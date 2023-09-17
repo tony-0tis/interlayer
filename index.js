@@ -310,6 +310,11 @@ module.exports.server = () => {
       if(typeof bool != 'boolean') return new Error('setStartInits - first param must be a boolean');
       config.startInits = bool;
       return settingsObject;
+    },
+    disableLogFile(bool){
+      if(typeof bool != 'boolean') return new Error('setStartInits - first param must be a boolean');
+      config.disableLogFile = bool;
+      return settingsObject;
     }
   };
   return settingsObject;

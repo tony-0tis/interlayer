@@ -1,8 +1,6 @@
 const { join, isAbsolute, dirname, extname } = require('path');
 const { statSync, watch, readdirSync, stat } = require('fs');
 
-const logger = require('./logger.js');
-
 exports.pathCheck = /[\w\d./]*/;
 
 exports.getRootPath = error => {
@@ -10,7 +8,7 @@ exports.getRootPath = error => {
 };
 
 exports.initLogger = config => {
-  global.logger = logger(config.logPath, config.debug).create;
+  global.logger =  require('./logger.js')(config.logPath, config.debug, config.disableLogFile).create;
   global.logger.create = global.logger;
 };
 
