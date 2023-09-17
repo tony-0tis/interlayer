@@ -1,9 +1,9 @@
 debugger;
-const { readFileSync, statSync, } = require('fs');
+const { readFileSync, statSync } = require('fs');
 const { join, isAbsolute } = require('path');
 
 const { getRootPath, checkPath, initLogger } = require('./system/utils.js');
-const { initCluster, stopCluster, isWorker } = require('./system/cluster.js');
+const { initCluster, stopCluster } = require('./system/cluster.js');
 const { initServer, serverLog, graceful_shutdown, isGracefulShutdownInited } = require('./system/server.js');
 
 module.exports = function(config = {}){
@@ -92,7 +92,7 @@ module.exports = function(config = {}){
   }, 20);
 };
 
-module.exports.server = () => {
+exports.server = () => {
   const initPath = getRootPath(new Error());
   const config = {
     path: initPath,
@@ -120,7 +120,7 @@ module.exports.server = () => {
     views: [],
     serve: [],
     websocket: null,
-    startInits: true
+    startInits: true,
     formidableOptions: {}
   };
   const settingsObject = {
@@ -314,7 +314,7 @@ module.exports.server = () => {
   return settingsObject;
 };
 
-module.exports.module = () => {
+exports.module = () => {
   const logs = {};
   const moduleInfo = {
     __meta: null,

@@ -9,15 +9,8 @@ At this point, the server version is still in alpha. You can suggest an idea or 
 
 The stable version of the server will be implemented after writing all the necessary features and tests to them.
 
-##### !!! UPDATE 0.3.0: Broke the previous initialization, please rewrite it in your projects.
-##### !!! UPDATE 0.3.17: The `request.getMethodsInfo` function now returns full method information.
-##### !!! UPDATE 0.4.0: `startPath` and `rootPath` in `config` replaced with `initPath`. `numOfServers` and `clusters` replaced with `workers`. `useWatcher` replaced with `restartOnChange`. New ability to init server with pass the config file name in the first argument.
-##### !!! UPDATE 0.5.0 - 0.6.0: Fix returning of JSON objects, buffers, numbers, booleans, nulls, functions, undefined, symbols. This version could broke your code.
-##### !!! UPDATE 0.7.0: Changed the way server and modules are initialized.
-##### !!! UPDATE 0.8.0: Refactor, might broke init.
-##### !!! UPDATE 0.9.0: Rafactor, removed `disableNagleAlgoritm` and `setDisableNagleAlgoritm` because is disabled in node.js by default as of version v0.1.92, use `noDelay` and `setNoDelay` instead. For POST requests start using formidable node.js library, return html files when errors(404.html,503.html)
-##### !!! UPDATE 0.10.0 I start writing tests, so I make changes (checks) in the initialization code, which may cause errors at the start of your servers. Please check if the start is correct.
-##### !!! UPDATE 0.12.0 Added sending smtp via nodemailer
+## Changelog
+[CHANGELOG.md](CHANGELOG.md)
 
 ## Features
 - Serving Static Content
@@ -219,6 +212,8 @@ server.start();
 Example of modules/myModule.js
 ```js
 const app = require('interlayer').module();
+exports.module = app;
+
 let log = app.getLog('myModuleId');
 app.setMeta({asJson: true});
 app.setInit((request, requestCallback)=>{
@@ -343,15 +338,15 @@ const app = require('interlayer').module();
 
 ## Global objects added
 #### global.logger
-Object to create log with `global.logger.create(logName) or global.logger(logName)` were `logName` is String.
-Avaliable methods:
+Object to create `log` with `global.logger.create(logName) or global.logger(logName)` were `logName` is String.
+`log` avaliable methods:
 | Methods | Description |
 | --- | --- |
 | `i` | Parameters same as for `console.log`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
 | `w` | Parameters same as for `console.warn`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/warn) |
 | `e` | Parameters same as for `console.error`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/error) |
 | `d` | Parameters same as for `console.debug`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/debug) |
-| `c` | Parameters same as for `console.log`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
+| `c` | Parameters same as for `console.log`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
 Note that this type of logging don't allow to track the request id.
 
 To have ability track the request id use the `request.modifyLog` method:
@@ -382,7 +377,7 @@ Remember, if at server startup `config.startInits = false` or `disableInits(fals
 ## Features
 #### Logging:
 ```js
-let log = global.logger.create('moduleID');
+const log = global.logger('moduleID');
 log.i(); // Usual log - displayed in green
 log.w(); // Warn - displayed in yellow
 log.e(); // Error - displayed in red
@@ -392,7 +387,8 @@ log.c(); // Critical error - displayed in white
 Note that this type of logging don't allow to track the request id.
 To have ability track the request id use the `request.modifyLog` method:
 ```js
-let log = global.logger.create('moduleID');
+
+const log = global.logger('moduleID');
 exports.myMethod = (request, cb)=>{
     let log = request.modifyLog(log);
 }
