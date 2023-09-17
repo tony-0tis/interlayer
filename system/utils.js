@@ -93,7 +93,7 @@ exports.getModule = ({ modules }, moduleName) => {
 
 exports.modifyRequest = (requestMod, request, response, processFunctions, log) => {
   for(let i in requestMod.params){
-    if(exports.isBoolean(requestMod.params[i])){
+    if(processFunctions.helpers.isBoolean(requestMod.params[i])){
       requestMod.params[i] = Boolean(requestMod.params[i]);
     }
   }
