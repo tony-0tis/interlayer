@@ -121,6 +121,7 @@ module.exports.server = () => {
     serve: [],
     websocket: null,
     startInits: true
+    formidableOptions: {}
   };
   const settingsObject = {
     __config: config,
@@ -230,6 +231,11 @@ module.exports.server = () => {
     setSkipParsePost(bool){
       if(typeof bool != 'boolean') return new Error('setSkipParsePost - first param must be a boolean');
       config.skipParsePost = bool;
+      return settingsObject;
+    },
+    setFormidableOptions(options){
+      if(typeof conf != 'object') return new Error('setConfig - first param must be an object');
+      Object.assign(config.formidableOptions, options);
       return settingsObject;
     },
     setDisableNagleAlgoritm(){

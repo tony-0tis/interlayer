@@ -349,12 +349,21 @@ class iServer{
   }
 
   #parsePost(reqObj, request, cb){
-    if(!reqObj.isPost){
+    if(!reqObj.headers['content-type']){
       return cb();
     }
 
-    formidable({multiples: true}).parse(request, (err, fields, files)=>{
-      if(err) return cb(err);
+    formidable(reqObj.options.formidableOptions || {}).parse(request, (err, fields, files)=>{
+      if(err) {
+        if(err.httpCode){
+          return cb(err.message, null, err.httpCode);
+        }
+        else{
+          this.#log.e('parsePost', err);
+          return cb();
+        }
+      }
+
       reqObj.post = fields;
       reqObj.files = files;
       cb();

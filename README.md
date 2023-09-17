@@ -61,12 +61,12 @@ yarn add interlayer
 - config.json
 
 #### Request processing steps
-1. request preparation - filling with functions and objects, [see here](#methodfunctionrequest-request-requestcallback)
+1. request preparation - filling with functions and objects, [see here](#methodfunctionrequest-requestcallback)
 2. search for a module. if not found - search for a file in `config.serve` and give it to the client
 3. if the module is found, parse the data if the request method is POST
 4. for all matching triggers run middlewares, more [see here](#create-middleware)
 5. if the found module has a prerun in its meta, run it, more [see here](#module-creation)
-6. finally launch our module(that can use any data from [here](#methodfunctionrequest-request-requestcallback)), in response we wait for [see here](#requestcallbackerror-data-httpcode-responseheaders-isbinary)
+6. finally launch our module(that can use any data from [here](#methodfunctionrequest-requestcallback)), in response we wait for [see here](#requestcallbackerror-data-httpcode-responseheaders-isbinary)
 7. convert to json text if meta.toJson || meta.contentType == 'json' || headers['Content-Type'] == 'application/json'
 8. done
 
@@ -140,8 +140,8 @@ Avaliable properties in `config` object or `config.json` file
 | `timeout` | 60(sec) | Number | Timeout in seconds, then user will see `{error: 'TIMEOUT'}` **Note, execution of the method is not interrupted** |
 | `workers` | 1 | Number | Number of instances for load balancing. If number more than 1, uses node.js cluster |
 | `restartOnChange` | false | Boolean | Flag determine is server will restart automatically when files in the folder with `modules` was changed |
-| `useDals` | --- | Object[dalName] = dalConfig | The configuration object for dal modules to be used. Supports redis(`redis:{}`), mysql(`mysql:{}` and default will be `{host: '127.0.0.1',user: 'root'}`), postgress(`postgress:{}` and default will be `{host: '127.0.0.1',user: 'root'}`). For config built-in redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) (Example of dal's config: `useDals: {mysql: {port: 6375, user: 'admin'}, redis: {}}`) |
-| `useEmailSenders` | --- | Object[emailSenderName] = emailSenderConfig | The configuration object for the mail senders to be used. Supports mailgun(`mailgun:{}`), sparkpost(`sparkpost:{}`), smtp(`smtp:{}`). For config built-in mailgun [see here](https://github.com/mailgun/mailgun-js#setup-client), sparkpost [see here](https://github.com/SparkPost/node-sparkpost#initialization), smtp [see here](https://nodemailer.com/smtp/)|
+| `useDals` | --- | Object[dalName] = dalConfig | The configuration object for dal modules to be used. Supports redis(`redis:{}`), mysql(`mysql:{}` and default will be `{host: '127.0.0.1',user: 'root'}`), postgress(`postgress:{}` and default will be `{host: '127.0.0.1',user: 'root'}`). For config built-in redis [see here🌍](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here🌍](https://github.com/mysqljs/mysql#connection-options), postgres [see here🌍](https://github.com/brianc/node-postgres/wiki/Client#parameters) (Example of dal's config: `useDals: {mysql: {port: 6375, user: 'admin'}, redis: {}}`) |
+| `useEmailSenders` | --- | Object[emailSenderName] = emailSenderConfig | The configuration object for the mail senders to be used. Supports mailgun(`mailgun:{}`), sparkpost(`sparkpost:{}`), smtp(`smtp:{}`). For config built-in mailgun [see here🌍](https://github.com/mailgun/mailgun-js#setup-client), sparkpost [see here🌍](https://github.com/SparkPost/node-sparkpost#initialization), smtp [see here🌍](https://nodemailer.com/smtp/)|
 | `serve` | --- | Array[Strings[]] | An array folders to serve. Priority over the last folder |
 | `modules` | ./modules | Array[Strings[]] | An array folders with modules. Priority over the last folder. (Default directory is './modules' unless otherwise specified.) [How to create](#module-creation) |
 | `views` | ./files | Array[Strings[]] | An array of folders with files, which you can be uses as templates, or returned through the api(by using request.getView). Priority over the last folder. (Default directory is './files' unless otherwise specified.) |
@@ -156,10 +156,11 @@ Avaliable properties in `config` object or `config.json` file
 | `debug` | false | Boolean | Allow to display `log.d` in console and add to the `logs.log` file |
 | `instantShutdownDelay` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown |
 | `retryAter` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `instantShutdownDelay` |
-| `noDelay` | true | Boolean | Flag to enable/disable Nagle algoritm for all connections. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
-| `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
+| `noDelay` | true | Boolean | Flag to enable/disable Nagle algoritm for all connections. [See here🌍](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
+| `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here🌍](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
 | `useHttpErrorFiles` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 | `skipParsePost`| false | Boolean | Skip parse POST |
+| `formidableOptions`| {} | Object | Set formidable options on parse data when headers['content-type'] not null, list of options [see here🌍](https://github.com/node-formidable/formidable#options) |
 | `startInits` | true | Boolean | Start functions that were added via Module `app.setInit` |
 
 ---
@@ -193,12 +194,12 @@ server.start();
 | `setRestartOnChange([true / false])` | false | Boolean | Boolean value determine is server will restart automatically when files in the folder with `modules` was changed |
 | `setSkipDbWarning([true / false])` | false | Boolean | Skip warning in console if useDals not defined in config |
 | `setDebugMode([true / false])` | false | Boolean | Allow to display `log.d` in console |
-| `setNoDelay([true / false])` | true | Boolean | Flag to disable/enable Nagle algoritm for all connections. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
+| `setNoDelay([true / false])` | true | Boolean | Flag to disable/enable Nagle algoritm for all connections. [See here🌍](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown | 
 | `setRetryAter(timeout)` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `config.instantShutdownDelay` |
 | `addEmailSender(emailSenderName, emailSenderConfig)` | --- |  String, Object | Add an email sender. Priority over the last folder. [How to create](#create-email-sender) |
 | `addDalPath(path, [path, [path]])` | --- |  String | Add path to DAL's(Data Access Layer) modules. Priority over the last added path | 
-| `addDal(dalName, dalConfig)` | --- | String, Object | The configuration(dalConfig) for dal module(dalName) to be used. Out of the box is available redis(for use specify `redis, {}`), mysql(for use specify `mysql, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`). For configure redis [see here](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here](https://github.com/mysqljs/mysql#connection-options), postgres [see here](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
+| `addDal(dalName, dalConfig)` | --- | String, Object | The configuration(dalConfig) for dal module(dalName) to be used. Out of the box is available redis(for use specify `redis, {}`), mysql(for use specify `mysql, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`), postgress(for use specify `postgress, {}` and default `dalConfig` will be `{host: '127.0.0.1',user: 'root'}`). For configure redis [see here🌍](https://github.com/NodeRedis/node_redis#options-object-properties), mysql [see here🌍](https://github.com/mysqljs/mysql#connection-options), postgres [see here🌍](https://github.com/brianc/node-postgres/wiki/Client#parameters) |
 | `addMiddlewarePath(path, [path, [path]])` | --- |  String, ... | Add path to middleware modules. Priority over the last added path. [How to create](#create-middleware) |
 | `setMiddlewareOrder(middlwareName, middlwareName)` | --- |  String or Array[Strings] |  An array(or arguments) with ordered names of middlewares |
 | `setMiddlewareTimeout(timeout)` | 10(sec) |  Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
@@ -206,9 +207,10 @@ server.start();
 | `addI18nPath(path, [path, [path]])` | ./i18n | String, ... | Add path to localization files. Priority over the last added path. (Default directory is './i18n' unless otherwise specified.) [How to create](#localization) |
 | `addServePath(path, [path, [path]])` | --- | String, ... | Add path to Serving Static Content. Priority over the last added path | 
 | `addViewPath(path, [path, [path]])` | ./files |  String, ... | Folders with files, which you can be uses as templates, or returned through the api(by using `request.getView`). Priority over the last folder. (Default directory is './files' unless otherwise specified.) | 
-| `setWebsocketConfig(websocket)` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket` |
+| `setWebsocketConfig(websocket)` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here🌍](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket` |
 | `setUseFilesAsHTTPErrors([true / false])` | false | Boolean | Possible errors will be given as files if they are found in directories specified in `addViewPath` |
 | `setSkipParsePost([true / false])` | false | Boolean | Set skip parse POST |
+| `setFormidableOptions({})` | {} | Object | Set formidable options on parse data when headers['content-type'] not null, list of options [see here🌍](https://github.com/node-formidable/formidable#options) |
 | `disableInits([true / false])` | true | Start functions that were added via Module `app.setInit` |
 
 ---
@@ -256,7 +258,7 @@ const app = require('interlayer').module();
 - `simpleRequest.config` - Configuration object
 - `simpleRequest.websocket` - websocket server instanse if initialised
 
-... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here](https://nodejs.org/api/http.html#http_class_http_clientrequest)
+... and functions as in `methodFunction` `request` except `getResponse`, `getRequest` and other http request methods [See here🌍](https://nodejs.org/api/http.html#http_class_http_clientrequest)
 
 #### metaObject and methodMeta default paramerets
 | Key | Type | Description |
@@ -268,7 +270,7 @@ const app = require('interlayer').module();
 | `addToRoot` | Boolean | Skip `moduleUrl` and use `methodUrl` or `path` as url to method |
 | `alias` | String | Alias path to method |
 | `timeout` | Number | Seconds until HTTP 408(Request timeout) | 
-| `noDelay` | Boolean | Disable/enable the use of Nagle's algorithm. [See here](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
+| `noDelay` | Boolean | Disable/enable the use of Nagle's algorithm. [See here🌍](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `middlewareTimeout` | Number | Timeout in second, then user will see `{error: 'TIMEOUT'}` **Note, execution of the runned middlewares is not interrupted** |
 | `prerun = prerunFunction` | Function | Function or link to function which will be runned before method. May be usefull for preparing request. [prerunFunction](#prerunfunctionrequest-modulemeta-requestcallback) |
 | `toJson` | Boolean | Convert response to JSON string |
@@ -310,8 +312,8 @@ const app = require('interlayer').module();
 | `method` | String | Uppercased type of request - POST|GET|... |
 | `isPost` | Boolean | true|false |
 | `params` | Object | An object of parsed GET params |
-| `post` | Object | An object of parsed POST params(with [formidable](https://github.com/node-formidable/formidable)) |
-| `files` | Object | An object of uploaded files(with [formidable](https://github.com/node-formidable/formidable)) |
+| `post` | Object | An object of parsed POST params(with [formidable🌍](https://github.com/node-formidable/formidable)) |
+| `files` | Object | An object of uploaded files(with [formidable🌍](https://github.com/node-formidable/formidable)) |
 | `cookies` | Object | An object of parsed cookies |
 | `headers` | Object | An object of request headers |
 | `DAL` | Object | An object with DALs, which was initialized by `config.useDals` or `server.addDal()` |
@@ -327,14 +329,14 @@ const app = require('interlayer').module();
 | `helpers.toJson(obj)` | * | Convert `obj` to JSON string |
 | `helpers.clearObj(obj, toRemove)` | Object, Array | Delete parameters of `obj` from `toRemove` array of strings |
 | `helpers.isBoolean(val)` | * | Check is `val` string is Boolean(true|false) |
-| `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here](https://www.npmjs.com/package/JSV). Create environment with `envId` and call `validate` with `json` and `schema`
+| `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here🌍](https://www.npmjs.com/package/JSV). Create environment with `envId` and call `validate` with `json` and `schema`
 | `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
 
 #### requestCallback(error, data, httpCode, responseHeaders, isBinary)
 - `error` - null or undefined or String or Object
 - `data` - null or String or Object or Binary(if `isBinary` = true)
-- `httpCode` - null or Number [See here](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
-- `responseHeaders` - null or Object [See here](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
+- `httpCode` - null or Number [See here🌍](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
+- `responseHeaders` - null or Object [See here🌍](https://en.wikipedia.org/wiki/List_of_HTTP_header_fields#Response_fields) If Content-Type = application/json then `data` will be returned as JSON
 - `type` - null or 'bin'. If 'bin' then `data` will be returned as Buffer
 
 ---
@@ -345,11 +347,11 @@ Object to create log with `global.logger.create(logName) or global.logger(logNam
 Avaliable methods:
 | Methods | Description |
 | --- | --- |
-| `i` | Parameters same as for `console.log`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
-| `w` | Parameters same as for `console.warn`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/warn) |
-| `e` | Parameters same as for `console.error`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/error) |
-| `d` | Parameters same as for `console.debug`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/debug) |
-| `c` | Parameters same as for `console.log`. [See here](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
+| `i` | Parameters same as for `console.log`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
+| `w` | Parameters same as for `console.warn`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/warn) |
+| `e` | Parameters same as for `console.error`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/error) |
+| `d` | Parameters same as for `console.debug`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/debug) |
+| `c` | Parameters same as for `console.log`. [See here🌍](https://developer.mozilla.org/en-US/docs/Web/API/console/log) |
 Note that this type of logging don't allow to track the request id.
 
 To have ability track the request id use the `request.modifyLog` method:
