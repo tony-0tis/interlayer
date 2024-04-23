@@ -1,27 +1,27 @@
-const { isWorker, setupPrimary, setupMaster, fork } = require('cluster');
+const cluster = require('cluster');
 const { join } = require('path');
 
 const { startWatch } = require('./utils.js');
 
-let cluster = null;
+let clasterObject;
 
 exports.initCluster = config => {
   const log = global.logger('_CLUSTER');
 
-  if(isWorker){
+  if(cluster.isWorker){
     return log.i('Cluster must be started in master');
   }
 
-  cluster = new iCluster(log, config);
+  clasterObject = new iCluster(log, config);
 };
 
 exports.stopCluster = () => {
-  if(cluster){
-    cluster.stopCusterAndExit();
+  if(clasterObject){
+    clasterObject.stopCusterAndExit();
   }
 };
 
-exports.isWorker = isWorker;
+exports.isWorker = cluster.isWorker;
 
 class iCluster {
   #config = {};
@@ -36,23 +36,37 @@ class iCluster {
 
     this.#inited = true;
 
-    if(typeof setupPrimary === 'function'){
-      setupPrimary({
+    if(typeof cluster.setupPrimary === 'function'){
+      cluster.setupPrimary({
         exec: join(__dirname, '../index.js'),
       });
     }
     else{
-      setupMaster({
+      cluster.setupMaster({
         exec: join(__dirname, '../index.js'),
       });
     }
 
     const toStart = config.workers || 1;
     for(let i = toStart; i > 0; i--){
-      this.#addServer(i);
+      cluster.fork(process.env);
     }
 
     this.#log.i('Start cluster with', this.#servers.length, 'servers');
+
+    cluster.on('online', worker => {
+      worker.send({
+        type: 'startServerInWorker',
+        config: this.#config
+      });
+    });
+
+    cluster.on('exit', (worker, code, sig) => {
+      if(!this.#clusterStopped){
+        this.#log.w('worker', worker.process.pid, 'down with code:', code, 'signal:', sig, 'respawn!');
+        cluster.fork(process.env);
+      }
+    });
 
     if(config.restartOnChange){
       let si;
@@ -60,70 +74,13 @@ class iCluster {
         clearTimeout(si);
         si = setTimeout(()=>{
           this.#log.i('Many files changed, restart');
-          this.#restartServers();
+
+          const workers = Object.values(cluster.workers);
+          for(const worker of workers){
+            worker.kill();
+          }
         }, 1500);
       });
-    }
-  }
-
-  #addServer(i){
-    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
-
-    let server = fork(process.env);
-    server.on('online', () => {
-      server.send({
-        type: 'startServerInWorker',
-        config: this.#config
-      });
-    });
-    server.on('error', error => {
-      if(error && String(error).indexOf('channel closed') > -1){
-        return;
-      }
-
-      this.#log.e('server', ((server||{}).process||{}).pid, 'error', error);
-    });
-    server.on('exit', (code, sig) => {
-      if(server.exitFlag || code == 1){
-        this.#log.i('worker', (server && server.process || {}).pid, 'killed at end');
-        server = null;
-        this.#removeServer(i);
-        return;
-      }
-
-      this.#log.w('worker', (server && server.process || {}).pid, 'down with code:', code, 'signal:', sig, 'respawn!');
-
-      server = null;
-      this.#removeServer(i);
-      this.#addServer(i);
-    });
-
-    this.#log.i('start worker process', server.process.pid);
-    this.#servers.push({n: i, srv: server});
-  }
-
-  #removeServer(n){
-    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
-
-    let toDel;
-    for(let i = this.#servers.length - 1; i >= 0; i--){
-      if(this.#servers[i].n == n){
-        toDel = i;
-        break;
-      }
-    }
-
-    if(toDel != undefined){
-      this.#servers.splice(toDel, 1);
-    }
-  }
-
-  #restartServers(){
-    if(!this._inited) throw 'Cluster not inited ' + new Error().stack;
-
-    this.#log.d('Command restart servers');
-    for(let i = this.#servers.length - 1; i >= 0; i--){
-      this.#servers[i].srv.send({type: 'reloadWorker'});
     }
   }
 
@@ -131,18 +88,18 @@ class iCluster {
     if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
 
     if(this.#clusterStopped) return;
-
     this.#clusterStopped = true;
 
     this.#log.d('Stop cluster and process exit');
-    for(const server of this.#servers){
-      server.srv.exitFlag = true;
 
-      server.srv.send({type: 'clusterStopped'});
+    const workers = Object.values(cluster.workers);
+    for(const worker of workers){
+      worker.send({type: 'clusterStopped'});
     }
 
     const si = setInterval(()=>{
-      if(!this.#servers.length){
+      const workers = Object.values(cluster.workers);
+      if(!workers.workers.length){
         process.exit();
         clearInterval(si);
       }
