@@ -6,7 +6,7 @@
   "dependencies": {
     "JSV": "^4.0.2",
     "async": "^3.2.0",
-    "formidable": "^1.2.2",
+    "formidable": "^3.2.4",
     "mailgun-js": "^0.22.0",
     "mysql": "^2.18.1",
     "pg": "^8.2.1",
