@@ -2,12 +2,12 @@ debugger;
 const { readFileSync, statSync } = require('fs');
 const { join, isAbsolute } = require('path');
 
-const { getRootPath, checkPath, initLogger } = require('./system/utils.js');
+const { getRootPathUtils, checkPathUtils, initLoggerUtils } = require('./system/utils.js');
 const { initCluster, stopCluster } = require('./system/cluster.js');
 const { initServer, serverLog, graceful_shutdown, isGracefulShutdownInited } = require('./system/server.js');
 
 module.exports = function(config = {}){
-  let initPath = getRootPath(new Error());
+  let initPath = getRootPathUtils(new Error());
 
   if(typeof config == 'string'){
     try{
@@ -49,16 +49,16 @@ module.exports = function(config = {}){
   }
 
   // Modules
-  checkPath(initPath, config, 'modules', 'modules');
+  checkPathUtils(initPath, config, 'modules', 'modules');
   
   // Views
-  checkPath(initPath, config, 'views', 'files');
+  checkPathUtils(initPath, config, 'views', 'files');
 
   // I18n
-  checkPath(initPath, config, 'i18n', 'i18n');
+  checkPathUtils(initPath, config, 'i18n', 'i18n');
 
   // Dals
-  checkPath(initPath, config, 'dals');
+  checkPathUtils(initPath, config, 'dals');
   if(!config.useDals || !Object.keys(config.useDals).length){
     if(!config.skipDbWarning){
       console.log('config.useDals not defined, no one database will be included(to skip this log pass the skipDbWarning)');
@@ -66,13 +66,13 @@ module.exports = function(config = {}){
   }
 
   // Middleware
-  checkPath(initPath, config, 'middleware');
+  checkPathUtils(initPath, config, 'middleware');
 
   // Email
-  checkPath(initPath, config, 'emailSenders');
+  checkPathUtils(initPath, config, 'emailSenders');
 
   // Serve
-  checkPath(initPath, config, 'serve');
+  checkPathUtils(initPath, config, 'serve');
 
   if(config.disableNagleAlgoritm) {
     console.warn('deprecated in v 0.9.0, use setNoDelay instead');
@@ -82,7 +82,7 @@ module.exports = function(config = {}){
 
   setTimeout(()=>{
     global.intervals.start();
-    initLogger(config);
+    initLoggerUtils(config);
 
     if(!config.workers || config.workers === 1){
       initServer(config);
@@ -94,7 +94,7 @@ module.exports = function(config = {}){
 };
 
 module.exports.server = () => {
-  const initPath = getRootPath(new Error());
+  const initPath = getRootPathUtils(new Error());
   const config = {
     path: initPath,
     logPath: initPath,
@@ -349,7 +349,7 @@ module.exports.module = () => {
     return Module;
   };
 
-  let Module = {
+  const Module = {
     __moduleInfo: moduleInfo,
     getLog(name){
       if(typeof name != 'string') return new Error('getLog - first param must be a string');
@@ -535,7 +535,7 @@ process.on('message', obj=> {
   }
   if(obj.type === 'startServerInWorker'){
     global.intervals.start();
-    initLogger(obj.config);
+    initLoggerUtils(obj.config);
     initServer(obj.config);
   }
   if(obj.type === 'reloadWorker'){

@@ -1,7 +1,7 @@
 const { readdirSync, lstatSync, readFileSync, existsSync, statSync } = require('fs');
 const { join, resolve } = require('path');
 
-const { getUrl } = require('./utils.js');
+const { getUrlUtils } = require('./utils.js');
 
 exports.init = config => {
   const log = global.logger('_INIT');
@@ -142,7 +142,7 @@ function initModules(config, log){
             };
             const methodInfo = Object.assign({}, method.meta);
 
-            methodName = getUrl(moduleName, methodName, curModule, methodInfo);
+            methodName = getUrlUtils(moduleName, methodName, curModule, methodInfo);
 
             if(modules[methodName]){
               log.e('curModule', moduleName, 'Method', methodName, 'in file', file, 'IS DEFINED IN', modules[methodName].definedIn);
@@ -155,7 +155,7 @@ function initModules(config, log){
 
             let aliasURL = methodMeta.alias;
             if(aliasURL){
-              aliasURL = getUrl(moduleName, aliasURL, curModule, methodInfo);
+              aliasURL = getUrlUtils(moduleName, aliasURL, curModule, methodInfo);
               if(modules[aliasURL]){
                 log.e('curModule', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
                 continue;

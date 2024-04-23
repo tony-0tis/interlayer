@@ -11,7 +11,7 @@ index.__set__('helper', {
 
     }
   },
-  checkPath(){
+  checkPathUtils(){
 
   },
   cluster:{

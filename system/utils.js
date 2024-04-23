@@ -1,18 +1,19 @@
 const { join, isAbsolute, dirname, extname } = require('path');
-const { statSync, watch, readdirSync, stat } = require('fs');
+const { statSync, watch, readdirSync, stat, readFile, readFileSync } = require('fs');
+const { JSV } = require('JSV');
 
 exports.pathCheck = /[\w\d./]*/;
 
-exports.getRootPath = error => {
+exports.getRootPathUtils = error => {
   return dirname(error.stack.split('\n').splice(2, 1)[0].match(/at\s?[^(]*\(?([^)]+)\)?/)[1]);
 };
 
-exports.initLogger = config => {
+exports.initLoggerUtils = config => {
   global.logger =  require('./logger.js')(config.logPath, config.debug, config.disableLogFile).create;
   global.logger.create = global.logger;
 };
 
-exports.checkPath = (serverPath, config, type, def) => {
+exports.checkPathUtils = (serverPath, config, type, def) => {
   if(config[type] && !Array.isArray(config[type])){
     throw 'config.' + type + ' must be Array';
   }
@@ -56,7 +57,7 @@ exports.generateId = () => {
   return rtn;
 };
 
-exports.getUrl = (moduleName, methodName, moduleObject, meta) => {
+exports.getUrlUtils = (moduleName, methodName, moduleObject, meta) => {
   if(moduleObject.addToRoot || meta.addToRoot){
     return methodName;
   }
@@ -68,7 +69,7 @@ exports.getUrl = (moduleName, methodName, moduleObject, meta) => {
   return moduleName + '/' + methodName;
 };
 
-exports.getModule = ({ modules }, moduleName) => {
+exports.getModuleUtils = ({ modules }, moduleName) => {
   if(modules[moduleName]){
     return modules[moduleName];
   }
@@ -79,17 +80,17 @@ exports.getModule = ({ modules }, moduleName) => {
     return modules[moduleName];
   }
 
-  let subs = moduleName.split('/');
-  if(subs.length > 1){
-    if(modules[subs[0] + '/*']){
-      return modules[subs[0] + '/*'];
+  const path = moduleName.split('/');
+  if(path.length > 1){
+    if(modules[path[0] + '/*']){
+      return modules[path[0] + '/*'];
     }
   }
 
   return false;
 };
 
-exports.modifyRequest = (requestMod, request, response, processFunctions, log) => {
+exports.modifyRequestUtils = (requestMod, request, response, processFunctions, log) => {
   for(let i in requestMod.params){
     if(processFunctions.helpers.isBoolean(requestMod.params[i])){
       requestMod.params[i] = Boolean(requestMod.params[i]);
@@ -147,7 +148,7 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
 
   requestMod.getRequest = ()=>request;
 
-  requestMod.end = (text='', code=200, headers={'Content-Type': 'text/html; charset=utf-8'}, type='text')=>{
+  requestMod.end = (text='', code=200, headers={'content-type': 'text/html; charset=utf-8'}, type='text')=>{
     requestMod.unlockShutdown();
     if(!requestMod || requestMod.ended){
       requestMod = undefined;
@@ -155,11 +156,16 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
       return;
     }
 
+    headers = Object.keys(headers).reduce((r, key)=>{
+      r[key.toLowerCase()] = headers[key];
+      return r;
+    }, {});
+
     requestMod.ended = true;
 
     if(type == 'bin'){
       text = Buffer.from(text, 'binary');
-      headers['Content-Length'] = text.length;
+      headers['content-length'] = text.length;
     }
     else{
       let asObject = false;
@@ -185,7 +191,7 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
         text = '';
       }
 
-      headers['Content-Length'] = Buffer.from(text).length;
+      headers['content-length'] = Buffer.from(text).length;
 
       if(requestMod.jsonpCallback){
         if(headers['Content-Type'] == 'application/json' || asObject){
@@ -204,7 +210,7 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
     }
 
     if(requestMod.responseCookies){
-      let cookies = [];
+      let cookies = headers['set-cookie'] || [];
       let expires = new Date();
       expires.setDate(expires.getDate() + 5);
       
@@ -212,7 +218,7 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
         cookies.push(i + '=' + encodeURIComponent(requestMod.responseCookies[i]) + ';expires=' + expires.toUTCString() + ';path=/');
       }
       
-      headers['Set-Cookie'] = cookies;
+      headers['set-cookie'] = cookies;
     }
 
     if(!text){
@@ -268,7 +274,268 @@ exports.modifyRequest = (requestMod, request, response, processFunctions, log) =
   return requestMod.modifyLog(log);
 };
 
-exports.processInits = (inits, config, websocket, processFunctions) => {
+exports.getProcessFunctionsUtils = (processLocks, inits) => {
+  const log = global.logger('_PROCESS-FUNCS');
+
+  const processFunctions = {
+    lockShutdown(time){
+      const modLog = this.modifyLog(log);
+      modLog.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
+      
+      processLocks[this.id] = true;
+      
+      setTimeout(()=>{
+        if(this.cleared){
+          return;
+        }
+        this.unlockShutdown(true);
+      }, (time||10000));
+    },
+    unlockShutdown(ontimeout){
+      if(!processLocks[this.id]){
+        return;
+      }
+
+      delete processLocks[this.id];
+
+      const modLog = this.modifyLog(log);
+      modLog.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
+    },
+    getProcessLocks(){
+      return processLocks;
+    },
+    getMethodsInfo(showHidden){
+      return inits.modules.info.map(m=>{
+        m = Object.assign(m);
+        m.methods = m.methods.filter(m=>{
+          if(m.hidden && !showHidden){
+            return false;
+          }
+          return true;
+        });
+        return m;
+      }).filter(m=>{
+        if(m.hidden && !showHidden || !m.methods || !m.methods.length){
+          return false;
+        }
+        return true;
+      });
+    },
+    i18n(key, def){
+      for(let i in this.langs){
+        if(inits.i18n[this.langs[i]] && inits.i18n[this.langs[i]][key]){
+          return inits.i18n[this.langs[i]][key];
+        }
+      }
+
+      return def || key;
+    },
+    obtainI18n(){
+      return inits.i18n;
+    },
+    addCookies(key, val){
+      this.responseCookies[key] = val;
+    },
+    rmCookies(key){
+      this.responseCookies[key] = '';
+    },
+    error(text){
+      if(!this.end) return;
+
+      const modLog = this.modifyLog(log);
+      modLog.e(text);
+      if(this.config.useHttpErrorFiles){
+        return this.getView('502.html', (err, data, headers)=>{
+          if(err){
+            this.end(
+              this.i18n('Service Unavailable. Try again another time.'),
+              503,
+              {'Content-Type': 'text/plain; charset=utf-8'}
+            );
+          }
+          else{
+            this.end(data, 503, headers);
+          }
+        });
+      }
+
+      this.end(
+        this.i18n('Service Unavailable. Try again another time.'),
+        503,
+        {'Content-Type': 'text/plain; charset=utf-8'}
+      );
+    },
+    getView(view, file, cb){
+      if(!cb && !file){
+        throw 'minimum 2 arguments with last callback';
+      }
+
+      const modLog = this.modifyLog(log);
+
+      if(!cb){
+        cb = file;
+        file = view;
+        view = null;
+      }
+
+      file = decodeURIComponent(file);
+
+      if(!this.config.views || !this.config.views.length) {
+        return cb('NO config.views');
+      }
+
+      const contentType = mime(file);
+
+      const tries = [];
+      for(let i in this.config.views){
+        tries.push(
+          new Promise((ok,fail)=>{
+            try{
+              if(!statSync(join(this.config.views[i], file)).isFile()){
+                modLog.d('Not file', join(this.config.views[i], file));
+                return fail();
+              }
+            }catch(e){
+              modLog.d('bad stat', join(this.config.views[i], file), e);
+              return fail(e);
+            }
+
+            readFile(join(this.config.views[i], file), {encoding: 'utf8'}, (err, res)=>{
+              if(err){
+                modLog.d('read err', join(this.config.views[i], file), err);
+                return fail(err);
+              }
+
+              return ok(res);
+            });
+          })
+        );
+      }
+      Promise.race(tries)
+        .then(result => cb(null, (result||'').toString(), {'Content-Type': contentType}))
+        .catch(err=>{
+          modLog.e(err);
+          cb('Not found');
+        });
+    },
+    getViewSync(view, file){
+      if(!file){
+        file = view;
+      }
+
+      if(!this.config.views || !this.config.views.length) {
+        return 'NO config.views';
+      }
+
+      return this.config.views.requce((res, view)=>{
+        if(res){
+          return res;
+        }
+        try{
+          if(!statSync(join(view, file)).isFile()){
+            return res;
+          }
+        }catch(e){
+          return res;
+        }
+        try{
+          return readFileSync(join(view, file), {encoding: 'utf8'});
+        }
+        catch(e){
+          return res;
+        }
+      }, '').toString() || null;
+    },
+    modifyLog(originalLog){
+      if(!originalLog){
+        throw 'You must specify log instance by define it in varible with global.logger.create("MODULE_IDENTITY")';
+      }
+
+      return Object.keys(originalLog).reduce((res, color)=>{
+        color = color.toLowerCase();
+        if(color == 'add'){
+          res[color] = originalLog[color];
+          return res;
+        }
+
+        if(originalLog[color].modifed){
+          throw 'Do not call modifyLog twice at one log';
+        }
+
+        res[color] = (...args)=>{
+          originalLog[color].call({extra: '[rID:' + this.id + ']'}, ...args);
+        };
+        res[color].modifed = true;
+        return res;
+      }, {});
+    },
+    getFile(file, cb){
+      const contentType = exports.mime(file);
+      try{
+        if(!statSync(file).isFile()){
+          return cb('NOT FILE');
+        }
+      }catch(e){
+        return cb('NO FILE', null);
+      }
+
+      readFile(file, (err, res)=>{
+        if(err){
+          return cb('BAD FILE', null, {err: err});
+        }
+
+        cb(null, res, {'Content-Type': contentType});
+      });
+    }
+  };
+  processFunctions.addCookie = processFunctions.addCookies;
+  processFunctions.setCookie = processFunctions.addCookies;
+  processFunctions.setCookies = processFunctions.addCookies;
+  processFunctions.rmCookie = processFunctions.rmCookies;
+  processFunctions.delCookie = processFunctions.rmCookies;
+  processFunctions.delCookies = processFunctions.rmCookies;
+  processFunctions.helpers = {
+    generateId: exports.generateId,
+    mime: exports.mime,
+    toJson(res){
+      try{
+        res.data = JSON.stringify(res.data);
+        res.headers['Content-Type'] = 'application/json';
+      }catch(e){
+        log.e('toJson.JSON.stringify error', e, 'on obj', res);
+      }
+    },
+    clearObj(obj, toRemove){
+      if(!obj) return '{}';
+
+      try{
+        const clonedObject = typeof structuredClone === 'function' ? structuredClone(obj) : JSON.parse(JSON.stringify(obj));
+        if(Array.isArray(toRemove)){
+          for(let i in toRemove){
+            delete clonedObject[toRemove[i]];
+          }
+        }
+        return JSON.stringify(clonedObject);
+      }catch(e){
+        log.e('clearObj.JSON.stringify error', e, 'on obj', obj);
+        return '';
+      }
+    },
+    isBoolean(val){
+      if(String(val).toLowerCase().match(/^(true|false)$/)){
+        return true;
+      }
+      
+      return false;
+    },
+    JSV(params, schema, envId){
+      return JSV.createEnvironment(envId).validate(params, schema);
+    }
+  };
+  return processFunctions;
+};
+
+exports.processInitsUtils = (inits, config, websocket, processFunctions) => {
   const { inits: modulesInits } = inits.modules;
   const { inits: middlewaresInits} = inits.middlewares;
   const allInits = {...modulesInits, ...middlewaresInits};
@@ -295,7 +562,7 @@ exports.processInits = (inits, config, websocket, processFunctions) => {
   }
 };
 
-exports.startWatch = (log, config, onChange) => {
+exports.startWatchUtils = (log, config, onChange) => {
   [].concat(
     config.modules, 
     config.dals, 

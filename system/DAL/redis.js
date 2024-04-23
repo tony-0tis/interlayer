@@ -1,4 +1,5 @@
 const { createClient, RedisClient } = require('redis');
+const { default: commands } = require('@redis/client/dist/lib/client/commands');
 
 const { generateId } = require('../utils.js');
 
@@ -68,6 +69,7 @@ const DAL = {
 
     let config = {
       retry_strategy,
+      legacyMode: true,
       emit_error: err => connection && connection.redis.emit('error', err)
     };
 
@@ -137,6 +139,7 @@ const DAL = {
 
       return cb('No connection');
     });
+    connection.redis.connect();
 
     DAL._checkConnections();
     return lazy;
@@ -191,11 +194,16 @@ const lazyDefine = {
 };
 
 exports.methods = {};
-for(const name in RedisClient.prototype){// eslint-disable-line guard-for-in
+for(const name in commands){
   wrapMethod(name);
+  if(!exports.methods[name.toLowerCase()]){
+    wrapMethod(name.toLowerCase(), name);
+  }
 }
 
-function wrapMethod(name){
+function wrapMethod(name, redissCommand){
+  if(!redissCommand) redissCommand = name;
+
   exports.methods[name] = (...args)=>{
     let conn;
     let originalCb = ()=>{};
@@ -223,10 +231,10 @@ function wrapMethod(name){
 
       conn = connection;
       if(lazy && !lazy.list.length){
-        return connection[name](...args);
+        return connection[redissCommand](...args);
       }
       else{
-        lazy.list.unshift({cmd: name, args: args});
+        lazy.list.unshift({cmd: redissCommand, args: args});
         let res = conn;
         
         lazy.list.map(i=>{
@@ -239,7 +247,7 @@ function wrapMethod(name){
   };
   
   lazyDefine.methods[name] = function(...args){
-    this.list.push({cmd: name, args: args});
+    this.list.push({cmd: redissCommand, args: args});
     return this;
   };
 }

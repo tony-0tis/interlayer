@@ -1,7 +1,7 @@
 const cluster = require('cluster');
 const { join } = require('path');
 
-const { startWatch } = require('./utils.js');
+const { startWatchUtils } = require('./utils.js');
 
 let clasterObject;
 
@@ -70,7 +70,7 @@ class iCluster {
 
     if(config.restartOnChange){
       let si;
-      startWatch(this.#log, config, ()=>{
+      startWatchUtils(this.#log, config, ()=>{
         clearTimeout(si);
         si = setTimeout(()=>{
           this.#log.i('Many files changed, restart');

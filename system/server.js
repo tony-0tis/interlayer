@@ -9,8 +9,7 @@ const { join } = require('path');
 const { whilst, auto, series } = require('async');
 
 const { init : initInits } = require('./inits.js');
-const { init: initProcessFunctions} = require('./_processFunctions.js');
-const { generateId, modifyRequest, getModule, processInits } = require('./utils.js');
+const { generateId, modifyRequestUtils, getModuleUtils, processInitsUtils, getProcessFunctionsUtils } = require('./utils.js');
 
 exports.server = null;
 
@@ -38,7 +37,7 @@ class iServer{
     this.#config = config;
 
     this.#inits = initInits(config);
-    this.#processFunctions = initProcessFunctions(this.constructor.processLocks, this.#inits);
+    this.#processFunctions = getProcessFunctionsUtils(this.constructor.processLocks, this.#inits);
 
     if(config.instantShutdownDelay){
       this.constructor.instantShutdownDelay = config.instantShutdownDelay;
@@ -72,7 +71,7 @@ class iServer{
 
     if(config.startInits){
       log.i('Start module inits');
-      processInits(this.#inits, config, websocket, this.#processFunctions);
+      processInitsUtils(this.#inits, config, websocket, this.#processFunctions);
     }
   }
 
@@ -105,7 +104,7 @@ class iServer{
       jsonpCallback: null
     };
 
-    const modLog = modifyRequest(requestMod, request, response, this.#processFunctions, this.#log);
+    const modLog = modifyRequestUtils(requestMod, request, response, this.#processFunctions, this.#log);
 
     modLog.d(
       'Init request',
@@ -114,7 +113,7 @@ class iServer{
       'FROM: ' + (requestMod.headers.referer || '---')
     );
 
-    const moduleInf = getModule(this.#inits.modules, requestMod.path);
+    const moduleInf = getModuleUtils(this.#inits.modules, requestMod.path);
     if(!moduleInf){
       return this.#serve(requestMod, (err, data, code, headers) => {
         if(data){
@@ -227,7 +226,7 @@ class iServer{
         }
       }],
       json: ['module', (res, cb) => {
-        if(res.type == 'bin'){
+        if(res.type == 'bin' || requestMod.responseFree){
           return cb();
         }
 
@@ -243,8 +242,8 @@ class iServer{
           requestMod.ip,
           'REQ: ' + requestMod.path,
           'FROM: ' + (requestMod.headers.referer || '---'),
-          'GET: ' + requestMod.helpers.clearObj(requestMod.params, ['token']),
-          'POST: ' + requestMod.helpers.clearObj(requestMod.post, ['token']),
+          'GET: ' + this.#processFunctions.helpers.clearObj(requestMod.params, ['token']),
+          'POST: ' + this.#processFunctions.helpers.clearObj(requestMod.post, ['token']),
           'len: ' + (res.data && res.data.length),
           'time: ' + ((Date.now() - reqStart) / 1000) + 's'
         );
