@@ -1,5 +1,12 @@
 # Changelog
 
+### 0.13.4
+ * fix init redis with new version of module
+ * refactor code - readabily 
+
+### 0.13.2
+ * added `config.disableLogFile` and `server.disableLogFile` - disable to write log file, the console.log and others continues to be written by the console
+
 ### 0.13.0
 
  * README tidying - added links to headings
