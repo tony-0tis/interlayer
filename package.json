@@ -27,7 +27,9 @@
     "test": "./run_tests.sh",
     "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks --recursive",
     "postinstall": "node postinstall.js",
-    "p": "npm publish"
+    "p": "npm publish",
+    "patch": "./patch.sh",
+    "minor": "./minor.sh"
   },
   "author": "A.I. Developer <npmdev@0t.is> (https://0t.is)",
   "license": "Apache-2.0",
