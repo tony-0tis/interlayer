@@ -102,23 +102,36 @@ function initModules(config, log){
         }
 
         if(curModule.__meta){
+          let aliasURL = curModule.__meta.alias;
+          if(aliasURL){
+            aliasURL = getUrl(moduleName, aliasURL, curModule, {addToRoot: true});
+          }
           if(curModule.__meta.default){
             modules[moduleName] = {
               func: curModule.__meta.default,
               meta: curModule.__meta
             };
+            if(aliasURL){
+              modules[aliasURL] = modules[moduleName];
+            }
           }
           if(curModule.__meta.html){
             modules[moduleName] = {
               func: curModule.__meta.html,
               meta: curModule.__meta
             };
+            if(aliasURL){
+              modules[aliasURL] = modules[moduleName];
+            }
           }
           if(curModule.__meta.find){
             modules[moduleName + '/*'] = {
               func: curModule.__meta.find,
               meta: curModule.__meta
             };
+            if(aliasURL){
+              modules[aliasURL + '/*'] = modules[moduleName];
+            }
           }
         }
 
