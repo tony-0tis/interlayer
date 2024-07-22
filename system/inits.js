@@ -104,7 +104,7 @@ function initModules(config, log){
         if(curModule.__meta){
           let aliasURL = curModule.__meta.alias;
           if(aliasURL){
-            aliasURL = getUrl(moduleName, aliasURL, curModule, {addToRoot: true});
+            aliasURL = getUrlUtils(moduleName, aliasURL, curModule, {addToRoot: true});
           }
           if(curModule.__meta.default){
             modules[moduleName] = {
