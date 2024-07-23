@@ -1,4 +1,4 @@
-const formidable = require('formidable');
+const { formidable } = require('formidable');
 const { createServer: createHttpServer} = require('http');
 const { createServer: createHttpsServer} = require('https');
 const { parse: queryParse } = require('querystring');
