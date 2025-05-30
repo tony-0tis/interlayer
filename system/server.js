@@ -3,7 +3,7 @@ const { createServer: createHttpServer} = require('http');
 const { createServer: createHttpsServer} = require('https');
 const { parse: queryParse } = require('querystring');
 const { parse } = require('url');
-const { Server } = require('ws');
+const { WebSocketServer } = require('ws');
 const { lstatSync, readFileSync } = require('fs');
 const { join } = require('path');
 const { whilst, auto, series } = require('async');
@@ -25,6 +25,7 @@ class iServer{
   #requestPools = [];
   #inits = {};
   #processFunctions = {};
+  #websocket = null;
 
   static log = null;
   static processLocks = {};
@@ -57,21 +58,21 @@ class iServer{
     server.on('request', this.#processRequest.bind(this));
 
     /* sockets */
-    let websocket;//https://github.com/websockets/ws#server-example
+    //https://github.com/websockets/ws#server-example
     if(config.websocket){
       if(config.websocket === true){
-        websocket = new Server({server});
+        this.#websocket = new WebSocketServer({server});
         log.i('websocket inited on the same port');
       }
       else{
-        websocket = new Server(config.websocket);
+        this.#websocket = new WebSocketServer(config.websocket);
         log.i('websocket inited on port:' + config.websocket.port);
       }
     }
 
     if(config.startInits){
       log.i('Start module inits');
-      processInitsUtils(this.#inits, config, websocket, this.#processFunctions);
+      processInitsUtils(this.#inits, config, this.#websocket, this.#processFunctions);
     }
   }
 
@@ -89,6 +90,7 @@ class iServer{
       config: this.#config,
       DAL: this.#inits.dal,
       mail: this.#inits.mail,
+      websocket: this.#websocket,
       id: generateId(),
       url: request.url,
       path: decodeURIComponent(parse(request.url).pathname.substring(1)),
