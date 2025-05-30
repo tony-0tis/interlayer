@@ -9,6 +9,34 @@ At this point, the server version is still in alpha. You can suggest an idea or 
 
 The stable version of the server will be implemented after writing all the necessary features and tests to them.
 
+## Table of contents
+- [Changelog](#changelog)
+- [Features](#features)
+    - [Request processing steps](#request-processing-steps)
+    - [Project tree example](#project-tree-example)
+- [Install](#install)
+1. [Start using a configuration object](#start-using-a-configuration-object)
+    - [Avaliable config params](#avaliable-config-params)
+2. [Start through the function chain](#start-through-the-function-chain)
+    - [Avaliable function chain](#avaliable-chain-functions)
+- [Create module](#start-through-the-function-chain)
+    - [Avaliable module methods](#avaliable-module-methods)
+        - [init function params](initfunctionsimplerequest-simplerequest-params)
+        - [meta object](#metaobject-and-methodmeta-default-paramerets)
+        - [prerun function params](#prerunfunctionrequest-modulemeta-requestcallback)
+        - [method function params](#methodfunctionrequest-requestcallback)
+        - [request function params](#requestcallbackerror-data-httpcode-responseheaders-isbinary-params)
+- [Global objects to use](#global-objects)
+    - [global.logger](#globallogger)
+    - [global.intervals](#globalintervals)
+- [Create DAL](#create-dal)
+    - [How Use DAL](#use-dals)
+- [Create Emain senders](#create-email-sender)
+    - [How to use Email senders](#use-email-senders)
+- [Create middleware](#create-middleware)
+- [Localizations](#localization)
+
+
 ## Changelog
 [CHANGELOG.md](CHANGELOG.md)
 
@@ -22,20 +50,17 @@ The stable version of the server will be implemented after writing all the neces
 - Localization
 - WebScoket
 
----
+#### Request processing steps
+1. request preparation - filling with functions and objects, [see here](#methodfunctionrequest-requestcallback)
+2. search for a module. if not found - search for a file in `config.serve` and give it to the client
+3. if the module is found, parse the data if the request method is POST
+4. for all matching triggers run middlewares, more [see here](#create-middleware)
+5. if the found module has a prerun in its meta, run it, more [see here](#module-creation)
+6. finally launch our module(that can use any data from [here](#methodfunctionrequest-requestcallback)), in response we wait for [see here](#requestcallbackerror-data-httpcode-responseheaders-isbinary)
+7. convert to json text if meta.toJson || meta.contentType == 'json' || headers['Content-Type'] == 'application/json'
+8. done
 
-## Install
-```js
-npm install --save interlayer
-```
-or
-```js
-yarn add interlayer
-```
-
----
-
-## Project tree example
+#### Project tree example
 - /node_modules/
 - package.json
 - /files/ *`- this folder will be served by config.serve`*
@@ -53,48 +78,20 @@ yarn add interlayer
     - weather.js
 - config.json
 
-#### Request processing steps
-1. request preparation - filling with functions and objects, [see here](#methodfunctionrequest-requestcallback)
-2. search for a module. if not found - search for a file in `config.serve` and give it to the client
-3. if the module is found, parse the data if the request method is POST
-4. for all matching triggers run middlewares, more [see here](#create-middleware)
-5. if the found module has a prerun in its meta, run it, more [see here](#module-creation)
-6. finally launch our module(that can use any data from [here](#methodfunctionrequest-requestcallback)), in response we wait for [see here](#requestcallbackerror-data-httpcode-responseheaders-isbinary)
-7. convert to json text if meta.toJson || meta.contentType == 'json' || headers['Content-Type'] == 'application/json'
-8. done
+---
 
-
-### /modules/weather.js example
+## Install
 ```js
-exports._obtain = {
-    checkIp: true,
-    prerun(request, moduleMeta, cb){
-
-    }
-};
-exports.obtain = (request, cb){
-    cb(null, 'good weather');
-};
+npm install --save interlayer
 ```
-### /middleware/auth.js example
+or
 ```js
-exports.triggers = {
-    'meta.checkIp': (request, moduleMeta, cb) => {
-        if(request.ip === '127.0.0.1'){
-            return cb('bad ip');
-        }
-        cb();
-    },
-    'request.params.city': (request, moduleMeta, cb) => {
-        if(request.params.city === 'london'){
-            return cb('bad weather');
-        }
-        cb();
-    }
-}
+yarn add interlayer
 ```
 
-### Variants to start server
+---
+
+## Start using a configuration object
 
 ```js
 const config = {
@@ -107,21 +104,10 @@ or
 ```js
 require('interlayer')('config.json');
 ```
-or
-```js
-const server = require('interlayer').server();
-server
-    .setRootPath(__dirname)
-    .loadConfigFile('config.json')
-    .start()
-```
 
 ---
 
-## `config` object or `config.json` file configuration
-
-
-#### Avaliable params:
+#### Avaliable `config` params:
 Avaliable properties in `config` object or `config.json` file
 
 | Property | Default | Type | Description |
@@ -159,7 +145,7 @@ Avaliable properties in `config` object or `config.json` file
 
 ---
 
-## Intrlayer instance configure
+## Start through the function chain
 ```js
 let serverInstance = require('interlayer').server();
 ```
@@ -170,7 +156,7 @@ server.setRootPath(__dirname);
 server.loadConfigFile('config.json');
 server.start();
 ```
-#### Avaliable methods:
+#### Avaliable chain functions:
 
 | Property | Default | Type | Description |
 | ------ | ------ | ------ | ------ |
@@ -232,7 +218,7 @@ app.addMethod('myMethod', {toJson: true}, (request, requestCallback)=>{
 });//Could be called in the path of /myModule/myMethod
 ```
 
-#### Avaliable app methods
+#### Avaliable module methods
 ```js
 const app = require('interlayer').module();
 ```
@@ -248,7 +234,7 @@ const app = require('interlayer').module();
 | `getMethod(methodUrl)`| String | Returns the method function |
 | `getMethodInfo(methodUrl, [withGlobalMeta])`| String[, Boolean] | Returns method info(meta) |
 
-#### initFunction(simpleRequest)
+#### initFunction(simpleRequest), simpleRequest params
 - `simpleRequest.url` - Empty string
 - `simpleRequest.headers` - Empty object
 - `simpleRequest.DAL` - DAL objects if initialised
@@ -278,9 +264,11 @@ const app = require('interlayer').module();
 
 #### prerunFunction(request, moduleMeta, requestCallback)
 - `request` - same as in [methodFunction](#methodfunctionrequest-requestcallback)
+- `moduleMeta` - params definied for module, params from [metaObject](#metaobject-and-methodmeta-default-paramerets)
+- `requestCallback` - same as in [request callback](#requestcallbackerror-data-httpcode-responseheaders-isbinary), but `data`, `code` and `headers` used with `error` present
 
 #### methodFunction(request, requestCallback):
-`request`:
+`request` functions:
 | Methods | Property types | Description |
 | --- | --- | --- |
 | `modifyLog(log)` | Object | Add to log object requestId for log created with [global.logger](#globallogger) |
@@ -299,7 +287,7 @@ const app = require('interlayer').module();
 | `error(text)` | String | Returns 503 http code |
 | `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`|
 
-`request`:
+`request` properties:
 | Property | Type | Description |
 | --- | --- | --- |
 | `config` | Object | An object of configuration specified at start of server |
@@ -319,7 +307,7 @@ const app = require('interlayer').module();
 | `log` | Object | The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID) |
 | `helpers` | Object | [requiest.helpers](#requesthelpers) |
 
-#### request.helpers
+#### request.helpers methods
 | Methods | Property types | Description |
 | --- | --- | --- |
 | `helpers.generateId()` | --- | Geneate 8-character identifier(a-zA-Z0-9) |
@@ -329,7 +317,7 @@ const app = require('interlayer').module();
 | `helpers.JSV(json, schema, envId)` | Object, Object, String | [See here🌍](https://www.npmjs.com/package/JSV). Create environment with `envId` and call `validate` with `json` and `schema`
 | `helpers.mime()` | Object | return mime type by file extension or `fallback` or 'application/octet-stream' |
 
-#### requestCallback(error, data, httpCode, responseHeaders, isBinary)
+#### requestCallback(error, data, httpCode, responseHeaders, isBinary) params
 - `error` - null or undefined or String or Object
 - `data` - null or String or Object or Binary(if `isBinary` = true)
 - `httpCode` - null or Number [See here🌍](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes)
@@ -338,9 +326,9 @@ const app = require('interlayer').module();
 
 ---
 
-## Global objects added
+## Global objects
 #### global.logger
-Object to create `log` with `global.logger.create(logName) or global.logger(logName)` were `logName` is String.
+Object to create `log` with `log = global.logger.create(logName) or log = global.logger(logName)` were `logName` is String.
 `log` avaliable methods:
 | Methods | Description |
 | --- | --- |
@@ -356,6 +344,31 @@ To have ability track the request id use the `request.modifyLog` method:
 let log = global.logger.create('moduleID');
 exports.myMethod = (request, cb)=>{
     let log = request.modifyLog(log);
+}
+```
+and more
+```js
+const log = global.logger('moduleID');
+log.i(); // Usual log - displayed in green
+log.w(); // Warn - displayed in yellow
+log.e(); // Error - displayed in red
+log.c(); // Critical error - displayed in white
+```
+Note that this type of logging don't allow to track the request id.
+To have ability track the request id use the `request.modifyLog` method:
+```js
+
+const log = global.logger('moduleID');
+exports.myMethod = (request, cb)=>{
+    let log = request.modifyLog(log);
+}
+```
+
+Or use the `request.log` instead, if 'moduleID'(identifier specified in `global.logger.create` function) not required.
+```js
+let log = global.logger.create('moduleID');
+exports.myMethod = (request, cb)=>{
+    let log = request.log;
 }
 ```
 
@@ -376,35 +389,20 @@ Remember, if at server startup `config.startInits = false` or `disableInits(fals
 
 ---
 
-## Features
-#### Logging:
+## Create dal
+Example of `dals/nameofdal.js`
+Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = {nameofdal: {...config}};`)
 ```js
-const log = global.logger('moduleID');
-log.i(); // Usual log - displayed in green
-log.w(); // Warn - displayed in yellow
-log.e(); // Error - displayed in red
-log.c(); // Critical error - displayed in white
-```
+// init is not required
+exports.init = (config, dalConfig) => {
 
-Note that this type of logging don't allow to track the request id.
-To have ability track the request id use the `request.modifyLog` method:
-```js
+};
 
-const log = global.logger('moduleID');
-exports.myMethod = (request, cb)=>{
-    let log = request.modifyLog(log);
+// but methods is required
+exports.methods = {
+    get: () => {},
+    set: () => {}
 }
-```
-
-Or use the `request.log` instead, if 'moduleID'(identifier specified in `global.logger.create` function) not required.
-```js
-let log = global.logger.create('moduleID');
-exports.myMethod = (request, cb)=>{
-    let log = request.log;
-}
-
----
-
 ```
 #### Use dals:
 ```js
@@ -425,35 +423,6 @@ request.DAL.mysql.query('SELECT * FROM users WHERE login = ?', ['admin'], (err, 
 
 ---
 
-#### Use email senders
-```js
-request.mail.mailgun.send({}, callback) -> see params here https://documentation.mailgun.com/api-sending.html#sending
-request.mail.sparkpost.send({}, callback) -> see params here https://developers.sparkpost.com/api/transmissions.html#header-transmission-attributes
-//or use initialized senders as you want
-request.mail.mailgun.client -> https://www.npmjs.com/package/mailgun-js
-request.mail.sparkpost.client -> https://www.npmjs.com/package/sparkpost
-```
-
----
-
-## Create dal
-Example of `dals/nameofdal.js`
-Then you can add `nameofdal` to `config.useDals` array (ex: `config.useDals = {nameofdal: {...config}};`)
-```js
-// init is not required
-exports.init = (config, dalConfig) => {
-
-};
-
-// but methods is required
-exports.methods = {
-    get: () => {},
-    set: () => {}
-}
-```
-
----
-
 ## Create email sender
 Example of `emailSenders/nameofsender.js`
 Then you can add `nameofsender` to `config.useEmailSenders` array (ex: `config.useEmailSenders = {nameofsender: {...config}};`)
@@ -467,6 +436,15 @@ exports.init = (config, emailConfig) => {
 exports.send = (email, cb)=>{
 
 }
+```
+
+#### Use email senders
+```js
+request.mail.mailgun.send({}, callback) -> see params here https://documentation.mailgun.com/api-sending.html#sending
+request.mail.sparkpost.send({}, callback) -> see params here https://developers.sparkpost.com/api/transmissions.html#header-transmission-attributes
+//or use initialized senders as you want
+request.mail.mailgun.client -> https://www.npmjs.com/package/mailgun-js
+request.mail.sparkpost.client -> https://www.npmjs.com/package/sparkpost
 ```
 
 ---
