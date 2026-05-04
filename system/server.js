@@ -103,6 +103,7 @@ class iServer{
       cookies: {},
       params: queryParse(parse(request.url).query),
       post: {},
+      files: null,
       jsonpCallback: null
     };
 
@@ -150,7 +151,7 @@ class iServer{
       },
       middleware: ['post', (res, cb) => {
         const middlewareTimeout = this.#config.middlewareTimeout || moduleInf.meta.middlewareTimeout || 10;
-        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, (error, data, code, headers) => {
+        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, null, (error, data, code, headers) => {
           if(error){
             res.data = {error};
             res.code = code || 200;
@@ -167,7 +168,7 @@ class iServer{
           return cb();
         }
 
-        moduleInf.meta.prerun(requestMod, moduleInf.meta, this.#timeoutRequest(this.#config, moduleInf.meta, (error, data, code, headers) => {
+        moduleInf.meta.prerun(requestMod, moduleInf.meta, this.#timeoutRequest(this.#config, moduleInf.meta, null, (error, data, code, headers) => {
           if(error){
             res.data = {error};
             res.code = code || 200;
@@ -185,7 +186,7 @@ class iServer{
 
         let poolId = requestMod.params.poolingId || requestMod.post.poolingId;
         let withPool = requestMod.params.withPooling || requestMod.post.withPooling;
-        let next = this.#timeoutRequest(this.#config, moduleInf.meta, (error, data, code, headers, type) => {
+        let next = this.#timeoutRequest(this.#config, moduleInf.meta, requestMod, (error, data, code, headers, type) => {
           if(error){
             data = {error};
             code = code || 200;
@@ -261,11 +262,17 @@ class iServer{
     });
   }
 
-  #timeoutRequest(config, meta, cb){
+  #timeoutRequest(config, meta, requestMod, cb){
     let called = false;
 
     global.intervals.add(del => {
       del();
+
+      if(requestMod){
+        if(requestMod.responseFree && requestMod.ended){
+          called = true;
+        }
+      }
 
       if(!called){
         called = true;
@@ -372,15 +379,15 @@ class iServer{
   }
 
   #middleware(request, moduleMeta, cb){
-    if(!this.#inits.middlewares.length){
+    if(!this.#inits.middlewares.middlewares.length){
       return cb();
     }
 
     let count = 0;
     whilst(
-      cb=>cb(null, count < this.#inits.middlewares.length),
+      cb=>cb(null, count < this.#inits.middlewares.middlewares.length),
       cb=>{
-        let middleware = this.#inits.middlewares[count];
+        let middleware = this.#inits.middlewares.middlewares[count];
         count++;
         
         if(middleware.triggers['*']){

@@ -275,6 +275,8 @@ function initMiddlewares(config, log){
         }
 
         middlewares.push(middlewareObject);
+
+        log.w(`add middleware «${middlewareObject.name}» with triggers`, Object.keys(middlewareObject.triggers));
       }
       catch(err){
         log.e('Error in middleware ' + path + '/' + file, err, err.stack);
