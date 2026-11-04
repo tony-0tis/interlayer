@@ -15,17 +15,18 @@ exports.initCluster = config => {
   clasterObject = new iCluster(log, config);
 };
 
-exports.stopCluster = () => {
+exports.stopCluster = code => {
   if(clasterObject){
-    clasterObject.stopCusterAndExit();
+    clasterObject.stopCusterAndExit(code);
+    return true;
   }
+  return false;
 };
 
 exports.isWorker = cluster.isWorker;
 
 class iCluster {
   #config = {};
-  #inited = false;
   #clusterStopped = false;
   #servers = [];
   #log = null;
@@ -33,8 +34,6 @@ class iCluster {
   constructor(log, config){
     this.#log = log;
     this.#config = config || this.#config;
-
-    this.#inited = true;
 
     if(typeof cluster.setupPrimary === 'function'){
       cluster.setupPrimary({
@@ -84,9 +83,7 @@ class iCluster {
     }
   }
 
-  stopCusterAndExit(){
-    if(!this.#inited) throw 'Cluster not inited ' + new Error().stack;
-
+  stopCusterAndExit(code){
     if(this.#clusterStopped) return;
     this.#clusterStopped = true;
 
@@ -97,11 +94,17 @@ class iCluster {
       worker.send({type: 'clusterStopped'});
     }
 
+    const deadline = Date.now() + (this.#config.instantShutdownDelay || 1500);
     const si = setInterval(()=>{
-      const workers = Object.values(cluster.workers);
-      if(!workers.workers.length){
-        process.exit();
+      const remaining = Object.values(cluster.workers);
+      if(!remaining.length){
         clearInterval(si);
+        process.exit(code);
+      }
+      if(Date.now() >= deadline){
+        clearInterval(si);
+        for(const worker of remaining) worker.process.kill('SIGKILL');
+        process.exit(code);
       }
     }, 50);
   }

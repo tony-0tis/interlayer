@@ -26,6 +26,7 @@ The stable version of the server will be implemented after writing all the neces
         - [prerun function params](#prerunfunctionrequest-modulemeta-requestcallback)
         - [method function params](#methodfunctionrequest-requestcallback)
         - [request function params](#requestcallbackerror-data-httpcode-responseheaders-isbinary-params)
+    - [HTTP lifecycle and shutdown](#http-lifecycle-and-shutdown)
 - [Global objects to use](#global-objects)
     - [global.logger](#globallogger)
     - [global.intervals](#globalintervals)
@@ -133,7 +134,7 @@ Avaliable properties in `config` object or `config.json` file
 | `skipDbWarning` | false | Boolean | Skip warning in console if useDals not defined in config |
 | `defaultHeaders` | --- | Object[headerName] = headerValue | An object with default headers, which have to be added to the every response |
 | `debug` | false | Boolean | Allow to display `log.d` in console and add to the `logs.log` file |
-| `instantShutdownDelay` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown |
+| `instantShutdownDelay` | 1500(ms) | Number | Maximum grace period in milliseconds while shutdown locks remain; see [shutdown locks](#shutdown-locks). |
 | `retryAter` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `instantShutdownDelay` |
 | `noDelay` | true | Boolean | Flag to enable/disable Nagle algoritm for all connections. [See here🌍](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
 | `websocket` | --- | Boolean/Object | Start websocket. If true then on the same port as server, except as stated in the Object. [See here🌍](https://github.com/websockets/ws). Initialized server instance can be found in `initFunction` `simpleRequest.websocket`|
@@ -175,7 +176,7 @@ server.start();
 | `setSkipDbWarning([true / false])` | false | Boolean | Skip warning in console if useDals not defined in config |
 | `setDebugMode([true / false])` | false | Boolean | Allow to display `log.d` in console |
 | `setNoDelay([true / false])` | true | Boolean | Flag to disable/enable Nagle algoritm for all connections. [See here🌍](https://nodejs.org/api/net.html#net_socket_setnodelay_nodelay) |
-| `setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Delay in milliseconds after server will shutdown on process SIGINT or SIGTERM signal, or process message: shutdown | 
+| `setInstantShutdownDelay(timeout)` | 1500(ms) | Number | Set the maximum shutdown grace period in milliseconds; see [shutdown locks](#shutdown-locks). |
 | `setRetryAter(timeout)` | 10(sec) | Number | Time in seconds for Retry-After response header with server HTTP 503 status. Works until `config.instantShutdownDelay` |
 | `addEmailSender(emailSenderName, emailSenderConfig)` | --- |  String, Object | Add an email sender. Priority over the last folder. [How to create](#create-email-sender) |
 | `addDalPath(path, [path, [path]])` | --- |  String | Add path to DAL's(Data Access Layer) modules. Priority over the last added path | 
@@ -280,9 +281,12 @@ const app = require('interlayer').module();
 | `i18n(key[, defaultValue])` | String[, String] | Return translate for `key` or return `defaultValue`| 
 | `obtainI18n()` | --- | Return object with languages |
 | `getMethodsInfo(showHidden)` | Boolean | Returns all methods (except hidden methods if showHidden is not specified) | 
-| `lockShutdown()` | --- | Blocks the termination of the process until the request is completed |
-| `unlockShutdown()` | --- | Unlock the termination of the process |
-| `getResponse()` | --- | Returns the original responce  |
+| `lockShutdown([time])` | Number | Acquire or renew the request lock for `time` milliseconds (default 10000); released on cleanup or expiry. |
+| `unlockShutdown()` | --- | Release the request shutdown lock. |
+| `lockBackground()` | --- | Acquire a separate background lock; returns an idempotent release function. |
+| `getBackgroundContext()` | --- | Returns a separate service context that survives HTTP cleanup; also callable after the response ends. |
+| `getProcessLocks()` | --- | Return the live process-local lock object. |
+| `getResponse()` | --- | Returns the original response and disables framework phase timeouts; context remains live until finish or disconnect. |
 | `getRequest()` | --- | Returns the original request |
 | `error(text)` | String | Returns 503 http code |
 | `end(text[, code[, headers[, type]]])` | String[, Number[, Object[, String]]] | Returns `code` http code with `text`(as binary if `type==bin`) and `headers`|
@@ -306,6 +310,94 @@ const app = require('interlayer').module();
 | `id` | String | requestId |
 | `log` | Object | The same as `global.logger.create(moduleID)`, but with requestID included(not include moduleID) |
 | `helpers` | Object | [requiest.helpers](#requesthelpers) |
+| `signal` | AbortSignal | Aborted with reason `timeout` or `disconnect`; not aborted on normal completion. |
+| `ended` | Boolean | Response has ended or the lifecycle has terminated. |
+| `cleared` | Boolean | Request lifecycle cleanup has completed. |
+
+### HTTP lifecycle and shutdown
+
+The lifecycle applies to HTTP request contexts, including middleware, `prerun` and module methods. `request.signal` is an `AbortSignal`: its `reason` is `'timeout'` on a lifecycle timeout and `'disconnect'` if the incoming request is aborted or the response closes before it finishes. Normal response completion does **not** abort the signal. `request.ended` becomes true when the response is ended or the lifecycle terminates; `request.cleared` becomes true after cleanup. Cleanup removes request-scoped functions and properties including `config`, `DAL`, `mail` and `log`, so do not use them from a late callback. Use `getBackgroundContext()` for services needed after HTTP cleanup; keep request input separately if needed.
+
+Middleware has one timeout for the whole middleware phase (`config.middlewareTimeout || methodMeta.middlewareTimeout || 10` seconds). Prerun and the method each have a separate callback timeout (`methodMeta.timeout || config.timeout || 60` seconds). These are not a single end-to-end deadline: in particular, automatic POST parsing happens before middleware and is not covered by these timers. Configured timeouts must be positive finite numbers; omit a value to use the default. Zero does not disable timeouts. Port `0` requests an ephemeral port, and workers must be positive integers. The chain setters `setTimeout` and `setInstantShutdownDelay` require values of at least 1, in seconds and milliseconds respectively.
+
+When a timeout fires before headers are sent, the server sends HTTP 408 with JSON `{"error":"TIMEOUT"}`. If headers have already been sent, it ends the existing response without sending a second status or error body. These timeout rules apply until the handler takes ownership with `getResponse()`. Calling `getResponse()` transfers response ownership to the handler and disables the current and subsequent framework phase timeouts for this request. It does not end the response or clear its context. DAL, mail and other request services remain available until the response finishes or the client disconnects. The handler must end the stream and manage any desired idle timeout itself; disconnect still aborts `request.signal` and cleans up the HTTP context.
+
+Middleware and prerun callbacks are accepted only once. Synchronous exceptions and rejected promises from these hooks are logged and return HTTP 503 with `{"error":"INTERNAL_ERROR"}` while the request is active; late callbacks after finish, timeout or disconnect are ignored. A hook that takes over the raw response must manage its completion itself.
+
+Cancellation is **cooperative**: timeout or disconnect stops later framework stages and ignores late callbacks, but cannot interrupt JavaScript, database operations, external requests, or side effects already running. Pass `request.signal` to APIs that support it, observe `signal.aborted` / the `abort` event, and check `request.ended` before further work or responding. Cancellation is not a transaction rollback; use appropriate application-level idempotency and cleanup. Normal completion also ends the request context, so `signal.aborted` alone is not a test that the response is still usable.
+
+#### Reading POST after asynchronous authorization
+
+By default, a POST with a `content-type` is parsed by formidable **before** middleware and prerun. If authorization must precede body parsing, set `skipParsePost: true` in the method metadata (or globally) and read `request.getRequest()` yourself only after authorization succeeds. `request.post` and `request.files` are not automatically populated in this mode. A client can disconnect while authorization is pending: check lifecycle and raw stream state **after** the asynchronous check and again before starting to read. For example, with an application-provided `authorize(headers, callback)`:
+
+```js
+app.addMethod('upload', {
+    skipParsePost: true,
+    prerun(request, meta, cb) {
+        const raw = request.getRequest();
+        authorize(request.headers, (err, allowed) => {
+            if (request.ended || request.signal.aborted || raw.aborted ||
+                (raw.destroyed && !raw.complete) || raw.readableEnded) return;
+            if (err || !allowed) return cb('UNAUTHORIZED', null, 401);
+            cb();
+        });
+    }
+}, (request, cb) => {
+    const raw = request.getRequest();
+    const signal = request.signal;
+    if (request.ended || signal.aborted || raw.aborted ||
+        (raw.destroyed && !raw.complete) || raw.readableEnded) return;
+
+    (async () => {
+        const chunks = [];
+        let size = 0;
+        try {
+            for await (const chunk of raw) {
+                if (signal.aborted || request.ended) return;
+                size += chunk.length;
+                if (size > 1024 * 1024) throw new Error('Body too large');
+                chunks.push(chunk);
+            }
+            if (signal.aborted || request.ended || raw.aborted || !raw.complete) return;
+            // Validate and process the body according to your application's format.
+            const body = Buffer.concat(chunks);
+            cb(null, {bytes: body.length});
+        } catch (err) {
+            if (!signal.aborted && !request.ended) cb('INVALID_BODY', null, 400);
+        }
+    })();
+});
+```
+
+The example bounds buffered data, but applications must also enforce their own content-type, upload, size and security policies. The signal does not automatically cancel a pending stream read; arrange cancellation for the stream or downstream operations where needed. Authorization callbacks and raw stream errors must be handled by the application. Avoid consuming the stream elsewhere before authorization.
+
+#### Shutdown locks
+
+Each HTTP request automatically acquires a request lock, released on lifecycle cleanup or after 10000 ms. `request.lockShutdown(time)` renews that same lock with a duration in **milliseconds** (`time || 10000`); `request.unlockShutdown()` releases it early. This lock is tied to the response lifecycle, not to asynchronous work that outlives it.
+
+For detached work, use `request.getBackgroundContext()`. It returns a separate context with `id`, `config`, `DAL`, `mail`, `websocket`, `log`, `helpers`, a copy of `langs`, and service methods `i18n`, `obtainI18n`, `getView`, `getViewSync`, `modifyLog`, `getMethodsInfo`, and `lockBackground`. Services are captured when the HTTP context is initialized; middleware-added properties are not copied. It exposes no raw request/response, HTTP completion methods, cancellation signal, or request body. Its service references survive normal completion, timeout, and disconnect. The getter itself remains callable after HTTP cleanup, but capture input and acquire a background lock **before** sending the response so shutdown cannot race with starting the job.
+
+For a Telegram-style webhook, acknowledge immediately and process the event using the detached context:
+
+```js
+app.addMethod('webhook', (request, cb) => {
+    const background = request.getBackgroundContext();
+    const release = background.lockBackground();
+    const payload = request.post;
+    cb(null, 'OK');
+
+    Promise.resolve()
+        .then(() => processTelegramUpdate(background, payload))
+        .catch(err => background.log.e('Webhook processing failed', err))
+        .finally(release);
+});
+```
+
+`processTelegramUpdate` is application code; it can use `background.DAL`, `background.mail` and the other services after the HTTP request has been cleaned up. `getBackgroundContext()` alone does not acquire a lock. `lockBackground()` creates a distinct lock with no automatic expiry and returns an idempotent release function; always release it in `finally`.
+
+This job intentionally does not depend on the response or its cancellation signal. A lock only delays shutdown; it does not persist a job, keep external resources alive, or guarantee completion. Use durable queues and storage when completion must survive process termination. `getProcessLocks()` exposes the live process-local lock object for inspection; locks are not shared between workers.
+
+On SIGINT, SIGTERM, SIGUSR1, SIGUSR2 or the `'shutdown'` process message, shutdown exits immediately if no locks remain; otherwise it waits until locks are released or `instantShutdownDelay` (default 1500 ms) expires. While a server is waiting, new requests receive 503 with `Retry-After` (`retryAter`, default 10 seconds). The deadline is a maximum grace period, not a guaranteed wait: a request lock may expire sooner and the process is forcibly exited when the deadline is reached even if work remains. In cluster mode the primary asks workers to shut down, waits for their exit, and sends SIGKILL to remaining workers at its deadline. A blocked event loop or external SIGKILL can prevent cleanup. Configure the grace period for expected work, but do not rely on `finally` running after forced termination.
 
 #### request.helpers methods
 | Methods | Property types | Description |
@@ -493,3 +585,9 @@ Example of `i18n/en.js`
     "Service Unavailable. Try again another time.": "503 HTTP error."
 }
 ```
+
+## Tests
+
+Run `npm test` for the complete suite and coverage report (`coverage/lcov-report/index.html`). Coverage includes `index.js`, `postinstall.js` and all JavaScript under `system/`. The command fails below 95% lines, statements or functions, or below 85% branches. HTTP/SSE and shutdown tests use local ports and child processes. Database and external mail provider tests use controlled drivers; SMTP also uses Nodemailer's offline JSON transport, so no external credentials are required.
+
+Redis queued commands fail together when connection creation or an earlier command fails. Disconnects settle pending callbacks once; late driver callbacks are ignored. SMTP and SparkPost support both callbacks and promises, including synchronous provider errors.

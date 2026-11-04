@@ -11,9 +11,9 @@ const colors = {
 };
 const breaker = /^win/.test(process.platform) ? '' : '\n';
 const streams = {};
-let logFile;
 
 module.exports = (dir, debug, disableLogFile)=>{
+  let logFile;
   if(!disableLogFile){
     if(streams[dir]){
       logFile = streams[dir];

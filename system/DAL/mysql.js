@@ -40,14 +40,15 @@ for(const name in connectionMethods.prototype){
 function wrapMethod(name){
   exports.methods[name] = function(...args){
     let conn;
+    let called = false;
     let originalCb = ()=>{};
     const cb = (...callbackArgs)=>{
-      if(conn){
-        conn.release();
-      }
-
-      originalCb(...callbackArgs);
+      if(called) return;
+      called = true;
+      const connection = conn;
       conn = undefined;
+      if(connection) connection.release();
+      originalCb(...callbackArgs);
     };
 
     if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
@@ -55,17 +56,24 @@ function wrapMethod(name){
       args[args.length -1] = cb;
     }
 
-    DAL.getConnection((err, connection)=>{
+    else{
+      args.push(cb);
+    }
+
+    try{ DAL.getConnection((err, connection)=>{
       if(err){
         return cb(err);
       }
 
       conn = connection;
       
-      const sql = connection[name](...args);
-      if(this.showSql){
-        log.w(sql.sql);
+      try{
+        const sql = connection[name](...args);
+        if(this && this.showSql && sql) log.w(sql.sql);
+      }catch(error){
+        if(!conn) throw error; // A user callback threw after the connection was released.
+        cb(error);
       }
-    });
+    }); }catch(error){ if(called) throw error; cb(error); }
   };
 }

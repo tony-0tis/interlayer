@@ -7,7 +7,7 @@ exports.init = (sysConfig, config)=>{
 };
 
 exports.send = (email, cb)=>{
-  exports.client.transmissions.send({
+  const pending = Promise.resolve().then(() => exports.client.transmissions.send({
     content: {
       from: email.from,
       subject: email.subject,
@@ -15,9 +15,7 @@ exports.send = (email, cb)=>{
       html: email.html || undefined
     },
     recipients: [{address: email.to}]
-  }).then(data=>{
-    cb(null, data);
-  }).catch(err=>{
-    cb(err);
-  });
+  }));
+  if(typeof cb !== 'function') return pending;
+  return pending.then(data => cb(null, data), err => cb(err));
 };

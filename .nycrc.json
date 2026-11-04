@@ -1,6 +1,21 @@
 {
   "all": true,
-  "reporter": ["lcov", "text-summary"],
-  "include": "system/",
-  "exclude": ["**/test/**", "node_modules/"]
+  "reporter": [
+    "lcov",
+    "text-summary"
+  ],
+  "include": [
+    "index.js",
+    "system/**/*.js",
+    "postinstall.js"
+  ],
+  "exclude": [
+    "**/test/**",
+    "node_modules/"
+  ],
+  "check-coverage": true,
+  "lines": 95,
+  "statements": 95,
+  "functions": 95,
+  "branches": 85
 }

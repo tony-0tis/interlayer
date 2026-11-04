@@ -1,4 +1,4 @@
-const { createClient, RedisClient } = require('redis');
+const { createClient } = require('redis');
 const { default: commands } = require('@redis/client/dist/lib/client/commands');
 
 const { generateId } = require('../utils.js');
@@ -42,10 +42,9 @@ const DAL = {
   opened: [],
   getOrCreate: (mainCb) => {
     const lazy = lazyDefine.get();
-    let cb = (...args) => {
-      args.push(lazy);
-      mainCb(...args);
-      cb = ()=>{};
+    let cb = (err, client) => {
+      cb = () => {};
+      mainCb(err, client, lazy);
     };
 
     if(DAL.connections.length){
@@ -79,7 +78,8 @@ const DAL = {
       }
     }
     
-    connection.redis = createClient(config);
+    try{ connection.redis = createClient(config); }
+    catch(error){ setImmediate(() => cb(error)); return lazy; }
     connection.redis.on('error', err => {
       log.e('Error in redis exports.connection:', (connection && connection.id), err);
       
@@ -87,15 +87,18 @@ const DAL = {
         return;
       }
 
-      connection.redis.quit();
-
-      let conn = DAL._closeConnection(connection.id);
-      if(conn){
-        conn = undefined;
-        log.d('connection', connection.id, 'deleted from opened by error');
-      }
-
+      const broken = connection;
       connection = null;
+      if(DAL._closeConnection(broken.id)){
+        log.d('connection', broken.id, 'deleted from opened by error');
+      }
+      // A failed/closed client cannot reliably process a queued QUIT command.
+      try{
+        const closing = typeof broken.redis.disconnect === 'function' ? broken.redis.disconnect() : broken.redis.quit();
+        if(closing && typeof closing.catch === 'function') closing.catch(() => {});
+      }catch(error){
+        // disconnect() can throw when the client is already closed.
+      }
 
       return cb(err);
     });
@@ -139,27 +142,32 @@ const DAL = {
 
       return cb('No connection');
     });
-    connection.redis.connect();
+    try{
+      Promise.resolve(connection.redis.connect()).catch(err => {
+        if(connection) connection.redis.emit('error', err);
+      });
+    }catch(error){
+      setImmediate(() => { if(connection) connection.redis.emit('error', error); });
+    }
 
     DAL._checkConnections();
     return lazy;
   },
   _checkConnections: () => {
-    const actualizeConnections = (res, conn)=>{
-      if(Date.now() - conn.lastOpened > 14400000){
-        conn.redis.quit();
-        delete conn.redis;
-        conn = null;
-      }
-      else{
-        res.push(conn);
-      }
-
-      return res;
+    const expired = [];
+    const keep = connection => {
+      if(Date.now() - connection.lastOpened <= 14400000) return true;
+      expired.push(connection);
+      return false;
     };
-
-    DAL.opened = DAL.opened.reduce(actualizeConnections, []);
-    DAL.connections = DAL.connections.reduce(actualizeConnections, []);
+    DAL.opened = DAL.opened.filter(keep);
+    DAL.connections = DAL.connections.filter(keep);
+    for(const connection of expired){
+      try{
+        const closing = typeof connection.redis.disconnect === 'function' ? connection.redis.disconnect() : connection.redis.quit();
+        if(closing && typeof closing.catch === 'function') closing.catch(() => {});
+      }catch(error){ log.d('expired connection already closed', connection.id); }
+    }
   },
   _closeConnection: (id)=>{
     let sid;
@@ -204,50 +212,49 @@ for(const name in commands){
 function wrapMethod(name, redissCommand){
   if(!redissCommand) redissCommand = name;
 
-  exports.methods[name] = (...args)=>{
-    let conn;
-    let originalCb = ()=>{};
-    const cb = (...resargs)=>{
-      if(conn){
-        conn.emit('requestEnded');
+  exports.methods[name] = (...args) => DAL.getOrCreate((err, connection, lazy) => {
+    const operations = [{cmd: redissCommand, args}, ...lazy.list];
+    const rejectQueued = (pending, error) => {
+      let thrown;
+      for(const operation of pending){
+        const callback = operation.args[operation.args.length - 1];
+        if(typeof callback !== 'function') continue;
+        try{ callback(error); }catch(failure){ if(!thrown) thrown = failure; }
       }
-
-      originalCb(...resargs);
-      conn = undefined;
+      if(thrown) throw thrown;
     };
-    
-    if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
-      originalCb = args[args.length -1];
-      args[args.length -1] = cb;
-    }
-    else{
-      args.push(cb);
-    }
+    if(err){ rejectQueued(operations, err); return; }
+    let index = 0;
+    const run = () => {
+      const operation = operations[index++];
+      const params = [...operation.args];
+      const callback = typeof params[params.length - 1] === 'function' ? params.pop() : () => {};
+      let called = false;
+      const onError = error => done(error);
+      const onEnd = () => done(new Error('Redis connection closed'));
+      const done = (...result) => {
+        if(called) return;
+        called = true;
+        connection.removeListener('error', onError);
+        connection.removeListener('end', onEnd);
+        const failed = Boolean(result[0]);
+        if(failed || index === operations.length) connection.emit('requestEnded');
+        try{ callback(...result); }
+        finally{
+          if(failed) rejectQueued(operations.slice(index), result[0]);
+          else if(index < operations.length) run();
+        }
+      };
+      connection.once('error', onError);
+      connection.once('end', onEnd);
+      try{ connection[operation.cmd](...params, done); }
+      catch(error){ if(called) throw error; done(error); }
+    };
+    run();
+  });
 
-    return DAL.getOrCreate((err, connection, lazy)=>{
-      if(err){
-        return cb(err);
-      }
-
-      conn = connection;
-      if(lazy && !lazy.list.length){
-        return connection[redissCommand](...args);
-      }
-      else{
-        lazy.list.unshift({cmd: redissCommand, args: args});
-        let res = conn;
-        
-        lazy.list.map(i=>{
-          res = res[i.cmd](...i.args);
-        });
-        
-        setTimeout(cb, 2000);
-      }
-    });
-  };
-  
   lazyDefine.methods[name] = function(...args){
-    this.list.push({cmd: redissCommand, args: args});
+    this.list.push({cmd: redissCommand, args});
     return this;
   };
 }

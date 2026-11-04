@@ -26,38 +26,8 @@ exports.init = (config, dalConfig) => {
   });
 };
 
+// Pool.query releases its client for both callbacks and promises.
 exports.methods = {};
-for(let name in pg.prototype){
-  if(name.indexOf('_') == 0){
-    continue;
-  }
-
-  wrapMethod(name);
-}
-
-function wrapMethod(name){
-  exports.methods[name] = (...args) => {
-    let doneConn;
-    let originalCb = ()=>{};
-    const cb = (...callbackArgs) => {
-      doneConn && doneConn();
-
-      originalCb(...callbackArgs);
-    };
-
-    if(typeof args[args.length -1] == 'function' && args[args.length -1] instanceof Function){
-      originalCb = args[args.length -1];
-      args[args.length -1] = cb;
-    }
-
-    DAL.connect((err, connection, done) => {
-      doneConn = done;
-      
-      if(err){
-        return cb(err);
-      }
-
-      connection[name](...args);
-    });
-  };
+for(const name of ['query', 'connect', 'end']){
+  exports.methods[name] = (...args) => DAL[name](...args);
 }

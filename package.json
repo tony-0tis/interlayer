@@ -9,6 +9,7 @@
     "formidable": "^3.5.1",
     "mailgun-js": "^0.22.0",
     "mysql": "^2.18.1",
+    "nodemailer": "^10.3.1",
     "pg": "^8.11.5",
     "redis": "^4.6.13",
     "sparkpost": "^2.0.1",
@@ -25,7 +26,7 @@
   },
   "scripts": {
     "test": "./run_tests.sh",
-    "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks --recursive",
+    "t": "./node_modules/.bin/nyc ./node_modules/.bin/mocha --exit --check-leaks 'test/**/test_*.js'",
     "postinstall": "node postinstall.js",
     "p": "npm publish",
     "patch": "./patch.sh",

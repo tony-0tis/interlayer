@@ -1,8 +1,20 @@
 const { join, isAbsolute, dirname, extname } = require('path');
 const { statSync, watch, readdirSync, stat, readFile, readFileSync } = require('fs');
 const { JSV } = require('JSV');
+const { randomUUID } = require('crypto');
 
-exports.pathCheck = /[\w\d./]*/;
+exports.validateConfigUtils = config => {
+  if(!config || typeof config !== 'object' || Array.isArray(config)) throw new TypeError('config must be an object');
+  for(const name of ['port', 'workers', 'timeout', 'middlewareTimeout', 'instantShutdownDelay', 'retryAter']){
+    const value = config[name];
+    if(value == null) continue;
+    const valid = name === 'port' ? Number.isInteger(value) && value >= 0 && value <= 65535 :
+      name === 'workers' ? Number.isInteger(value) && value >= 1 : Number.isFinite(value) && value > 0;
+    if(!valid) throw new TypeError('Invalid config.' + name);
+  }
+};
+
+exports.pathCheck = /^[A-Za-z0-9_./]+$/;
 
 exports.getRootPathUtils = error => {
   return dirname(error.stack.split('\n').splice(2, 1)[0].match(/at\s?[^(]*\(?([^)]+)\)?/)[1]);
@@ -19,10 +31,6 @@ exports.checkPathUtils = (serverPath, config, type, def) => {
   }
 
   config[type] = config[type] || [];
-
-  if(config[type]){
-    config[type] = config[type].concat(config[type]);
-  }
 
   if(!config[type].length && def){
     config[type].push(join(serverPath, def));
@@ -58,31 +66,31 @@ exports.generateId = () => {
 };
 
 exports.getUrlUtils = (moduleName, methodName, moduleObject, meta) => {
-  if(moduleObject.addToRoot || meta.addToRoot){
-    return methodName;
+  if(typeof meta.path === 'string' && exports.pathCheck.test(meta.path)){
+    methodName = meta.path;
   }
 
-  if(meta.path && meta.path.match(exports.pathCheck)){
-    methodName = meta.path;
+  if(moduleObject.addToRoot || meta.addToRoot){
+    return methodName;
   }
 
   return moduleName + '/' + methodName;
 };
 
 exports.getModuleUtils = ({ modules }, moduleName) => {
-  if(modules[moduleName]){
+  if(Object.prototype.hasOwnProperty.call(modules, moduleName)){
     return modules[moduleName];
   }
 
   moduleName = moduleName.replace(/\/$/, '').replace(/^\//, '');
 
-  if(modules[moduleName]){
+  if(Object.prototype.hasOwnProperty.call(modules, moduleName)){
     return modules[moduleName];
   }
 
   const path = moduleName.split('/');
   if(path.length > 1){
-    if(modules[path[0] + '/*']){
+    if(Object.prototype.hasOwnProperty.call(modules, path[0] + '/*')){
       return modules[path[0] + '/*'];
     }
   }
@@ -93,12 +101,15 @@ exports.getModuleUtils = ({ modules }, moduleName) => {
 exports.modifyRequestUtils = (requestMod, request, response, processFunctions, log) => {
   for(let i in requestMod.params){
     if(processFunctions.helpers.isBoolean(requestMod.params[i])){
-      requestMod.params[i] = Boolean(requestMod.params[i]);
+      requestMod.params[i] = String(requestMod.params[i]).toLowerCase() === 'true';
     }
   }
 
   if(requestMod.params.callback){
-    requestMod.jsonpCallback = requestMod.params.callback;
+    const callback = requestMod.params.callback;
+    if(typeof callback === 'string' && /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(callback)){
+      requestMod.jsonpCallback = callback;
+    }
     delete requestMod.params.callback;
   }
 
@@ -115,53 +126,127 @@ exports.modifyRequestUtils = (requestMod, request, response, processFunctions, l
 
   //modifyLog defined in defReqFuncs
   requestMod.log = requestMod.modifyLog(global.logger());
+  const modLog = requestMod.modifyLog(log);
 
 
-  let originalResposeEnd;
+  const controller = new AbortController();
+  const originalEnd = response.end;
+  const terminalListeners = new Set();
+  const manualResponseListeners = new Set();
+  let finished = false;
+  let terminating = false;
+  requestMod.signal = controller.signal;
+  requestMod.ended = false;
+  requestMod.cleared = false;
   requestMod.lockShutdown();
 
-  requestMod.getResponse = ()=>{
-    originalResposeEnd = response.end;
-    response.end = function(...args){
-      requestMod.unlockShutdown();
-      if(!requestMod || requestMod.ended){
-        if(requestMod){
-          clearRequest();
-        }
-
-        requestMod = undefined;
-        throw 'FORBIDEN';
-      }
-
+  const cleanup = () => {
+    if(finished) return;
+    finished = true;
+    requestMod.ended = true;
+    requestMod.unlockShutdown();
+    request.removeListener('aborted', onAborted);
+    response.removeListener('close', onClose);
+    response.removeListener('finish', cleanup);
+    for(const listener of terminalListeners) listener();
+    terminalListeners.clear();
+    manualResponseListeners.clear();
+    delete requestMod.config;
+    delete requestMod.DAL;
+    delete requestMod.mail;
+    delete requestMod.log;
+    Object.keys(processFunctions).forEach(key => delete requestMod[key]);
+    requestMod.cleared = true;
+  };
+  const cancel = reason => {
+    if(finished || terminating) return;
+    terminating = true;
+    controller.abort(reason);
+    cleanup();
+  };
+  const onAborted = () => {
+    if(terminating) cleanup();
+    else cancel('disconnect');
+  };
+  const onClose = () => {
+    if(!response.writableFinished && !terminating) cancel('disconnect');
+    else cleanup();
+  };
+  request.on('aborted', onAborted);
+  response.on('close', onClose);
+  response.on('finish', cleanup);
+  Object.defineProperty(requestMod, '_lifecycle', {value: {
+    onTerminal(listener){
+      if(finished) listener();
+      else terminalListeners.add(listener);
+      return () => terminalListeners.delete(listener);
+    },
+    onManualResponse(listener){
+      if(requestMod.responseFree) listener();
+      else if(!finished) manualResponseListeners.add(listener);
+      return () => manualResponseListeners.delete(listener);
+    },
+    timeout(){
+      if(finished || terminating || requestMod.responseFree) return;
+      terminating = true;
       requestMod.ended = true;
-      response.end = originalResposeEnd;
-      originalResposeEnd = undefined;
-      response.end(...args);
-      delete response.end;
+      controller.abort('timeout');
+      for(const listener of terminalListeners) listener();
+      terminalListeners.clear();
+      if(response.destroyed){
+        cleanup();
+      }
+      else if(!response.headersSent){
+        const body = JSON.stringify({error: 'TIMEOUT'});
+        response.writeHead(408, {'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body)});
+        originalEnd.call(response, body);
+      }
+      else originalEnd.call(response);
+    }
+  }});
 
-      clearRequest();
-    };
-
-    requestMod.responseFree = true;
+  response.end = function(...args){
+    if(finished || terminating || response.writableEnded) return response;
+    const result = originalEnd.apply(response, args);
+    requestMod.ended = true;
+    return result;
+  };
+  requestMod.getResponse = () => {
+    if(!finished && !terminating){
+      requestMod.responseFree = true;
+      for(const listener of manualResponseListeners) listener();
+      manualResponseListeners.clear();
+    }
     return response;
   };
+  requestMod.getRequest = () => request;
 
-  requestMod.getRequest = ()=>request;
+  // Capture services independently of the HTTP context, including its logger.
+  const backgroundServices = {
+    id: requestMod.id,
+    config: requestMod.config,
+    DAL: requestMod.DAL,
+    mail: requestMod.mail,
+    websocket: requestMod.websocket,
+    log: processFunctions.modifyLog.call({id: requestMod.id}, global.logger()),
+    helpers: processFunctions.helpers,
+    langs: [...(requestMod.langs || [])]
+  };
+  for(const name of ['i18n', 'obtainI18n', 'getView', 'getViewSync', 'modifyLog', 'getMethodsInfo', 'lockBackground']){
+    backgroundServices[name] = processFunctions[name];
+  }
+  requestMod.getBackgroundContext = () => ({...backgroundServices, langs: [...backgroundServices.langs]});
 
   requestMod.end = (text='', code=200, headers={'content-type': 'text/html; charset=utf-8'}, type='text')=>{
-    requestMod.unlockShutdown();
-    if(!requestMod || requestMod.ended){
-      requestMod = undefined;
-      clearRequest();
+    if(finished || terminating || response.destroyed || response.writableEnded) return;
+    if(response.headersSent){
+      response.end();
       return;
     }
-
     headers = Object.keys(headers).reduce((r, key)=>{
       r[key.toLowerCase()] = headers[key];
       return r;
     }, {});
-
-    requestMod.ended = true;
 
     if(type == 'bin'){
       text = Buffer.from(text, 'binary');
@@ -191,16 +276,12 @@ exports.modifyRequestUtils = (requestMod, request, response, processFunctions, l
         text = '';
       }
 
-      headers['content-length'] = Buffer.from(text).length;
-
       if(requestMod.jsonpCallback){
-        if(headers['Content-Type'] == 'application/json' || asObject){
-          text = `${requestMod.jsonpCallback}(${text});`;
-        }
-        else{
-          text = `${requestMod.jsonpCallback}("${text}");`;
-        }
+        const value = headers['content-type'] === 'application/json' || asObject ? text : JSON.stringify(String(text));
+        text = `${requestMod.jsonpCallback}(${value});`;
+        headers['content-type'] = 'application/javascript; charset=utf-8';
       }
+      headers['content-length'] = Buffer.byteLength(text);
     }
 
     if(requestMod.config.defaultHeaders){
@@ -226,87 +307,60 @@ exports.modifyRequestUtils = (requestMod, request, response, processFunctions, l
     }
 
     response.writeHead(code, headers);
-    
-    if(type == 'bin'){
-      response.write(text, 'binary');
-    }
-    else{
-      response.write(text);
-    }
-
+    if(type == 'bin') response.write(text, 'binary');
+    else response.write(text);
     response.end();
-
-    clearRequest();
   };
 
-  let clearRequest = () => {
-    if(requestMod){
-      //objects
-      delete requestMod.config;
-      delete requestMod.DAL;
-      delete requestMod.mail;
-      delete requestMod.log;
+  if(request.aborted || (request.destroyed && !request.complete) || response.destroyed) cancel('disconnect');
 
-      //current request functions
-      delete requestMod.getResponse;
-      delete requestMod.getRequest;
-      delete requestMod.end;
-
-      // default functions
-      Object.keys(processFunctions).forEach(k=>{
-        delete requestMod[k];
-      });
-      processFunctions = null;
-    }
-
-    if(originalResposeEnd){
-      response.end = originalResposeEnd;
-    }
-
-    requestMod.cleared = true;
-
-    originalResposeEnd = undefined;
-    requestMod = undefined;
-    clearRequest = undefined;
-    request = undefined;
-  };
-
-  return requestMod.modifyLog(log);
+  return modLog;
 };
 
 exports.getProcessFunctionsUtils = (processLocks, inits) => {
   const log = global.logger('_PROCESS-FUNCS');
 
+  const lockTimers = new Map();
   const processFunctions = {
     lockShutdown(time){
+      const id = this.id;
       const modLog = this.modifyLog(log);
-      modLog.d('Shutdown locked by', this.id, 'for', (time||10000), 'ms');
-      
-      processLocks[this.id] = true;
-      
-      setTimeout(()=>{
-        if(this.cleared){
-          return;
-        }
-        this.unlockShutdown(true);
-      }, (time||10000));
+      const duration = time || 10000;
+      modLog.d('Shutdown locked by', id, 'for', duration, 'ms');
+      clearTimeout(lockTimers.get(id));
+      processLocks[id] = true;
+      const timer = setTimeout(() => {
+        if(lockTimers.get(id) !== timer) return;
+        lockTimers.delete(id);
+        delete processLocks[id];
+        modLog.d('Shutdown unlocked for', id, 'by timeout');
+      }, duration);
+      lockTimers.set(id, timer);
     },
     unlockShutdown(ontimeout){
-      if(!processLocks[this.id]){
-        return;
-      }
-
+      clearTimeout(lockTimers.get(this.id));
+      lockTimers.delete(this.id);
+      if(!processLocks[this.id]) return;
       delete processLocks[this.id];
-
       const modLog = this.modifyLog(log);
       modLog.d('Shutdown unlocked for', this.id, 'by', (ontimeout ? 'timeout' : 'end'));
+    },
+    lockBackground(){
+      const key = 'background:' + randomUUID();
+      processLocks[key] = true;
+      let released = false;
+      return () => {
+        if(released) return;
+        released = true;
+        delete processLocks[key];
+      };
     },
     getProcessLocks(){
       return processLocks;
     },
     getMethodsInfo(showHidden){
       return inits.modules.info.map(m=>{
-        m = Object.assign(m);
+        m = Object.assign({}, m);
         m.methods = m.methods.filter(m=>{
           if(m.hidden && !showHidden){
             return false;
@@ -384,39 +438,18 @@ exports.getProcessFunctionsUtils = (processLocks, inits) => {
         return cb('NO config.views');
       }
 
-      const contentType = mime(file);
+      const contentType = exports.mime(file);
 
-      const tries = [];
-      for(let i in this.config.views){
-        tries.push(
-          new Promise((ok,fail)=>{
-            try{
-              if(!statSync(join(this.config.views[i], file)).isFile()){
-                modLog.d('Not file', join(this.config.views[i], file));
-                return fail();
-              }
-            }catch(e){
-              modLog.d('bad stat', join(this.config.views[i], file), e);
-              return fail(e);
-            }
-
-            readFile(join(this.config.views[i], file), {encoding: 'utf8'}, (err, res)=>{
-              if(err){
-                modLog.d('read err', join(this.config.views[i], file), err);
-                return fail(err);
-              }
-
-              return ok(res);
-            });
-          })
-        );
-      }
-      Promise.race(tries)
-        .then(result => cb(null, (result||'').toString(), {'Content-Type': contentType}))
-        .catch(err=>{
-          modLog.e(err);
-          cb('Not found');
+      const paths = this.config.views.map(path => join(path, file));
+      const next = () => {
+        if(!paths.length) return cb('Not found');
+        const path = paths.shift();
+        readFile(path, {encoding: 'utf8'}, (err, data) => {
+          if(err) return next();
+          cb(null, data, {'Content-Type': contentType});
         });
+      };
+      next();
     },
     getViewSync(view, file){
       if(!file){
@@ -427,7 +460,7 @@ exports.getProcessFunctionsUtils = (processLocks, inits) => {
         return 'NO config.views';
       }
 
-      return this.config.views.requce((res, view)=>{
+      return this.config.views.reduce((res, view)=>{
         if(res){
           return res;
         }
@@ -538,7 +571,7 @@ exports.getProcessFunctionsUtils = (processLocks, inits) => {
 exports.processInitsUtils = (inits, config, websocket, processFunctions) => {
   const { inits: modulesInits } = inits.modules;
   const { inits: middlewaresInits} = inits.middlewares;
-  const allInits = {...modulesInits, ...middlewaresInits};
+  const allInits = [...Object.entries(modulesInits), ...Object.entries(middlewaresInits)];
   
   let context = {
     url: '',
@@ -553,9 +586,9 @@ exports.processInitsUtils = (inits, config, websocket, processFunctions) => {
     context[k] = processFunctions[k];
   });
 
-  for(let ii in allInits){
+  for(const [ii, init] of allInits){
     try{
-      allInits[ii](context, function(){});
+      init(context, function(){});
     }catch(e){
       console.error('__init()', ii, e);
     }

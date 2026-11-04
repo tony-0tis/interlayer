@@ -4,16 +4,17 @@ const { createServer: createHttpsServer} = require('https');
 const { parse: queryParse } = require('querystring');
 const { parse } = require('url');
 const { WebSocketServer } = require('ws');
-const { lstatSync, readFileSync } = require('fs');
-const { join } = require('path');
+const { lstatSync, readFileSync, realpathSync } = require('fs');
+const { join, relative, isAbsolute } = require('path');
 const { whilst, auto, series } = require('async');
 
 const { init : initInits } = require('./inits.js');
-const { generateId, modifyRequestUtils, getModuleUtils, processInitsUtils, getProcessFunctionsUtils } = require('./utils.js');
+const { generateId, modifyRequestUtils, getModuleUtils, processInitsUtils, getProcessFunctionsUtils, validateConfigUtils } = require('./utils.js');
 
 exports.server = null;
 
 exports.initServer = config => {
+  validateConfigUtils(config);
   const log = global.logger('_SERVER');
 
   exports.server = new iServer(log, config);
@@ -52,8 +53,8 @@ class iServer{
         cert: readFileSync(config.secure.cert)
       });
     }
-    server.listen(config.port || 8080);
-    log.i(`${config.secure ? 'https' : 'http'} server started on port: ${(config.port || 8080)}`);
+    server.listen(config.port ?? 8080);
+    log.i(`${config.secure ? 'https' : 'http'} server started on port: ${(config.port ?? 8080)}`);
 
     server.on('request', this.#processRequest.bind(this));
 
@@ -77,11 +78,22 @@ class iServer{
   }
 
   #processRequest(request, response){
-    if(this.constructor.gracefulShutdownInited){
+    if(this.constructor.gracefulShutdownInited != null){
       response.writeHead(503, {
         'Retry-After': this.#config.retryAter || 10
       });
       response.end('Server Unavailable Or In Reboot');
+      return;
+    }
+
+    let requestPath;
+    try{
+      requestPath = decodeURIComponent(parse(request.url).pathname.substring(1));
+      if(requestPath.includes('\0')) throw new Error('Invalid path');
+      if(request.headers.cookie) decodeURI(request.headers.cookie);
+    }catch(error){
+      response.writeHead(400, {'Content-Type': 'text/plain; charset=utf-8'});
+      response.end('Bad Request');
       return;
     }
 
@@ -93,12 +105,12 @@ class iServer{
       websocket: this.#websocket,
       id: generateId(),
       url: request.url,
-      path: decodeURIComponent(parse(request.url).pathname.substring(1)),
+      path: requestPath,
       method: request.method,
       isPost: request.method == 'POST',
       headers: {...request.headers},
       langs: (request.headers['accept-language'] || 'en').match(/(\w{2}(-\w{2})?)/g),
-      ip: request.headers['x-forwarded-for'] ||request.connection.remoteAddress || request.socket && request.socket.remoteAddress || request.connection.socket && request.connection.socket.remoteAddress,
+      ip: request.headers['x-forwarded-for'] || request.socket?.remoteAddress || request.connection?.remoteAddress || request.connection?.socket?.remoteAddress,
       responseCookies: {},
       cookies: {},
       params: queryParse(parse(request.url).query),
@@ -116,9 +128,12 @@ class iServer{
       'FROM: ' + (requestMod.headers.referer || '---')
     );
 
+    if(requestMod.ended) return;
+
     const moduleInf = getModuleUtils(this.#inits.modules, requestMod.path);
     if(!moduleInf){
       return this.#serve(requestMod, (err, data, code, headers) => {
+        if(requestMod.ended) return;
         if(data){
           modLog.i(requestMod.ip, 'SERVE', requestMod.path);
           return requestMod.end(data, code, headers, 'bin');
@@ -127,6 +142,7 @@ class iServer{
         modLog.i('BAD/404', requestMod.ip, 'REQ: ' + requestMod.path, 'FROM: ' + (requestMod.headers.referer || '---'));
         if(this.#config.useHttpErrorFiles){
           return requestMod.getView('404.html', (err, data, headers) => {
+            if(requestMod.ended) return;
             if(err){
               requestMod.end(`<title>${requestMod.i18n('Not found')}</title>${requestMod.i18n('<center>Error 404<br>Not found</center>')}`, 404);
             }
@@ -150,13 +166,13 @@ class iServer{
         this.#parsePost(requestMod, request, cb);
       },
       middleware: ['post', (res, cb) => {
+        if(requestMod.ended) return;
         const middlewareTimeout = this.#config.middlewareTimeout || moduleInf.meta.middlewareTimeout || 10;
-        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, null, (error, data, code, headers) => {
+        this.#middleware(requestMod, moduleInf.meta, this.#timeoutRequest({timeout: middlewareTimeout}, {}, requestMod, (error, data, code, headers) => {
           if(error){
             res.data = {error};
             res.code = code || 200;
             res.headers = headers || {'Content-Type': 'application/json'};
-            res.middlewareError = true;
             return cb(null, true);
           }
 
@@ -164,11 +180,12 @@ class iServer{
         }));
       }],
       prerun: ['middleware', (res, cb) => {
+        if(requestMod.ended) return;
         if(!moduleInf.meta.prerun || res.middleware){
           return cb();
         }
 
-        moduleInf.meta.prerun(requestMod, moduleInf.meta, this.#timeoutRequest(this.#config, moduleInf.meta, null, (error, data, code, headers) => {
+        this.#invokeHook(moduleInf.meta.prerun, requestMod, moduleInf.meta, this.#timeoutRequest(this.#config, moduleInf.meta, requestMod, (error, data, code, headers) => {
           if(error){
             res.data = {error};
             res.code = code || 200;
@@ -180,7 +197,8 @@ class iServer{
         }));
       }],
       module: ['post', 'prerun', (res, cb) => {
-        if(res.middleware){
+        if(requestMod.ended) return;
+        if(res.middleware || res.prerun){
           return cb();
         }
 
@@ -229,6 +247,7 @@ class iServer{
         }
       }],
       json: ['module', (res, cb) => {
+        if(requestMod.ended) return;
         if(res.type == 'bin' || requestMod.responseFree){
           return cb();
         }
@@ -240,6 +259,7 @@ class iServer{
         cb();
       }]
     }, (err, res) => {
+      if(requestMod.ended) return;
       if(moduleInf.meta && moduleInf.meta.skipRequestLog !== true){
         modLog.i(
           requestMod.ip,
@@ -263,30 +283,30 @@ class iServer{
   }
 
   #timeoutRequest(config, meta, requestMod, cb){
+    if(requestMod.ended) return () => {};
     let called = false;
-
-    global.intervals.add(del => {
-      del();
-
-      if(requestMod){
-        if(requestMod.responseFree && requestMod.ended){
-          called = true;
-        }
-      }
-
-      if(!called){
-        called = true;
-        return cb('TIMEOUT', null, 408);
-      }
-    }, meta.timeout || config.timeout || 60);
-
-    return (...args) => {
-      if(called){
-        console.error('request already ended by timeout', args, new Error());
-        return;
-      }
-
+    let unsubscribeTerminal = () => {};
+    let unsubscribeManual = () => {};
+    const dispose = () => {
+      clearTimeout(timer);
+      unsubscribeTerminal();
+      unsubscribeManual();
+    };
+    const timer = setTimeout(() => {
+      if(called || requestMod.ended || requestMod.responseFree) return;
       called = true;
+      dispose();
+      requestMod._lifecycle.timeout();
+    }, (meta.timeout || config.timeout || 60) * 1000);
+    unsubscribeTerminal = requestMod._lifecycle.onTerminal(() => {
+      called = true;
+      dispose();
+    });
+    unsubscribeManual = requestMod._lifecycle.onManualResponse(() => clearTimeout(timer));
+    return (...args) => {
+      if(called || requestMod.ended) return;
+      called = true;
+      dispose();
       return cb(...args);
     };
   }
@@ -310,11 +330,9 @@ class iServer{
         }
 
         let path = paths.shift();
+        if(!path) return cb();
         modLog.d('check path', join(path, request.path));
-        
-        if(!path){
-          return cb();
-        }
+
         
         let stat;
         try{
@@ -332,7 +350,17 @@ class iServer{
           request.path += 'index.html';
         }
         
-        request.getFile(join(path, request.path), (err, res, headers) => {
+        let file;
+        try{
+          const root = realpathSync(path);
+          file = realpathSync(join(root, request.path));
+          const child = relative(root, file);
+          if(child === '..' || child.startsWith('../') || child.startsWith('..\\') || isAbsolute(child)) return cb();
+        }catch(error){
+          return cb();
+        }
+        request.getFile(file, (err, res, headers) => {
+          if(request.ended) return;
           if(err){
             modLog.d(join(path, request.path), err, res, headers);
             return cb();
@@ -361,21 +389,46 @@ class iServer{
       return cb();
     }
 
-    formidable(reqObj.config.formidableOptions || {}).parse(request, (err, fields, files)=>{
+    if(reqObj.ended || request.aborted || (request.destroyed && !request.complete)) return;
+    const parsed = (err, fields, files) => {
+      if(reqObj.ended) return;
       if(err) {
         if(err.httpCode){
-          return cb(err.message, null, err.httpCode);
+          reqObj.end({error: err.message}, err.httpCode, {'Content-Type': 'application/json'});
+          return cb(err);
         }
         else{
           this.#log.e('parsePost', err);
-          return cb();
+          return cb(err);
         }
       }
 
       reqObj.post = fields;
       reqObj.files = files;
       cb();
-    });
+    };
+    try{ formidable(reqObj.config.formidableOptions || {}).parse(request, parsed); }
+    catch(error){ if(reqObj.ended) throw error; parsed(error); }
+  }
+
+  #invokeHook(func, request, meta, callback){
+    let called = false;
+    const next = (...args) => {
+      if(called || request.ended) return;
+      called = true;
+      return callback(...args);
+    };
+    const fail = error => {
+      this.#log.e(error);
+      return next('INTERNAL_ERROR', null, 503);
+    };
+    try{
+      const pending = func(request, meta, next);
+      if(pending && typeof pending.then === 'function') pending.then(undefined, fail);
+    }catch(error){
+      if(called) throw error;
+      fail(error);
+    }
   }
 
   #middleware(request, moduleMeta, cb){
@@ -384,14 +437,19 @@ class iServer{
     }
 
     let count = 0;
+    let rejection;
+    const runMiddleware = (func, next) => this.#invokeHook(func, request, moduleMeta, (...args) => {
+      if(args[0]) rejection = args;
+      next(...args);
+    });
     whilst(
-      cb=>cb(null, count < this.#inits.middlewares.middlewares.length),
+      cb=>cb(null, !request.ended && count < this.#inits.middlewares.middlewares.length),
       cb=>{
         let middleware = this.#inits.middlewares.middlewares[count];
         count++;
         
         if(middleware.triggers['*']){
-          middleware.triggers['*'](request, moduleMeta, cb);
+          runMiddleware(middleware.triggers['*'], cb);
           return;
         }
 
@@ -416,13 +474,15 @@ class iServer{
           }
           
           if(run){
-            res.push(middleware.triggers[trigger].bind({}, request, moduleMeta));
+            res.push(next => {
+              if(!request.ended) runMiddleware(middleware.triggers[trigger], next);
+            });
           }
           
           return res;
         }, []), cb);
       },
-      cb
+      err => rejection ? cb(...rejection) : cb(err)
     );
   }
 }
@@ -436,7 +496,7 @@ exports.isGracefulShutdownInited = () => {
   return iServer.gracefulShutdownInited;
 };
 exports.graceful_shutdown = code => {
-  if(iServer.gracefulShutdownInited){
+  if(iServer.gracefulShutdownInited != null){
     return;
   }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 check() {
-	if [ ! -f node_modules/mocha/bin/mocha ]; then
-		echo "Please install mocha. Run 'sudo npm install'"
+	if [ ! -x node_modules/.bin/mocha ]; then
+		echo "Please install mocha. Run 'npm install'"
 		exit 1
 	fi
 
@@ -12,5 +12,5 @@ check() {
 }
 check
 echo "run tests"
-node_modules/.bin/nyc --reporter=text-summary --reporter=lcov node_modules/.bin/mocha --recursive --exit
-exit $EXIT_CODE
+node_modules/.bin/nyc --reporter=text-summary --reporter=lcov node_modules/.bin/mocha --exit 'test/**/test_*.js'
+exit $?

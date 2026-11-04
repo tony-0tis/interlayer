@@ -11,7 +11,7 @@ exports.init = (paths, config)=>{
   const DALs = {};
 
   let useDals = config.useDals;
-  if(typeof config.useDals && !Array.isArray(config.useDals)){
+  if(!Array.isArray(config.useDals)){
     useDals = Object.keys(config.useDals);
   }
   

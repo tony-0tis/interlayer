@@ -2,7 +2,7 @@ debugger;
 const { readFileSync, statSync } = require('fs');
 const { join, isAbsolute } = require('path');
 
-const { getRootPathUtils, checkPathUtils, initLoggerUtils } = require('./system/utils.js');
+const { getRootPathUtils, checkPathUtils, initLoggerUtils, validateConfigUtils } = require('./system/utils.js');
 const { initCluster, stopCluster } = require('./system/cluster.js');
 const { initServer, serverLog, graceful_shutdown, isGracefulShutdownInited } = require('./system/server.js');
 
@@ -22,6 +22,8 @@ module.exports = function(config = {}){
     }
   }
   
+  validateConfigUtils(config);
+
   if(config.path){
     if(!isAbsolute(config.path)){
       throw 'config.path must be absolute path';
@@ -144,7 +146,7 @@ module.exports.server = () => {
       return settingsObject;
     },
     setConfig(conf){
-      if(typeof conf != 'object') return new Error('setConfig - first param must be an object');
+      if(!conf || typeof conf != 'object' || Array.isArray(conf)) return new Error('setConfig - first param must be an object');
       Object.assign(config, conf);
       return settingsObject;
     },
@@ -159,18 +161,18 @@ module.exports.server = () => {
       return settingsObject;
     },
     setPort(port){
-      if(typeof port != 'number') return new Error('setPort - first param must be a number');
+      if(!Number.isInteger(port) || port < 0 || port > 65535) return new Error('setPort - first param must be a number');
       config.port = port;
       return settingsObject;
     },
     setWorkersCount(workers){
-      if(typeof workers != 'number') return new Error('setWorkersCount - first param must be a number');
+      if(!Number.isInteger(workers)) return new Error('setWorkersCount - first param must be a number');
       if(workers < 1) return new Error('setWorkersCount - first param must to be above zero');
       config.workers = workers;
       return settingsObject;
     },
     setSecure(secure){
-      if(typeof secure != 'object') return new Error('setSecure - first param must be an object');
+      if(!secure || typeof secure != 'object') return new Error('setSecure - first param must be an object');
       if(typeof secure.key != 'string') return new Error('setSecure - first param.key must be a string');
       if(typeof secure.cert != 'string') return new Error('setSecure - first param.cert must be a string');
       config.secure = secure;
@@ -182,24 +184,24 @@ module.exports.server = () => {
       return settingsObject;
     },
     setDefaultHeaders(headers){
-      if(typeof headers != 'object') return new Error('setDefaultHeaders - first param must be an object');
+      if(!headers || typeof headers != 'object' || Array.isArray(headers)) return new Error('setDefaultHeaders - first param must be an object');
       config.defaultHeaders = headers;
       return settingsObject;
     },
     setTimeout(timeout){
-      if(typeof timeout != 'number') return new Error('setTimeout - first param must be a number');
+      if(!Number.isFinite(timeout)) return new Error('setTimeout - first param must be a number');
       if(timeout < 1) return new Error('setTimeout - first param must to be above zero');
       config.timeout = timeout;
       return settingsObject;
     },
     setInstantShutdownDelay(delay){
-      if(typeof delay != 'number') return new Error('setInstantShutdownDelay - first param must be a number');
+      if(!Number.isFinite(delay)) return new Error('setInstantShutdownDelay - first param must be a number');
       if(delay < 1) return new Error('setInstantShutdownDelay - first param must to be above zero');
       config.instantShutdownDelay = delay;
       return settingsObject;
     },
     setRetryAter(time){
-      if(typeof time != 'number') return new Error('setRetryAter - first param must be a number');
+      if(!Number.isFinite(time)) return new Error('setRetryAter - first param must be a number');
       if(time < 1) return new Error('setRetryAter - first param must to be above zero');
       config.retryAter = time;
       return settingsObject;
@@ -235,7 +237,7 @@ module.exports.server = () => {
       return settingsObject;
     },
     setFormidableOptions(options){
-      if(typeof conf != 'object') return new Error('setConfig - first param must be an object');
+      if(!options || typeof options != 'object' || Array.isArray(options)) return new Error('setFormidableOptions - first param must be an object');
       Object.assign(config.formidableOptions, options);
       return settingsObject;
     },
@@ -278,7 +280,8 @@ module.exports.server = () => {
       return settingsObject;
     },
     setMiddlewareTimeout(timeout){
-      if(typeof timeout != 'number') return new Error('setMiddlewareTimeout - first param must be a number');
+      if(!Number.isFinite(timeout)) return new Error('setMiddlewareTimeout - first param must be a number');
+      if(timeout <= 0) return new Error('setMiddlewareTimeout - first param must be above zero');
       config.middlewareTimeout = timeout;
       return settingsObject;
     },
@@ -414,7 +417,8 @@ global.intervals = {
     clearInterval(this._si);
   },
   _check(){
-    for(const func of this._funcs){
+    for(const func of [...this._funcs]){
+      if(!this._funcs.includes(func)) continue;
       if(func.disabled) continue;
 
       if(func.timeout != null){
@@ -451,13 +455,14 @@ global.intervals = {
       func.datetime = Date.now();
     }
   },
+  _nextKey: 0,
   _funcs: [],
   add(func, timeout){
     if(timeout == null){
       console.warn('function will be called every second', new Error());
     }
 
-    const key = Math.random() * Date.now();
+    const key = ++this._nextKey;
     this._funcs.push({
       key,
       func: func,
@@ -473,7 +478,7 @@ global.intervals = {
       }
       return index;
     }, -1);
-    this._funcs.splice(ind, 1);
+    if(ind >= 0) this._funcs.splice(ind, 1);
     return key;
   },
   enable(key){
@@ -498,41 +503,34 @@ process.on('exit', function(){
     if(global.intervals) {
       global.intervals.stop();
     }
-
-    return process.exit();
+    return;
   }
 
   serverLog('exit event', process.exitCode);
-  stopCluster();
-  graceful_shutdown();
 });
 process.on('SIGINT', ()=>{
   serverLog('SIGINT event', process.exitCode);
-  stopCluster();
-  graceful_shutdown(1);
+  if(!stopCluster(1)) graceful_shutdown(1);
 });
 process.on('SIGTERM', ()=>{
   serverLog('SIGTERM event', process.exitCode);
-  stopCluster();
-  graceful_shutdown();
+  if(!stopCluster()) graceful_shutdown();
 });
 process.on('SIGUSR1', ()=>{
   serverLog('SIGTERM event', process.exitCode);
-  stopCluster();
-  graceful_shutdown();
+  if(!stopCluster()) graceful_shutdown();
 });
 process.on('SIGUSR2', ()=>{
   serverLog('SIGTERM event', process.exitCode);
-  stopCluster();
-  graceful_shutdown();
+  if(!stopCluster()) graceful_shutdown();
 });
 
 process.on('message', obj=> {
   if(obj === 'shutdown') {
     serverLog('process message shutdown');
-    stopCluster();
-    graceful_shutdown(1);
+    if(!stopCluster(1)) graceful_shutdown(1);
   }
+  if(!obj || typeof obj !== 'object') return;
   if(obj.type === 'startServerInWorker'){
     global.intervals.start();
     initLoggerUtils(obj.config);

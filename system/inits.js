@@ -32,7 +32,7 @@ function initI18n(config, log){
 
     for(const file of files){
       try{
-        if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
+        if(file.startsWith('.')){
           continue;
         }
 
@@ -75,14 +75,10 @@ function initModules(config, log){
     for(let file of pathModules){
       try{
         let isDir = false;
-        if(file.indexOf('.') == 1 || file.indexOf('..') == 1) continue;
+        if(file.startsWith('.')) continue;
 
         if(lstatSync(path + '/' + file).isDirectory()){
-          if(!existsSync(path + '/' + file + '/index.js')){
-            if(!statSync(path + '/' + file + '/index.js').isFile()){
-              continue;
-            }
-          }
+          if(!existsSync(path + '/' + file + '/index.js') || !statSync(path + '/' + file + '/index.js').isFile()) continue;
 
           isDir = true;
         }
@@ -130,7 +126,7 @@ function initModules(config, log){
               meta: curModule.__meta
             };
             if(aliasURL){
-              modules[aliasURL + '/*'] = modules[moduleName];
+              modules[aliasURL + '/*'] = modules[moduleName + '/*'];
             }
           }
         }
@@ -168,7 +164,7 @@ function initModules(config, log){
 
             let aliasURL = methodMeta.alias;
             if(aliasURL){
-              aliasURL = getUrlUtils(moduleName, aliasURL, curModule, methodInfo);
+              aliasURL = getUrlUtils(moduleName, aliasURL, curModule, {...methodInfo, path: undefined});
               if(modules[aliasURL]){
                 log.e('curModule', moduleName, 'Method', aliasURL, 'in file', file, 'IS DEFINED IN', modules[aliasURL].definedIn);
                 continue;
@@ -213,7 +209,7 @@ function initMiddlewares(config, log){
 
     for(const file of pathMiddleware){
       try{
-        if(file.indexOf('.') == 1 || file.indexOf('..') == 1){
+        if(file.startsWith('.')){
           continue;
         }
 
@@ -232,7 +228,7 @@ function initMiddlewares(config, log){
         };
 
         if(!middleware.triggers){
-          if(!middleware.run){
+          if(typeof middleware.run !== 'function'){
             log.e('middleware', file, 'have no property `triggers` and method `run`');
             continue;
           }
@@ -242,7 +238,7 @@ function initMiddlewares(config, log){
           };
         }
         else if(Array.isArray(middleware.triggers)){
-          if(!middleware.run){
+          if(typeof middleware.run !== 'function'){
             log.e('middleware', file, 'have no method `run`');
             continue;
           }
@@ -272,6 +268,11 @@ function initMiddlewares(config, log){
 
             middlewareObject.triggers[t] = middleware[middleware.triggers[t]];
           }
+        }
+
+        else{
+          log.e('middleware', file, 'triggers must be an array or an object');
+          continue;
         }
 
         middlewares.push(middlewareObject);

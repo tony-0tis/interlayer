@@ -26,10 +26,10 @@ describe('init', () => {
   //after(()=>{})
   //beforeEach(()=>{})
   //afterEach(()=>{})
-  describe.skip('exports', ()=>{
-    it('', ()=>{
-
-    });
+  it('exports server and module factories', () => {
+    chai.assert.isFunction(index);
+    chai.assert.isFunction(index.server);
+    chai.assert.isFunction(index.module);
   });
   describe('init server', ()=>{
     let srv;
@@ -203,6 +203,7 @@ describe('init', () => {
       __init: null
     };
     let func = ()=>{};
+    beforeEach(() => { mod = index.module(); });
 
 
     it('module', ()=>{
@@ -230,9 +231,11 @@ describe('init', () => {
 
     it('setInit', ()=>{
       chai.assert.deepInclude(mod.setInit(), {name: 'Error', message: 'setInit - first param must be a function'});
-      chai.assert.deepEqual(mod.setInit({test: true}), mod);
-      chai.assert.deepEqual(mod.__moduleInfo, Object.assign({}, obj, {__init: {test: true}}));
-      mod.setInit(null);
+      const init = () => {};
+      chai.assert.deepEqual(mod.setInit(init), mod);
+      chai.assert.deepEqual(mod.__moduleInfo, Object.assign({}, obj, {__init: init}));
+      chai.assert.deepInclude(mod.setInit(null), {name: 'Error', message: 'setInit - first param must be a function'});
+      chai.assert.strictEqual(mod.__moduleInfo.__init, init);
     });
 
     it('addMethod', ()=>{
